@@ -105,9 +105,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
   }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr} />`;
 }
 
-function buildFigmaSvg(capture: Capture): string {
-  const { width, height } = capture.frame;
-
+function buildFigmaLayers(capture: Capture): string {
   // Build tree to maintain group structure
   const childrenMap = new Map<string, Node[]>();
   const rootNodes: Node[] = [];
@@ -144,20 +142,58 @@ function buildFigmaSvg(capture: Capture): string {
     ].join('\n');
   }
 
-  const layers = rootNodes.map(renderTree).join('\n');
+  return rootNodes.map(renderTree).join('\n');
+}
 
+// Gap between pages/viewports when several captures share one paste.
+const CAPTURE_GAP = 120;
+
+function captureLabel(capture: Capture): string {
+  try {
+    const u = new URL(capture.url);
+    return `${u.pathname === '/' ? u.hostname : u.pathname} @ ${capture.frame.width}`;
+  } catch {
+    return `${capture.url} @ ${capture.frame.width}`;
+  }
+}
+
+function buildFigmaSvg(captures: Capture[]): string {
+  if (captures.length === 1) {
+    const { width, height } = captures[0].frame;
+    return [
+      `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
+      buildFigmaLayers(captures[0]),
+      '</svg>',
+    ].join('\n');
+  }
+
+  // Several captures: lay them out left to right, one named group each.
+  let x = 0;
+  const groups = captures.map((capture) => {
+    const group = [
+      `<g id="${escapeXml(captureLabel(capture))}" transform="translate(${x} 0)">`,
+      buildFigmaLayers(capture),
+      '</g>',
+    ].join('\n');
+    x += capture.frame.width + CAPTURE_GAP;
+    return group;
+  });
+  const width = x - CAPTURE_GAP;
+  const height = Math.max(...captures.map((c) => c.frame.height));
   return [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
-    layers,
+    ...groups,
     '</svg>',
   ].join('\n');
 }
 
 export function modelToFigma(
-  capture: Capture,
+  capture: Capture | Capture[],
   _opts?: FigmaExportOptions
 ): FigmaClipboardPayload {
-  const svg = buildFigmaSvg(capture);
+  const captures = Array.isArray(capture) ? capture : [capture];
+  if (captures.length === 0) throw new Error('Nothing to export');
+  const svg = buildFigmaSvg(captures);
 
   // HTML clipboard fragment that Figma's clipboard handler detects and ingests as vector layers
   const html = [
@@ -174,7 +210,7 @@ export function modelToFigma(
   };
 }
 
-export async function copyToFigmaClipboard(capture: Capture): Promise<void> {
+export async function copyToFigmaClipboard(capture: Capture | Capture[]): Promise<void> {
   const payload = modelToFigma(capture);
 
   if (

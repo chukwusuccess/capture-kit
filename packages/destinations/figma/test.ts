@@ -130,7 +130,18 @@ function runFigmaDestinationTests() {
     'Parent group element missing'
   );
 
-  console.log('packages/destinations/figma tests passed: 7/7 assertions verified');
+  // 8. Several captures share one paste, laid out left to right
+  const second: Capture = {
+    ...sampleCapture,
+    url: 'https://test.figma-destination.local/pricing',
+    frame: { ...sampleCapture.frame, width: 390, height: 900 },
+  };
+  const multi = modelToFigma([sampleCapture, second]).svg;
+  assert.ok(multi.startsWith('<svg width="1710" height="900"'), 'Combined frame size wrong');
+  assert.ok(multi.includes('transform="translate(1320 0)"'), 'Second capture not offset');
+  assert.ok(multi.includes('id="/pricing @ 390"'), 'Capture group not labelled');
+
+  console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }
 
 runFigmaDestinationTests();

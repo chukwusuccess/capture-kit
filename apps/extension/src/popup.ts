@@ -346,14 +346,11 @@ async function handleCaptures(captures: Capture[], mode: 'page' | 'site' | 'brea
     return;
   }
 
-  // Figma clipboard holds one payload; use the widest capture.
+  // Figma clipboard holds one payload: put every capture in it, side by side.
   if (getFormat() === 'figma' && captures.length > 1) {
-    await copyToFigmaClipboard(last);
-    const detail =
-      mode === 'site'
-        ? `last page (${last.url})`
-        : `${last.frame.width}px capture (clipboard holds one)`;
-    setStatus(`Copied ${detail}`, 'ok');
+    await copyToFigmaClipboard(captures);
+    const what = mode === 'site' ? `${captures.length} pages` : `${captures.length} viewports`;
+    setStatus(`Copied ${what} — press ⌘V in Figma`, 'ok');
     return;
   }
 
