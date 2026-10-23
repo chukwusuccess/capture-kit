@@ -113,6 +113,16 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
+  packages/destinations/react:
+    dependencies:
+      '@capture-kit/model':
+        specifier: workspace:*
+        version: link:../../model
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+
   packages/destinations/sketch:
     dependencies:
       '@capture-kit/model':

@@ -13,6 +13,7 @@
     "test:html": "tsx packages/destinations/html/test.ts",
     "test:diff": "tsx tools/diff/test.ts",
     "test:markdown": "tsx packages/destinations/markdown/test.ts",
+    "test:react": "tsx packages/destinations/react/test.ts",
     "test:extension": "tsx apps/extension/test.ts"
   },
   "devDependencies": {
