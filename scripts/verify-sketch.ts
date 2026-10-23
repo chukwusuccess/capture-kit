@@ -86,6 +86,41 @@ async function runSketchVerification(): Promise<void> {
         },
         assetRef: 'asset-img-1',
       },
+      {
+        id: 'node-card-group',
+        type: 'frame',
+        box: { x: 100, y: 500, w: 400, h: 200 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(240, 240, 240, 1)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 8, topRight: 8, bottomRight: 8, bottomLeft: 8 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'node-card-child-text',
+        parentId: 'node-card-group',
+        type: 'text',
+        box: { x: 120, y: 520, w: 300, h: 30 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: 'Child text inside group',
+          fontFamily: 'system-ui',
+          fontSize: 16,
+          fontWeight: 400,
+          lineHeight: 1.5,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgba(0, 0, 0, 1)',
+        },
+      },
     ],
     assets: {
       'asset-img-1': {
@@ -144,12 +179,12 @@ async function runSketchVerification(): Promise<void> {
 
   // 4. Assert layer boxes match capture coordinates
   const childLayers = artboard.layers ?? [];
-  assert.strictEqual(childLayers.length, sampleCapture.nodes.length, 'Layer count mismatch');
+  const rootNodes = sampleCapture.nodes.filter((n) => !n.parentId);
+  assert.strictEqual(childLayers.length, rootNodes.length, 'Top-level root layer count mismatch');
 
-  for (const node of sampleCapture.nodes) {
+  for (const node of rootNodes) {
     const layer = childLayers.find((l) => l.do_objectID === node.id);
     assert.ok(layer, `Could not find layer for node ID: ${node.id}`);
-
     assert.strictEqual(
       layer.frame.x,
       node.box.x,
@@ -201,6 +236,17 @@ async function runSketchVerification(): Promise<void> {
       assert.strictEqual(bitmapLayer.image?._ref, 'images/asset-img-1.png');
     }
   }
+  // Assert hierarchical group structure and relative coordinates
+  const groupLayer = childLayers.find((l) => l.do_objectID === 'node-card-group');
+  assert.ok(groupLayer, 'Group layer node-card-group not found');
+  assert.strictEqual(groupLayer._class, 'group', 'Expected group class for container with children');
+  const groupChildren = groupLayer.layers ?? [];
+  const nestedText = groupChildren.find((l) => l.do_objectID === 'node-card-child-text');
+  assert.ok(nestedText, 'Nested child text layer not found inside group');
+  assert.strictEqual(nestedText.frame.x, 20, 'Relative x coordinate mismatch (expected 120 - 100 = 20)');
+  assert.strictEqual(nestedText.frame.y, 20, 'Relative y coordinate mismatch (expected 520 - 500 = 20)');
+  assert.strictEqual(nestedText.frame.width, 300);
+  assert.strictEqual(nestedText.frame.height, 30);
 
   console.log('Programmatic .sketch verification passed: all 4 required files exist and artboard/layer boxes match');
 }

@@ -5,14 +5,12 @@
  * - Solid fills and background colors.
  * - Embedded image assets and native bitmap layers (_class: "bitmap").
  * - Pattern image fills on shape layers.
+ * - Multiple stacked fills.
+ * - Hierarchical group layers (_class: "group") reconstructed from parentId with relative frames.
  * - Stroke conversion: border width, stroke color, border styles (solid, dashed, dotted).
  * - Outer and inner box shadows (blur, offset, spread, color).
  * - Text layers with attributedString, color, and font metrics.
  * - Corner radii on rectangle layers.
- *
- * In-progress / Planned:
- * - Multiple stacked fills.
- * - Hierarchical group layers from parentId.
  */
 
 import JSZip from 'jszip';
@@ -243,13 +241,15 @@ function convertFills(
 
 function convertNodeToSketchLayer(
   node: Node,
-  assets: Capture['assets']
+  assets: Capture['assets'],
+  offsetX = 0,
+  offsetY = 0
 ): Record<string, unknown> {
   const commonFrame = {
     _class: 'rect',
     constrainProportions: false,
-    x: node.box.x,
-    y: node.box.y,
+    x: node.box.x - offsetX,
+    y: node.box.y - offsetY,
     width: node.box.w,
     height: node.box.h,
   };
@@ -489,6 +489,110 @@ function convertNodeToSketchLayer(
     needsConvertionToNewRoundCorners: false,
   };
 }
+function buildSketchLayerTree(
+  nodes: Node[],
+  assets: Capture['assets']
+): Array<Record<string, unknown>> {
+  const nodeMap = new Map<string, Node>();
+  const childrenMap = new Map<string, Node[]>();
+  const rootNodes: Node[] = [];
+
+  for (const node of nodes) {
+    nodeMap.set(node.id, node);
+  }
+
+  for (const node of nodes) {
+    if (node.parentId && nodeMap.has(node.parentId)) {
+      const list = childrenMap.get(node.parentId) ?? [];
+      list.push(node);
+      childrenMap.set(node.parentId, list);
+    } else {
+      rootNodes.push(node);
+    }
+  }
+
+  function processNode(
+    node: Node,
+    parentOffsetX: number,
+    parentOffsetY: number
+  ): Record<string, unknown> {
+    const children = childrenMap.get(node.id);
+
+    // Leaf node: render standard Sketch layer
+    if (!children || children.length === 0) {
+      return convertNodeToSketchLayer(node, assets, parentOffsetX, parentOffsetY);
+    }
+
+    // Node with children: emit Sketch group layer
+    const groupFrame = {
+      _class: 'rect',
+      constrainProportions: false,
+      x: node.box.x - parentOffsetX,
+      y: node.box.y - parentOffsetY,
+      width: node.box.w,
+      height: node.box.h,
+    };
+
+    const groupLayers: Array<Record<string, unknown>> = [];
+
+    // If container node has styling, render background rectangle inside the group
+    const hasVisuals =
+      (node.style.fills && node.style.fills.length > 0) ||
+      (node.style.strokes && node.style.strokes.length > 0) ||
+      (node.style.shadows && node.style.shadows.length > 0) ||
+      (node.style.radius && node.style.radius.topLeft > 0);
+
+    if (hasVisuals) {
+      const bgRectNode: Node = {
+        ...node,
+        id: `${node.id}-bg`,
+        box: { x: node.box.x, y: node.box.y, w: node.box.w, h: node.box.h },
+      };
+      groupLayers.push(
+        convertNodeToSketchLayer(bgRectNode, assets, node.box.x, node.box.y)
+      );
+    }
+
+    // Process children relative to container origin
+    for (const child of children) {
+      groupLayers.push(processNode(child, node.box.x, node.box.y));
+    }
+
+    return {
+      _class: 'group',
+      do_objectID: node.id,
+      booleanOperation: -1,
+      isFixedToViewport: false,
+      isFlippedHorizontal: false,
+      isFlippedVertical: false,
+      isLocked: false,
+      isVisible: true,
+      layerListExpandedType: 0,
+      name: `Group ${node.id}`,
+      nameIsFixed: false,
+      resizingConstraint: 63,
+      resizingType: 0,
+      rotation: 0,
+      shouldBreakMaskChain: false,
+      hasClippingMask: false,
+      clippingMaskMode: 0,
+      isTemplate: false,
+      frame: groupFrame,
+      style: {
+        _class: 'style',
+        endMarkerType: 0,
+        miterLimit: 10,
+        startMarkerType: 0,
+        windingRule: 1,
+      },
+      hasClickThrough: false,
+      layers: groupLayers,
+    };
+  }
+
+  return rootNodes.map((root) => processNode(root, 0, 0));
+}
+
 
 export async function modelToSketch(capture: Capture): Promise<Blob> {
   const zip = new JSZip();
@@ -584,10 +688,8 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
     ],
   };
 
-  // Build artboard and layers
-  const artboardLayers = capture.nodes.map((node) =>
-    convertNodeToSketchLayer(node, capture.assets)
-  );
+  // Build artboard and layers hierarchically
+  const artboardLayers = buildSketchLayerTree(capture.nodes, capture.assets);
 
   const pageJson = {
     _class: 'page',
