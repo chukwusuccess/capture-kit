@@ -318,6 +318,72 @@ function collapseBigGroups(): void {
   }
 }
 
+async function extractOnPageLinks(tabId: number): Promise<string[]> {
+  if (!chrome.scripting?.executeScript || !tabId) return [];
+  try {
+    const [res] = await chrome.scripting.executeScript<string[]>({
+      target: { tabId },
+      func: () => {
+        const origin = location.origin;
+        const out = new Set<string>();
+
+        const normalize = (raw: string | null | undefined): string | null => {
+          if (!raw) return null;
+          const trimmed = raw.trim();
+          if (
+            trimmed.startsWith('#') ||
+            trimmed.startsWith('javascript:') ||
+            trimmed.startsWith('mailto:') ||
+            trimmed.startsWith('tel:') ||
+            trimmed.startsWith('data:')
+          ) {
+            return null;
+          }
+          try {
+            const u = new URL(trimmed, location.href);
+            if (u.origin !== origin) return null;
+            u.hash = '';
+            const path = u.pathname.replace(/\/+$/, '') || '/';
+            const norm = u.origin + path + (u.search || '');
+            if (
+              /\.(xml|pdf|jpe?g|png|gif|webp|svg|zip|mp4|mp3|gz|tar|woff2?|ttf|css|js|json)$/i.test(
+                norm
+              )
+            ) {
+              return null;
+            }
+            return norm;
+          } catch {
+            return null;
+          }
+        };
+
+        for (const a of document.querySelectorAll('a[href], area[href]')) {
+          const href = a.getAttribute('href') || (a as HTMLAnchorElement).href;
+          const url = normalize(href);
+          if (url) out.add(url);
+        }
+
+        for (const link of document.querySelectorAll(
+          'link[rel="canonical"], link[rel="alternate"]'
+        )) {
+          const href = link.getAttribute('href');
+          const url = normalize(href);
+          if (url) out.add(url);
+        }
+
+        const current = normalize(location.href);
+        if (current) out.add(current);
+
+        return [...out];
+      },
+    });
+    return res?.result ?? [];
+  } catch {
+    return [];
+  }
+}
+
 // ---- discovery: cached list first, then a fresh scan ----
 
 async function discoverSite(): Promise<void> {
@@ -335,6 +401,21 @@ async function discoverSite(): Promise<void> {
     renderPages();
   }
 
+  // 1. Immediately extract on-page links directly from active tab DOM
+  if (currentTabId) {
+    const immediateLinks = await extractOnPageLinks(currentTabId);
+    if (immediateLinks.length > 0) {
+      siteUrls = withCurrent(immediateLinks);
+      await restoreSelection();
+      collapseBigGroups();
+      if (siteLine && siteOrigin) {
+        siteLine.textContent = `${plural(siteUrls.length, 'page')} on ${new URL(siteOrigin).hostname}`;
+      }
+      renderPages();
+    }
+  }
+
+  // 2. Query background service worker for sitemap entries
   try {
     const response = (await chrome.runtime.sendMessage({
       action: 'discover-site',
@@ -342,20 +423,16 @@ async function discoverSite(): Promise<void> {
       origin: siteOrigin,
       url: currentUrl,
     })) as CaptureMessageResponse | undefined;
-    if (response?.success) {
-      const fresh = response.urls ?? [];
-      chrome.storage?.local?.set({ [cacheKey]: fresh });
-      const hadList = siteUrls.length > 0;
-      siteUrls = withCurrent(fresh);
-      if (!hadList) {
-        await restoreSelection();
-        collapseBigGroups();
-      }
-    } else if (siteUrls.length === 0) {
-      setStatus(response?.error ?? 'Could not scan this site', 'error');
+
+    if (response?.success && response.urls && response.urls.length > 0) {
+      const merged = [...new Set([...siteUrls, ...response.urls])];
+      chrome.storage?.local?.set({ [cacheKey]: merged });
+      siteUrls = withCurrent(merged);
+      await restoreSelection();
+      collapseBigGroups();
     }
-  } catch (err: unknown) {
-    if (siteUrls.length === 0) setStatus(err instanceof Error ? err.message : String(err), 'error');
+  } catch {
+    // Background fallback
   }
   if (siteUrls.length === 0) siteUrls = withCurrent([]);
   if (selected.size === 0 && siteUrls.length > 0) await restoreSelection();

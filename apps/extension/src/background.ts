@@ -144,107 +144,28 @@ async function discoverSiteUrls(
     allUrls.add(cleanCurrent);
   }
 
-  // Sitemap probe with 2.5s timeout (Service-Worker safe regex parser)
+  // Fast sitemap probe with 1.2s timeout
   try {
-    const sitemapPaths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap/sitemap.xml'];
+    const sitemapPaths = ['/sitemap.xml', '/sitemap_index.xml'];
     await Promise.all(
       sitemapPaths.map(async (path) => {
         try {
           const res = await fetch(`${origin}${path}`, {
             credentials: 'include',
-            signal: AbortSignal.timeout(2500),
+            signal: AbortSignal.timeout(1200),
           });
           if (!res.ok) return;
           const text = await res.text();
           if (!text.includes('<loc')) return;
 
           const locs = extractSitemapLocs(text);
-          const isIndex = text.includes('<sitemapindex');
-          const childSitemaps = isIndex ? locs.slice(0, 5) : [];
-
-          if (childSitemaps.length > 0) {
-            await Promise.all(
-              childSitemaps.map(async (childUrl) => {
-                try {
-                  const childRes = await fetch(childUrl, {
-                    credentials: 'include',
-                    signal: AbortSignal.timeout(2000),
-                  });
-                  if (!childRes.ok) return;
-                  const childText = await childRes.text();
-                  const childLocs = extractSitemapLocs(childText);
-                  for (const locUrl of childLocs) {
-                    if (locUrl.startsWith(origin)) {
-                      const clean =
-                        locUrl.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
-                      if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
-                        allUrls.add(clean);
-                      }
-                    }
-                  }
-                } catch {
-                  // ignore child sitemap error
-                }
-              })
-            );
-          } else {
-            for (const locUrl of locs) {
-              if (locUrl.startsWith(origin)) {
-                const clean =
-                  locUrl.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
-                if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
-                  allUrls.add(clean);
-                }
+          for (const locUrl of locs) {
+            if (locUrl.startsWith(origin)) {
+              const clean =
+                locUrl.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
+              if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
+                allUrls.add(clean);
               }
-            }
-          }
-        } catch {
-          // ignore sitemap path error
-        }
-      })
-    );
-  } catch {
-    // sitemap probe catch
-  }
-  // Shallow background crawl of top-level section pages if link count is low
-  if (allUrls.size < 25) {
-    const seeds = [...allUrls]
-      .filter((u) => u !== origin && u !== `${origin}/`)
-      .slice(0, 8);
-
-    await Promise.all(
-      seeds.map(async (pageUrl) => {
-        try {
-          const res = await fetch(pageUrl, { signal: AbortSignal.timeout(2000) });
-          if (!res.ok) return;
-          const html = await res.text();
-          const matches = html.matchAll(/href=["']([^"'#\s>]+)["']/gi);
-          for (const m of matches) {
-            const raw = m[1]?.trim();
-            if (
-              !raw ||
-              raw.startsWith('javascript:') ||
-              raw.startsWith('mailto:') ||
-              raw.startsWith('tel:')
-            ) {
-              continue;
-            }
-            try {
-              const u = new URL(raw, pageUrl);
-              if (u.origin === origin) {
-                u.hash = '';
-                const path = u.pathname.replace(/\/+$/, '') || '/';
-                const norm = u.origin + path + (u.search || '');
-                if (
-                  !/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip|mp4|mp3|gz|tar|woff2?|ttf|css|js|json)$/i.test(
-                    norm
-                  )
-                ) {
-                  allUrls.add(norm);
-                }
-              }
-            } catch {
-              // ignore
             }
           }
         } catch {
@@ -252,8 +173,9 @@ async function discoverSiteUrls(
         }
       })
     );
+  } catch {
+    // ignore
   }
-
   return [...allUrls].sort((a, b) => a.localeCompare(b));
 }
 
