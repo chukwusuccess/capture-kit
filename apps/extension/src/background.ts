@@ -22,8 +22,8 @@ async function getActiveTabId(): Promise<number> {
   return tab.id;
 }
 
-// ponytail: hard cap — add a page-limit input only if users actually hit 20
-const MAX_SITE_PAGES = 20;
+// ponytail: hard cap — the popup must stay open for the whole crawl
+const MAX_SITE_PAGES = 50;
 
 function reportProgress(done: number, total: number, url: string): void {
   void chrome.runtime.sendMessage({ type: 'progress', done, total, url }).catch(() => {
@@ -106,11 +106,26 @@ function waitForTabComplete(tabId: number): Promise<void> {
   });
 }
 
-async function handleSiteCapture(scrollStitch: boolean): Promise<Capture[]> {
+// Keep only http(s) URLs on the active tab's origin — the popup sends these.
+function sameOriginUrls(raw: unknown, origin: string): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((u): u is string => {
+    try {
+      return typeof u === 'string' && new URL(u).origin === origin;
+    } catch {
+      return false;
+    }
+  });
+}
+
+async function handleSiteCapture(scrollStitch: boolean, picked: unknown): Promise<Capture[]> {
   const tabId = await getActiveTabId();
-  const urls = (await discoverSiteUrls(tabId)).slice(0, MAX_SITE_PAGES);
+  const tab = await chrome.tabs.get(tabId);
+  const origin = tab.url ? new URL(tab.url).origin : '';
+  const chosen = picked === undefined ? await discoverSiteUrls(tabId) : sameOriginUrls(picked, origin);
+  const urls = chosen.slice(0, MAX_SITE_PAGES);
   if (urls.length === 0) {
-    throw new Error('No pages found — no sitemap and no internal links');
+    throw new Error(picked === undefined ? 'No pages found — no sitemap and no internal links' : 'No pages selected');
   }
 
   const captures: Capture[] = [];
@@ -311,7 +326,8 @@ chrome.runtime.onMessage.addListener(
 
       if (action === 'capture-site') {
         const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
-        handleSiteCapture(scrollStitch).then(
+        const urls = 'urls' in message ? message.urls : undefined;
+        handleSiteCapture(scrollStitch, urls).then(
           (captures) => sendResponse({ success: true, captures }),
           fail
         );

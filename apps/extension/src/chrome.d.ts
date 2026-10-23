@@ -16,7 +16,7 @@ declare const chrome: {
       active: boolean;
       currentWindow: boolean;
     }): Promise<Array<{ id?: number; windowId?: number; width?: number; url?: string }>>;
-    get(tabId: number): Promise<{ id?: number; windowId?: number }>;
+    get(tabId: number): Promise<{ id?: number; windowId?: number; url?: string }>;
     create(createProperties: { url: string; active?: boolean }): Promise<{ id?: number }>;
     remove(tabId: number): Promise<void>;
     onUpdated: {
