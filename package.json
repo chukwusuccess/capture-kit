@@ -1,0 +1,18 @@
+{
+  "name": "capture-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "tsx packages/model/test.ts",
+    "test:sketch": "tsx scripts/verify-sketch.ts"
+  },
+  "devDependencies": {
+    "jszip": "^3.10.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0",
+    "zod": "^3.24.2"
+  }
+}

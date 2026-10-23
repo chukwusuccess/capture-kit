@@ -1,0 +1,19 @@
+{
+  "name": "@capture-kit/playground",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@capture-kit/destination-sketch": "workspace:*",
+    "@capture-kit/destination-svg": "workspace:*",
+    "@capture-kit/model": "workspace:*",
+    "@capture-kit/serializer": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  }
+}

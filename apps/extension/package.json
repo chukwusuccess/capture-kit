@@ -1,0 +1,16 @@
+{
+  "name": "@capture-kit/extension",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@capture-kit/model": "workspace:*",
+    "@capture-kit/serializer": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  }
+}

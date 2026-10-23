@@ -1,0 +1,128 @@
+import { z } from 'zod';
+
+export const BoxSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number().gte(0, 'Width must be non-negative'),
+  h: z.number().gte(0, 'Height must be non-negative'),
+});
+
+export const FillSchema = z.object({
+  type: z.enum(['solid', 'image']).default('solid'),
+  color: z.string().optional(),
+  assetRef: z.string().optional(),
+  opacity: z.number().min(0).max(1).optional(),
+});
+
+export const StrokeSchema = z.object({
+  color: z.string(),
+  width: z.number().gte(0),
+  style: z.enum(['solid', 'dashed', 'dotted']).optional(),
+});
+
+export const CornerRadiusSchema = z.object({
+  topLeft: z.number().gte(0),
+  topRight: z.number().gte(0),
+  bottomRight: z.number().gte(0),
+  bottomLeft: z.number().gte(0),
+});
+
+export const ShadowSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  blur: z.number().gte(0),
+  spread: z.number().optional(),
+  color: z.string(),
+  inset: z.boolean().optional(),
+});
+
+export const StyleSchema = z.object({
+  fills: z.array(FillSchema).default([]),
+  strokes: z.array(StrokeSchema).default([]),
+  opacity: z.number().min(0).max(1).default(1),
+  radius: CornerRadiusSchema.default({
+    topLeft: 0,
+    topRight: 0,
+    bottomRight: 0,
+    bottomLeft: 0,
+  }),
+  shadows: z.array(ShadowSchema).default([]),
+});
+
+export const TextPropsSchema = z.object({
+  content: z.string(),
+  fontFamily: z.string(),
+  fontSize: z.number().gte(0),
+  fontWeight: z.union([z.string(), z.number()]),
+  lineHeight: z.union([z.string(), z.number()]),
+  letterSpacing: z.union([z.string(), z.number()]),
+  align: z.enum(['left', 'center', 'right', 'justify']),
+  color: z.string(),
+});
+
+export const AssetSchema = z.object({
+  kind: z.enum(['image', 'font']),
+  mimeType: z.string(),
+  base64: z.string(),
+});
+
+export const FontSchema = z.object({
+  family: z.string(),
+  weight: z.union([z.string(), z.number()]).optional(),
+  style: z.string().optional(),
+});
+
+export const FrameSchema = z.object({
+  width: z.number().gte(0),
+  height: z.number().gte(0),
+  baseURI: z.string(),
+});
+
+export const NodeSchema = z.object({
+  id: z.string(),
+  parentId: z.string().optional(),
+  type: z.enum(['frame', 'text', 'rect', 'image']),
+  box: BoxSchema,
+  style: StyleSchema,
+  text: TextPropsSchema.optional(),
+  assetRef: z.string().optional(),
+});
+
+export const CaptureSchema = z.object({
+  url: z.string(),
+  version: z.string(),
+  frame: FrameSchema,
+  nodes: z.array(NodeSchema),
+  assets: z.record(z.string(), AssetSchema),
+  fonts: z.array(FontSchema),
+  alternatives: z.array(FrameSchema).optional(),
+});
+
+export type Box = z.infer<typeof BoxSchema>;
+export type Fill = z.infer<typeof FillSchema>;
+export type Stroke = z.infer<typeof StrokeSchema>;
+export type CornerRadius = z.infer<typeof CornerRadiusSchema>;
+export type Shadow = z.infer<typeof ShadowSchema>;
+export type Style = z.infer<typeof StyleSchema>;
+export type TextProps = z.infer<typeof TextPropsSchema>;
+export type Asset = z.infer<typeof AssetSchema>;
+export type Font = z.infer<typeof FontSchema>;
+export type Frame = z.infer<typeof FrameSchema>;
+export type Node = z.infer<typeof NodeSchema>;
+export type Capture = z.infer<typeof CaptureSchema>;
+
+export function emptyCapture(opts: Partial<Capture> = {}): Capture {
+  return {
+    url: opts.url ?? 'about:blank',
+    version: opts.version ?? '0.1.0',
+    frame: opts.frame ?? {
+      width: 1200,
+      height: 800,
+      baseURI: 'about:blank',
+    },
+    nodes: opts.nodes ?? [],
+    assets: opts.assets ?? {},
+    fonts: opts.fonts ?? [],
+    ...(opts.alternatives ? { alternatives: opts.alternatives } : {}),
+  };
+}
