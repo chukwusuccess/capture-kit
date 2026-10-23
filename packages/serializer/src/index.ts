@@ -472,7 +472,9 @@ async function serializeSubtree(
   let nextAssetId = 1;
 
   const elementToIdMap = new Map<Element, string>();
-
+  const urlToAssetKeyCache = new Map<string, string>();
+  const pendingAssetFetches: Array<{ url: string; assetKey: string }> = [];
+  const hiddenAncestors = new Set<Element>();
   // TODO(phase-4): Support auto-scroll and full-page stitching
   // TODO(phase-4): Support iframes traversal
   // TODO(phase-4): Support ::before and ::after pseudo-elements
@@ -495,8 +497,14 @@ async function serializeSubtree(
   }
 
   for (const el of elements) {
+    if (el.parentElement && hiddenAncestors.has(el.parentElement)) {
+      hiddenAncestors.add(el);
+      continue;
+    }
+
     const computed = defaultView.getComputedStyle(el);
     if (!computed || computed.display === 'none' || computed.visibility === 'hidden') {
+      hiddenAncestors.add(el);
       continue;
     }
 
@@ -557,22 +565,14 @@ async function serializeSubtree(
           const resolvedUrl = new URL(bgImageUrl, baseURI);
           const isSameOrigin = resolvedUrl.origin === defaultView.location?.origin;
           if (isSameOrigin || resolvedUrl.protocol === 'blob:') {
-            const res = await fetch(resolvedUrl.href);
-            if (res.ok) {
-              const blob = await res.blob();
-              const buffer = await blob.arrayBuffer();
-              const base64 = await arrayBufferToBase64(buffer);
+            const cachedKey = urlToAssetKeyCache.get(resolvedUrl.href);
+            if (cachedKey) {
+              fills.push({ type: 'image', assetRef: cachedKey, opacity: 1 });
+            } else {
               const assetKey = `asset-${nextAssetId++}`;
-              assets[assetKey] = {
-                kind: 'image',
-                mimeType: blob.type || 'image/png',
-                base64,
-              };
-              fills.push({
-                type: 'image',
-                assetRef: assetKey,
-                opacity: 1,
-              });
+              urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
+              pendingAssetFetches.push({ url: resolvedUrl.href, assetKey });
+              fills.push({ type: 'image', assetRef: assetKey, opacity: 1 });
             }
           }
         } catch {
@@ -660,17 +660,13 @@ async function serializeSubtree(
             const isSameOrigin =
               resolvedUrl.origin === defaultView.location?.origin;
             if (isSameOrigin || resolvedUrl.protocol === 'blob:') {
-              const res = await fetch(resolvedUrl.href);
-              if (res.ok) {
-                const blob = await res.blob();
-                const buffer = await blob.arrayBuffer();
-                const base64 = await arrayBufferToBase64(buffer);
+              const cachedKey = urlToAssetKeyCache.get(resolvedUrl.href);
+              if (cachedKey) {
+                assetRef = cachedKey;
+              } else {
                 const assetKey = `asset-${nextAssetId++}`;
-                assets[assetKey] = {
-                  kind: 'image',
-                  mimeType: blob.type || 'image/png',
-                  base64,
-                };
+                urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
+                pendingAssetFetches.push({ url: resolvedUrl.href, assetKey });
                 assetRef = assetKey;
               }
             }
@@ -875,7 +871,8 @@ async function serializeSubtree(
       let textW = w;
       let textH = h;
 
-      if (typeof doc.createRange === 'function') {
+      const isSingleTextLeaf = childTextNodes.length === 1 && !hasChildren;
+      if (!isSingleTextLeaf && typeof doc.createRange === 'function') {
         try {
           const range = doc.createRange();
           range.selectNodeContents(textNode);
@@ -943,6 +940,28 @@ async function serializeSubtree(
     if (afterNode) {
       nodes.push(afterNode);
     }
+  }
+  // Concurrent parallel asset resolution
+  if (pendingAssetFetches.length > 0) {
+    await Promise.all(
+      pendingAssetFetches.map(async ({ url, assetKey }) => {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
+          if (res.ok) {
+            const blob = await res.blob();
+            const buffer = await blob.arrayBuffer();
+            const base64 = await arrayBufferToBase64(buffer);
+            assets[assetKey] = {
+              kind: 'image',
+              mimeType: blob.type || 'image/png',
+              base64,
+            };
+          }
+        } catch {
+          // fetch failure ignored
+        }
+      })
+    );
   }
 
   capture.nodes = nodes;
