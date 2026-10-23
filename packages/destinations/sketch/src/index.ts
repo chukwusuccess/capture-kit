@@ -633,10 +633,21 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
   const pageId = 'page-1';
   const artboardId = 'artboard-1';
 
-  // Embed assets into images/ folder
+  // Embed assets into images/ and fonts/ folder
   for (const [key, asset] of Object.entries(capture.assets)) {
     if (asset.base64) {
-      zip.file(`images/${key}.png`, asset.base64, { base64: true });
+      if (asset.kind === 'font') {
+        const ext = asset.mimeType.includes('woff2')
+          ? 'woff2'
+          : asset.mimeType.includes('woff')
+          ? 'woff'
+          : asset.mimeType.includes('truetype') || asset.mimeType.includes('ttf')
+          ? 'ttf'
+          : 'otf';
+        zip.file(`fonts/${key}.${ext}`, asset.base64, { base64: true });
+      } else {
+        zip.file(`images/${key}.png`, asset.base64, { base64: true });
+      }
     }
   }
 

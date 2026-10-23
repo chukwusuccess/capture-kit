@@ -174,6 +174,25 @@ function buildFigmaDefs(captures: Capture[]): string {
       }
     }
   }
+  const fontFaces: string[] = [];
+  for (const capture of captures) {
+    for (const [key, asset] of Object.entries(capture.assets)) {
+      if (asset.kind === 'font') {
+        const matchingFont =
+          capture.fonts.find((f) => asset.mimeType.includes(f.family.toLowerCase())) ||
+          capture.fonts[0];
+        const familyName = matchingFont?.family || key;
+        fontFaces.push(`    @font-face {
+      font-family: '${escapeXml(familyName)}';
+      src: url('data:${asset.mimeType};base64,${asset.base64}');
+    }`);
+      }
+    }
+  }
+  if (fontFaces.length > 0) {
+    defs.push(`    <style>\n${fontFaces.join('\n')}\n    </style>`);
+  }
+
 
   if (defs.length === 0) return '';
   return `  <defs>\n${defs.join('\n')}\n  </defs>\n`;

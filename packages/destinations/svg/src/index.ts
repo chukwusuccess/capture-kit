@@ -53,11 +53,66 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   }
 
   // Frame or rect
+  const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+  if (gradFill) {
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr} />`;
+  }
+
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
 
   return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr} />`;
 }
+function buildSvgDefs(capture: Capture): string {
+  const defs: string[] = [];
+
+  for (const node of capture.nodes) {
+    const gradFill = node.style.fills.find(
+      (f) => f.type === 'gradient' && f.stops && f.stops.length > 0
+    );
+    if (gradFill && gradFill.stops) {
+      const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const x1 = `${Math.round((0.5 - cos * 0.5) * 100)}%`;
+      const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
+      const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
+      const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
+
+      const stops = gradFill.stops
+        .map(
+          (s) =>
+            `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`
+        )
+        .join('\n');
+
+      defs.push(
+        `    <linearGradient id="grad-${escapeXml(node.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`
+      );
+    }
+  }
+
+  const fontFaces: string[] = [];
+  for (const [key, asset] of Object.entries(capture.assets)) {
+    if (asset.kind === 'font') {
+      const matchingFont =
+        capture.fonts.find((f) => asset.mimeType.includes(f.family.toLowerCase())) ||
+        capture.fonts[0];
+      const familyName = matchingFont?.family || key;
+      fontFaces.push(`    @font-face {
+      font-family: '${escapeXml(familyName)}';
+      src: url('data:${asset.mimeType};base64,${asset.base64}');
+    }`);
+    }
+  }
+  if (fontFaces.length > 0) {
+    defs.push(`    <style>\n${fontFaces.join('\n')}\n    </style>`);
+  }
+
+  if (defs.length === 0) return '';
+  return `  <defs>\n${defs.join('\n')}\n  </defs>`;
+}
+
 
 export function modelToSvg(capture: Capture): string {
   const { width, height } = capture.frame;
@@ -69,7 +124,7 @@ export function modelToSvg(capture: Capture): string {
 
   return [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`,
+    buildSvgDefs(capture),
     elements,
-    '</svg>',
   ].join('\n');
 }
