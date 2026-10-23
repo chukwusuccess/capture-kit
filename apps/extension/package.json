@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && vite build"
+    "build": "tsc --noEmit && vite build && vite build --config vite.content.config.ts"
   },
   "dependencies": {
     "@capture-kit/destination-figma": "workspace:*",
