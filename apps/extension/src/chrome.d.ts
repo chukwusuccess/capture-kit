@@ -12,7 +12,37 @@ declare const chrome: {
     };
   };
   tabs: {
-    query(queryInfo: { active: boolean; currentWindow: boolean }): Promise<Array<{ id?: number }>>;
+    query(queryInfo: {
+      active: boolean;
+      currentWindow: boolean;
+    }): Promise<Array<{ id?: number; windowId?: number; width?: number; url?: string }>>;
+    get(tabId: number): Promise<{ id?: number; windowId?: number }>;
+    create(createProperties: { url: string; active?: boolean }): Promise<{ id?: number }>;
+    remove(tabId: number): Promise<void>;
+    onUpdated: {
+      addListener(
+        callback: (tabId: number, changeInfo: { status?: string }) => void
+      ): void;
+      removeListener(
+        callback: (tabId: number, changeInfo: { status?: string }) => void
+      ): void;
+    };
+  };
+  windows: {
+    get(windowId: number): Promise<{
+      id?: number;
+      width?: number;
+      height?: number;
+      state?: 'normal' | 'minimized' | 'maximized' | 'fullscreen' | 'anchored';
+    }>;
+    update(
+      windowId: number,
+      update: {
+        width?: number;
+        height?: number;
+        state?: 'normal' | 'minimized' | 'maximized' | 'fullscreen' | 'anchored';
+      }
+    ): Promise<unknown>;
   };
   scripting: {
     executeScript<T = unknown>(injection: {
