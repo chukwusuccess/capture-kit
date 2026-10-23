@@ -9,10 +9,56 @@ import {
   emptyCapture,
 } from '@capture-kit/model';
 
-export interface SerializeOptions {
-  baseURI?: string;
+export interface ScrollStitchOptions {
+  step?: number;
+  delayMs?: number;
 }
 
+export interface SerializeOptions {
+  baseURI?: string;
+  scrollStitch?: boolean;
+  scrollOptions?: ScrollStitchOptions;
+}
+
+function delay(ms: number): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve, ms);
+  return promise;
+}
+
+export async function triggerPageScroll(
+  win: Window & typeof globalThis,
+  opts?: ScrollStitchOptions
+): Promise<void> {
+  if (typeof win.scrollTo !== 'function') return;
+  const step = opts?.step ?? Math.max(300, Math.round((win.innerHeight || 800) * 0.8));
+  const delayMs = opts?.delayMs ?? 50;
+
+  const doc = win.document;
+  const docEl = doc?.documentElement;
+  const body = doc?.body;
+
+  const totalHeight = Math.max(
+    docEl?.scrollHeight ?? 0,
+    docEl?.clientHeight ?? 0,
+    body?.scrollHeight ?? 0,
+    win.innerHeight ?? 800
+  );
+
+  let currentY = 0;
+  while (currentY < totalHeight) {
+    currentY += step;
+    win.scrollTo(0, currentY);
+    if (delayMs > 0) {
+      await delay(delayMs);
+    }
+  }
+
+  win.scrollTo(0, 0);
+  if (delayMs > 0) {
+    await delay(delayMs);
+  }
+}
 export interface ElementPickerOptions {
   onSelect: (el: Element) => void;
   onCancel?: () => void;
@@ -729,6 +775,11 @@ export async function serializeDocument(
   opts?: SerializeOptions
 ): Promise<Capture> {
   const defaultView = doc.defaultView ?? window;
+
+  if (opts?.scrollStitch && defaultView) {
+    await triggerPageScroll(defaultView, opts.scrollOptions);
+  }
+
   const docEl = doc.documentElement;
   const body = doc.body;
 

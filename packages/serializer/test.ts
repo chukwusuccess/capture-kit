@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { serializeDocument, serializeElement, startElementPicker } from './src/index.js';
+import { serializeDocument, serializeElement, startElementPicker, triggerPageScroll } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -158,6 +158,7 @@ function createMockDocument() {
 
   const styleMap = new Map<MockElement, MockComputedStyle>();
 
+  const scrolledPositions: number[] = [];
   const listeners = new Map<string, Array<EventListener>>();
   const doc = {
     documentElement: html,
@@ -185,6 +186,9 @@ function createMockDocument() {
       scrollY: 0,
       innerWidth: 1200,
       innerHeight: 800,
+      scrollTo: (_x: number, y: number) => {
+        scrolledPositions.push(y);
+      },
       getComputedStyle: (el: MockElement, pseudo?: string): MockComputedStyle => {
         if (pseudo && el.pseudoOverrides?.[pseudo]) {
           return { ...defaultStyle, ...el.pseudoOverrides[pseudo] };
@@ -229,11 +233,11 @@ function createMockDocument() {
   };
   html.ownerDocument = doc as unknown as Document;
   body.ownerDocument = doc as unknown as Document;
-  return { doc, body, styleMap };
+  return { doc, body, styleMap, scrolledPositions };
 }
 
 async function runSerializerAccuracyTests() {
-  const { doc, body } = createMockDocument();
+  const { doc, body, scrolledPositions } = createMockDocument();
 
   // 1. Container with background + text
   const card = new MockElement('div', { left: 20, top: 20, width: 300, height: 150 });
@@ -364,6 +368,14 @@ async function runSerializerAccuracyTests() {
   });
   assert.strictEqual(typeof cleanupPicker, 'function');
   cleanupPicker();
+
+  // Verify full-page scroll stitching trigger
+  await triggerPageScroll(doc.defaultView as unknown as Window & typeof globalThis, {
+    step: 400,
+    delayMs: 0,
+  });
+  assert.ok(scrolledPositions.length > 0, 'No scroll operations recorded');
+  assert.strictEqual(scrolledPositions[scrolledPositions.length - 1], 0, 'Did not scroll back to top');
 
   console.log('packages/serializer accuracy tests passed: all scenarios verified');
 }
