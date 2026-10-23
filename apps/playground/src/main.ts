@@ -8,12 +8,18 @@ import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
 import { modelToHtml } from '@capture-kit/destination-html';
 import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
+import { modelToMarkdown } from '@capture-kit/destination-markdown';
+import { modelToReact } from '@capture-kit/destination-react';
 
 let latestCapture: Capture | null = null;
 
 const runBtn = document.getElementById('btn-run') as HTMLButtonElement | null;
 const pickBtn = document.getElementById('btn-pick') as HTMLButtonElement | null;
 const copyFigmaBtn = document.getElementById('btn-copy-figma') as HTMLButtonElement | null;
+const copyMdBtn = document.getElementById('btn-copy-md') as HTMLButtonElement | null;
+const dlMdBtn = document.getElementById('btn-dl-md') as HTMLButtonElement | null;
+const copyReactBtn = document.getElementById('btn-copy-react') as HTMLButtonElement | null;
+const dlReactBtn = document.getElementById('btn-dl-react') as HTMLButtonElement | null;
 const dlJsonBtn = document.getElementById('btn-dl-json') as HTMLButtonElement | null;
 const dlSketchBtn = document.getElementById('btn-dl-sketch') as HTMLButtonElement | null;
 const dlSvgBtn = document.getElementById('btn-dl-svg') as HTMLButtonElement | null;
@@ -29,12 +35,15 @@ function setStatus(text: string): void {
 
 function enableActionButtons(): void {
   if (copyFigmaBtn) copyFigmaBtn.disabled = false;
+  if (copyMdBtn) copyMdBtn.disabled = false;
+  if (dlMdBtn) dlMdBtn.disabled = false;
+  if (copyReactBtn) copyReactBtn.disabled = false;
+  if (dlReactBtn) dlReactBtn.disabled = false;
   if (dlJsonBtn) dlJsonBtn.disabled = false;
   if (dlSketchBtn) dlSketchBtn.disabled = false;
   if (dlSvgBtn) dlSvgBtn.disabled = false;
   if (dlHtmlBtn) dlHtmlBtn.disabled = false;
 }
-
 function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -151,5 +160,59 @@ dlHtmlBtn?.addEventListener('click', () => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`HTML export error: ${message}`);
+  }
+});
+
+copyMdBtn?.addEventListener('click', async () => {
+  if (!latestCapture) return;
+  setStatus('Generating Markdown for AI prompt...');
+  try {
+    const md = modelToMarkdown(latestCapture);
+    await navigator.clipboard.writeText(md);
+    setStatus('Copied Markdown component spec! Paste into Claude/ChatGPT.');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`Clipboard error: ${message}`);
+  }
+});
+
+dlMdBtn?.addEventListener('click', () => {
+  if (!latestCapture) return;
+  setStatus('Generating .md file...');
+  try {
+    const md = modelToMarkdown(latestCapture);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    triggerDownload(blob, 'component.md');
+    setStatus('Downloaded component.md');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`Markdown export error: ${message}`);
+  }
+});
+
+copyReactBtn?.addEventListener('click', async () => {
+  if (!latestCapture) return;
+  setStatus('Generating React + Tailwind TSX...');
+  try {
+    const tsx = modelToReact(latestCapture);
+    await navigator.clipboard.writeText(tsx);
+    setStatus('Copied React component code! Paste into your project.');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`Clipboard error: ${message}`);
+  }
+});
+
+dlReactBtn?.addEventListener('click', () => {
+  if (!latestCapture) return;
+  setStatus('Generating .tsx file...');
+  try {
+    const tsx = modelToReact(latestCapture);
+    const blob = new Blob([tsx], { type: 'text/typescript' });
+    triggerDownload(blob, 'Component.tsx');
+    setStatus('Downloaded Component.tsx');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`React export error: ${message}`);
   }
 });

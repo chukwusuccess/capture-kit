@@ -32,6 +32,12 @@ importers:
       '@capture-kit/destination-html':
         specifier: workspace:*
         version: link:../../packages/destinations/html
+      '@capture-kit/destination-markdown':
+        specifier: workspace:*
+        version: link:../../packages/destinations/markdown
+      '@capture-kit/destination-react':
+        specifier: workspace:*
+        version: link:../../packages/destinations/react
       '@capture-kit/destination-sketch':
         specifier: workspace:*
         version: link:../../packages/destinations/sketch
@@ -63,6 +69,12 @@ importers:
       '@capture-kit/destination-html':
         specifier: workspace:*
         version: link:../../packages/destinations/html
+      '@capture-kit/destination-markdown':
+        specifier: workspace:*
+        version: link:../../packages/destinations/markdown
+      '@capture-kit/destination-react':
+        specifier: workspace:*
+        version: link:../../packages/destinations/react
       '@capture-kit/destination-sketch':
         specifier: workspace:*
         version: link:../../packages/destinations/sketch

@@ -8,6 +8,8 @@
   "dependencies": {
     "@capture-kit/destination-figma": "workspace:*",
     "@capture-kit/destination-html": "workspace:*",
+    "@capture-kit/destination-markdown": "workspace:*",
+    "@capture-kit/destination-react": "workspace:*",
     "@capture-kit/destination-sketch": "workspace:*",
     "@capture-kit/destination-svg": "workspace:*",
     "@capture-kit/model": "workspace:*",

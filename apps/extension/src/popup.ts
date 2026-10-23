@@ -3,6 +3,8 @@ import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
 import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
 import { modelToHtml } from '@capture-kit/destination-html';
+import { modelToMarkdown } from '@capture-kit/destination-markdown';
+import { modelToReact } from '@capture-kit/destination-react';
 import JSZip from 'jszip';
 import { groupPages, pagePath } from './pages';
 
@@ -222,6 +224,8 @@ function updateCaptureButton(): void {
   else if (pages > MAX_PAGES) sub = `Untick ${pages - MAX_PAGES} — up to ${MAX_PAGES} pages per run`;
   else if (sizes > MAX_SIZES) sub = `Up to ${MAX_SIZES} sizes per run`;
   else if (getFormat() === 'figma') sub = `${plural(frames, 'frame')}, copied for Figma`;
+  else if (getFormat() === 'react') sub = `${plural(frames, 'component')}, copied as React TSX`;
+  else if (getFormat() === 'md') sub = `${plural(frames, 'spec')}, copied as Markdown for AI`;
   else sub = `${plural(frames, 'file')} downloaded as ${getFormat().toUpperCase()}`;
 
   captureSub.textContent = sub;
@@ -480,6 +484,16 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
     await copyToFigmaClipboard(captures);
     return `Copied ${plural(captures.length, 'frame')} — paste into Figma with ⌘V`;
   }
+  if (format === 'react' && captures.length === 1) {
+    const tsx = modelToReact(captures[0]);
+    await navigator.clipboard.writeText(tsx);
+    return `Copied React component — paste into your codebase!`;
+  }
+  if (format === 'md' && captures.length === 1) {
+    const md = modelToMarkdown(captures[0]);
+    await navigator.clipboard.writeText(md);
+    return `Copied Markdown component spec — paste into Claude/ChatGPT!`;
+  }
   const withWidth = new Set(captures.map((c) => c.frame.width)).size > 1;
   const host = siteOrigin ? new URL(siteOrigin).hostname.replace(/[^a-z0-9.-]/gi, '-') : 'site';
 
@@ -503,6 +517,14 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
         const html = modelToHtml(capture);
         zip.file(`${name}.html`, html);
         fileLinks.push({ name, file: `${name}.html` });
+      } else if (format === 'react') {
+        const tsx = modelToReact(capture);
+        zip.file(`${name}.tsx`, tsx);
+        fileLinks.push({ name, file: `${name}.tsx` });
+      } else if (format === 'md') {
+        const md = modelToMarkdown(capture);
+        zip.file(`${name}.md`, md);
+        fileLinks.push({ name, file: `${name}.md` });
       } else {
         const json = JSON.stringify(capture, null, 2);
         zip.file(`${name}.json`, json);
@@ -533,8 +555,10 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
   if (format === 'sketch') triggerDownload(await modelToSketch(capture), `${name}.sketch`);
   else if (format === 'svg') triggerDownload(new Blob([modelToSvg(capture)], { type: 'image/svg+xml' }), `${name}.svg`);
   else if (format === 'html') triggerDownload(new Blob([modelToHtml(capture)], { type: 'text/html' }), `${name}.html`);
+  else if (format === 'react') triggerDownload(new Blob([modelToReact(capture)], { type: 'text/typescript' }), `${name}.tsx`);
+  else if (format === 'md') triggerDownload(new Blob([modelToMarkdown(capture)], { type: 'text/markdown' }), `${name}.md`);
   else triggerDownload(new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' }), `${name}.json`);
-  return `Downloaded ${name}.${format}`;
+  return `Downloaded ${name}.${format === 'react' ? 'tsx' : format}`;
 }
 async function finish(response: CaptureMessageResponse | undefined): Promise<void> {
   if (progressWrap) progressWrap.hidden = true;
