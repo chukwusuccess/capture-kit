@@ -230,6 +230,11 @@ function createMockDocument() {
         }),
       };
     },
+    fonts: {
+      forEach: (cb: (f: { family: string; weight: string; style: string }) => void) => {
+        cb({ family: 'MockHeadingFont', weight: '700', style: 'normal' });
+      },
+    },
   };
   html.ownerDocument = doc as unknown as Document;
   body.ownerDocument = doc as unknown as Document;
@@ -376,6 +381,11 @@ async function runSerializerAccuracyTests() {
   });
   assert.ok(scrolledPositions.length > 0, 'No scroll operations recorded');
   assert.strictEqual(scrolledPositions[scrolledPositions.length - 1], 0, 'Did not scroll back to top');
+
+  // Verify web font extraction
+  const mockFont = validated.fonts.find((f) => f.family === 'MockHeadingFont');
+  assert.ok(mockFont, 'Web font MockHeadingFont not found in capture.fonts');
+  assert.strictEqual(mockFont.weight, '700');
 
   console.log('packages/serializer accuracy tests passed: all scenarios verified');
 }

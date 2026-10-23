@@ -3,6 +3,7 @@ import {
   type Capture,
   type CornerRadius,
   type Fill,
+  type Font,
   type Node,
   type Stroke,
   type TextProps,
@@ -266,6 +267,123 @@ function extractPseudoElement(
     return null;
   }
 }
+async function extractWebFonts(
+  doc: Document,
+  baseURI: string,
+  assets: Record<string, Asset>,
+  nextAssetId: () => string
+): Promise<Font[]> {
+  const fonts: Font[] = [];
+  const seenFamilies = new Set<string>();
+  const defaultView = doc.defaultView ?? window;
+
+  // 1. Inspect doc.fonts (FontFaceSet API)
+  if (doc.fonts && typeof doc.fonts.forEach === 'function') {
+    try {
+      doc.fonts.forEach((fontFace: FontFace) => {
+        const family = fontFace.family.replace(/^["']|["']$/g, '').trim();
+        if (family && !seenFamilies.has(family)) {
+          seenFamilies.add(family);
+          fonts.push({
+            family,
+            weight: fontFace.weight || '400',
+            style: fontFace.style || 'normal',
+          });
+        }
+      });
+    } catch {
+      // FontFaceSet access ignored
+    }
+  }
+
+  // 2. Inspect CSSStyleSheets for @font-face rules
+  try {
+    const styleSheets = doc.styleSheets;
+    if (styleSheets) {
+      for (let i = 0; i < styleSheets.length; i++) {
+        const sheet = styleSheets[i];
+        let rules: CSSRuleList | null = null;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          continue;
+        }
+
+        if (!rules) continue;
+
+        for (let j = 0; j < rules.length; j++) {
+          const rule = rules[j];
+          if (rule.type === 5) {
+            const fontRule = rule as CSSFontFaceRule;
+            const style = fontRule.style;
+            if (!style) continue;
+
+            const family = (style.fontFamily || '').replace(/^["']|["']$/g, '').trim();
+            if (!family) continue;
+
+            const weight = style.fontWeight || '400';
+            const fontStyle = style.fontStyle || 'normal';
+
+            if (!seenFamilies.has(family)) {
+              seenFamilies.add(family);
+              fonts.push({
+                family,
+                weight,
+                style: fontStyle,
+              });
+            }
+
+            const srcDeclaration =
+              typeof style.getPropertyValue === 'function'
+                ? style.getPropertyValue('src')
+                : '';
+            const match = srcDeclaration.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
+            if (match && match[1]) {
+              const fontUrl = match[1];
+              if (fontUrl.startsWith('data:')) {
+                const dataMatch = fontUrl.match(/^data:([^;]+);base64,(.+)$/);
+                if (dataMatch) {
+                  const assetKey = nextAssetId();
+                  assets[assetKey] = {
+                    kind: 'font',
+                    mimeType: dataMatch[1],
+                    base64: dataMatch[2],
+                  };
+                }
+              } else {
+                try {
+                  const resolved = new URL(fontUrl, baseURI);
+                  const isSameOrigin = resolved.origin === defaultView.location?.origin;
+                  if (isSameOrigin || resolved.protocol === 'blob:') {
+                    const res = await fetch(resolved.href);
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const buffer = await blob.arrayBuffer();
+                      const base64 = await arrayBufferToBase64(buffer);
+                      const assetKey = nextAssetId();
+                      assets[assetKey] = {
+                        kind: 'font',
+                        mimeType: blob.type || 'font/woff2',
+                        base64,
+                      };
+                    }
+                  }
+                } catch {
+                  // Ignore font fetch failure
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // StyleSheets access fallback
+  }
+
+  return fonts;
+}
+
 
 async function serializeSubtree(
   root: Element,
@@ -766,7 +884,7 @@ async function serializeSubtree(
 
   capture.nodes = nodes;
   capture.assets = assets;
-
+  capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`);
   return capture;
 }
 
