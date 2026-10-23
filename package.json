@@ -9,6 +9,7 @@
     "test:serializer": "tsx packages/serializer/test.ts",
     "test:sketch": "tsx scripts/verify-sketch.ts",
     "test:figma": "tsx packages/destinations/figma/test.ts",
+    "test:html": "tsx packages/destinations/html/test.ts",
     "test:diff": "tsx tools/diff/test.ts"
   },
   "devDependencies": {
