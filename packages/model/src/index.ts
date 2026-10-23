@@ -98,6 +98,19 @@ export const CaptureSchema = z.object({
   alternatives: z.array(FrameSchema).optional(),
 });
 
+export const SitePageCaptureSchema = z.object({
+  url: z.string(),
+  path: z.string(),
+  title: z.string().optional(),
+  capture: CaptureSchema,
+});
+
+export const SiteCaptureSchema = z.object({
+  domain: z.string(),
+  capturedAt: z.string(),
+  pages: z.array(SitePageCaptureSchema),
+});
+
 export type Box = z.infer<typeof BoxSchema>;
 export type Fill = z.infer<typeof FillSchema>;
 export type Stroke = z.infer<typeof StrokeSchema>;
@@ -110,6 +123,8 @@ export type Font = z.infer<typeof FontSchema>;
 export type Frame = z.infer<typeof FrameSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type Capture = z.infer<typeof CaptureSchema>;
+export type SitePageCapture = z.infer<typeof SitePageCaptureSchema>;
+export type SiteCapture = z.infer<typeof SiteCaptureSchema>;
 
 export function emptyCapture(opts: Partial<Capture> = {}): Capture {
   return {

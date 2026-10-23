@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import {
   CaptureSchema,
+  SiteCaptureSchema,
   NodeSchema,
   emptyCapture,
   type Capture,
@@ -145,7 +146,30 @@ function runTests(): void {
   const badTypeResult = NodeSchema.safeParse(badTypeNode);
   assert.strictEqual(badTypeResult.success, false, 'Expected node with invalid type to fail schema validation');
 
-  console.log('packages/model tests passed: 6/6 assertions verified');
+  // 7. Accepts multi-page SiteCapture
+  const siteCapture = {
+    domain: 'example.com',
+    capturedAt: new Date().toISOString(),
+    pages: [
+      {
+        url: 'https://example.com/',
+        path: '/',
+        title: 'Home',
+        capture: emptyCapture({ url: 'https://example.com/' }),
+      },
+      {
+        url: 'https://example.com/pricing',
+        path: '/pricing',
+        title: 'Pricing',
+        capture: emptyCapture({ url: 'https://example.com/pricing' }),
+      },
+    ],
+  };
+  const parsedSite = SiteCaptureSchema.parse(siteCapture);
+  assert.strictEqual(parsedSite.pages.length, 2);
+  assert.strictEqual(parsedSite.pages[1].path, '/pricing');
+
+  console.log('packages/model tests passed: 7/7 assertions verified');
 }
 
 runTests();
