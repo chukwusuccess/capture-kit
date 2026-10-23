@@ -6,6 +6,7 @@ interface CaptureResponse {
   captures?: Capture[];
   urls?: string[];
   count?: number;
+  skipped?: string[];
   error?: string;
 }
 
@@ -118,50 +119,6 @@ function sameOriginUrls(raw: unknown, origin: string): string[] {
   });
 }
 
-async function handleSiteCapture(scrollStitch: boolean, picked: unknown): Promise<Capture[]> {
-  const tabId = await getActiveTabId();
-  const tab = await chrome.tabs.get(tabId);
-  const origin = tab.url ? new URL(tab.url).origin : '';
-  const chosen = picked === undefined ? await discoverSiteUrls(tabId) : sameOriginUrls(picked, origin);
-  const urls = chosen.slice(0, MAX_SITE_PAGES);
-  if (urls.length === 0) {
-    throw new Error(picked === undefined ? 'No pages found — no sitemap and no internal links' : 'No pages selected');
-  }
-
-  const captures: Capture[] = [];
-  for (let i = 0; i < urls.length; i++) {
-    reportProgress(i, urls.length, urls[i]);
-    const created = await chrome.tabs.create({ url: urls[i], active: false });
-    if (typeof created.id !== 'number') continue;
-    try {
-      await waitForTabComplete(created.id);
-      await injectSerializer(created.id);
-      await waitForLayout(created.id);
-      captures.push(await runSerializer(created.id, scrollStitch));
-    } catch (err: unknown) {
-      // Keep going — one broken page shouldn't kill the whole crawl.
-      console.warn(`capture-kit: skipped ${urls[i]}`, err);
-    } finally {
-      await chrome.tabs.remove(created.id);
-    }
-  }
-
-  reportProgress(urls.length, urls.length, '');
-  if (captures.length === 0) {
-    throw new Error('Captured 0 pages — pages may block scripts');
-  }
-  return captures;
-}
-
-async function getActiveWindowId(): Promise<number> {
-  const tabId = await getActiveTabId();
-  const tab = await chrome.tabs.get(tabId);
-  if (typeof tab.windowId !== 'number') {
-    throw new Error('Active tab has no window');
-  }
-  return tab.windowId;
-}
-
 async function injectSerializer(tabId: number): Promise<void> {
   await chrome.scripting.executeScript({
     target: { tabId },
@@ -240,51 +197,94 @@ async function handlePickCapture(): Promise<Capture> {
   return CaptureSchema.parse(execResult.result);
 }
 
-async function handleBreakpointCapture(
-  widths: number[],
-  scrollStitch: boolean
-): Promise<Capture[]> {
-  const tabId = await getActiveTabId();
-  const windowId = await getActiveWindowId();
-  const win = await chrome.windows.get(windowId);
-  const originalState = win.state;
+// Max sizes per run; pages × sizes is what the popup has to wait for.
+const MAX_SIZES = 6;
 
-  // Maximization hides the frame; go normal so width is controllable.
-  if (originalState === 'maximized' || originalState === 'fullscreen') {
-    await chrome.windows.update(windowId, { state: 'normal' });
+async function measure(tabId: number): Promise<{ inner: number; frame: number }> {
+  const [res] = await chrome.scripting.executeScript<{ inner: number; frame: number }>({
+    target: { tabId },
+    func: () => ({ inner: window.innerWidth, frame: window.outerWidth - window.innerWidth }),
+  });
+  return res?.result ?? { inner: 0, frame: 0 };
+}
+
+// Size the capture window so the page's CSS viewport is exactly `width`.
+async function fitViewport(windowId: number, tabId: number, width: number): Promise<void> {
+  await chrome.tabs.setZoomSettings(tabId, { scope: 'per-tab' });
+  await chrome.tabs.setZoom(tabId, 1);
+  await waitForLayout(tabId);
+  const { frame } = await measure(tabId);
+  await chrome.windows.update(windowId, { width: Math.max(1, width + frame) });
+  await waitForLayout(tabId);
+  const { inner } = await measure(tabId);
+  if (Math.abs(inner - width) > 1) {
+    // The OS clamps narrow windows (~500px); zoom in so the CSS viewport still lands on `width`.
+    await chrome.tabs.setZoom(tabId, inner / width);
+    await waitForLayout(tabId);
+  }
+}
+
+async function loadInTab(tabId: number, url: string): Promise<void> {
+  const loaded = waitForTabComplete(tabId);
+  await chrome.tabs.update(tabId, { url });
+  await loaded;
+}
+
+function samePage(a: string, b: string): boolean {
+  const strip = (u: string): string => u.replace(/#.*$/, '').replace(/\/+$/, '');
+  return strip(a) === strip(b);
+}
+
+async function handleCaptureRun(
+  rawUrls: unknown,
+  rawWidths: unknown,
+  scrollStitch: boolean
+): Promise<{ captures: Capture[]; skipped: string[] }> {
+  const activeId = await getActiveTabId();
+  const active = await chrome.tabs.get(activeId);
+  if (!active.url) throw new Error('Cannot read the current tab');
+  const urls = sameOriginUrls(rawUrls, new URL(active.url).origin).slice(0, MAX_SITE_PAGES);
+  if (urls.length === 0) throw new Error('No pages selected');
+  const widths = Array.isArray(rawWidths)
+    ? [...new Set(rawWidths.filter((w): w is number => Number.isInteger(w) && w >= 240 && w <= 7680))]
+    : [];
+  const sizes = (widths.length ? widths : [active.width ?? 1280]).slice(0, MAX_SIZES);
+
+  // Just this tab at its own width: capture in place, keeping its live state.
+  if (urls.length === 1 && samePage(urls[0], active.url) && sizes.length === 1 && sizes[0] === active.width) {
+    return { captures: [await handleFullCapture(scrollStitch)], skipped: [] };
   }
 
-  await injectSerializer(tabId);
+  // Everything else runs in one unfocused window, so the user's window never resizes.
+  const win = await chrome.windows.create({ url: 'about:blank', focused: false, type: 'popup', width: 1280, height: 900 });
+  const tabId = win.tabs?.[0]?.id;
+  if (typeof win.id !== 'number' || typeof tabId !== 'number') throw new Error('Could not open a capture window');
 
-  // chrome.windows width is the outer frame; measure how much the frame eats
-  // so the page viewport lands on the requested width.
-  const [deltaResult] = await chrome.scripting.executeScript<number>({
-    target: { tabId },
-    func: () => window.outerWidth - window.innerWidth,
-  });
-  const frameDelta = deltaResult?.result ?? 0;
-
-  const current = await chrome.windows.get(windowId);
   const captures: Capture[] = [];
-
+  const skipped: string[] = [];
+  const total = urls.length * sizes.length;
   try {
-    for (const width of widths) {
-      await chrome.windows.update(windowId, {
-        width: width + frameDelta,
-        height: current.height ?? 800,
-      });
-      await waitForLayout(tabId);
-      captures.push(await runSerializer(tabId, scrollStitch));
+    for (const [i, url] of urls.entries()) {
+      try {
+        await loadInTab(tabId, url);
+        await injectSerializer(tabId);
+        for (const [j, width] of sizes.entries()) {
+          reportProgress(i * sizes.length + j, total, url);
+          await fitViewport(win.id, tabId, width);
+          captures.push(await runSerializer(tabId, scrollStitch));
+        }
+      } catch (err: unknown) {
+        // Keep going — one broken page shouldn't kill the whole run.
+        skipped.push(`${url}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   } finally {
-    await chrome.windows.update(windowId, {
-      width: current.width,
-      height: current.height,
-      state: originalState === 'maximized' || originalState === 'fullscreen' ? originalState : undefined,
-    });
+    await chrome.windows.remove(win.id).catch(() => undefined);
   }
 
-  return captures;
+  reportProgress(total, total, '');
+  if (captures.length === 0) throw new Error(`Captured 0 pages — ${skipped[0] ?? 'the site may block scripts'}`);
+  return { captures, skipped };
 }
 
 chrome.runtime.onMessage.addListener(
@@ -309,14 +309,12 @@ chrome.runtime.onMessage.addListener(
         return true;
       }
 
-      if (action === 'capture-breakpoints') {
+      if (action === 'capture-run') {
         const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
-        const widths =
-          'widths' in message && Array.isArray(message.widths) && message.widths.length > 0
-            ? message.widths.filter((w: unknown): w is number => typeof w === 'number' && w > 0)
-            : [360, 768, 1280];
-        handleBreakpointCapture(widths, scrollStitch).then(
-          (captures) => sendResponse({ success: true, captures }),
+        const urls = 'urls' in message ? message.urls : undefined;
+        const widths = 'widths' in message ? message.widths : undefined;
+        handleCaptureRun(urls, widths, scrollStitch).then(
+          ({ captures, skipped }) => sendResponse({ success: true, captures, skipped }),
           fail
         );
         return true;
@@ -329,16 +327,6 @@ chrome.runtime.onMessage.addListener(
             (urls) => sendResponse({ success: true, urls, count: urls.length }),
             fail
           );
-        return true;
-      }
-
-      if (action === 'capture-site') {
-        const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
-        const urls = 'urls' in message ? message.urls : undefined;
-        handleSiteCapture(scrollStitch, urls).then(
-          (captures) => sendResponse({ success: true, captures }),
-          fail
-        );
         return true;
       }
 
