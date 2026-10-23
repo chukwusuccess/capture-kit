@@ -48,18 +48,31 @@ async function discoverSiteUrls(tabId: number): Promise<string[]> {
       };
       const out = new Set<string>();
 
-      try {
-        const res = await fetch('/sitemap.xml', { credentials: 'include' });
-        if (res.ok) {
-          const text = await res.text();
-          const doc = new DOMParser().parseFromString(text, 'application/xml');
-          for (const loc of doc.querySelectorAll('loc')) {
-            const url = normalize(loc.textContent?.trim() ?? '');
-            if (url) out.add(url);
+      const readSitemap = async (path: string): Promise<Document | null> => {
+        try {
+          const res = await fetch(path, { credentials: 'include' });
+          if (!res.ok) return null;
+          return new DOMParser().parseFromString(await res.text(), 'application/xml');
+        } catch {
+          return null;
+        }
+      };
+      const locs = (doc: Document): string[] =>
+        [...doc.querySelectorAll('loc')].map((l) => l.textContent?.trim() ?? '');
+
+      const root = await readSitemap('/sitemap.xml');
+      if (root) {
+        // Sitemap index (WordPress/Yoast etc.): follow one level of child sitemaps.
+        const children = root.querySelector('sitemapindex')
+          ? await Promise.all(locs(root).slice(0, 10).map(readSitemap))
+          : [root];
+        for (const doc of children) {
+          if (!doc) continue;
+          for (const loc of locs(doc)) {
+            const url = normalize(loc);
+            if (url && !/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(url)) out.add(url);
           }
         }
-      } catch {
-        /* no sitemap — fall through to anchor scan */
       }
 
       if (out.size === 0) {
