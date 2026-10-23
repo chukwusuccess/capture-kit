@@ -260,7 +260,10 @@ async function loadSettings(): Promise<void> {
 
 async function loadTabInfo(): Promise<void> {
   if (!chrome.tabs?.query) return;
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  let [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.url) {
+    [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  }
   if (!tab?.url) return;
   try {
     const u = new URL(tab.url);

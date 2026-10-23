@@ -16,11 +16,17 @@ interface WindowWithCaptureKit {
 }
 
 async function getActiveTabId(): Promise<number> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id || typeof tab.windowId !== 'number') {
-    throw new Error('No active tab found');
-  }
-  return tab.id;
+  const [lastFocused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (lastFocused?.id) return lastFocused.id;
+
+  const [current] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (current?.id) return current.id;
+
+  const all = await chrome.tabs.query({ active: true });
+  const candidate = all.find((t) => t.id && t.url && !t.url.startsWith('chrome-extension://'));
+  if (candidate?.id) return candidate.id;
+
+  throw new Error('No active tab found');
 }
 
 // ponytail: hard cap — the popup must stay open for the whole crawl
@@ -33,61 +39,222 @@ function reportProgress(done: number, total: number, url: string): void {
 }
 
 async function discoverSiteUrls(tabId: number): Promise<string[]> {
-  const [execResult] = await chrome.scripting.executeScript<string[]>({
-    target: { tabId },
-    func: async () => {
-      const origin = location.origin;
-      const normalize = (raw: string): string | null => {
-        try {
-          const u = new URL(raw, location.href);
-          if (u.origin !== origin) return null;
-          u.hash = '';
-          return u.origin + u.pathname + u.search;
-        } catch {
-          return null;
-        }
-      };
-      const out = new Set<string>();
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  const tabUrl = tab?.url || '';
+  let origin = '';
+  try {
+    origin = new URL(tabUrl).origin;
+  } catch {
+    // ignore
+  }
 
-      const readSitemap = async (path: string): Promise<Document | null> => {
-        try {
-          const res = await fetch(path, { credentials: 'include' });
-          if (!res.ok) return null;
-          return new DOMParser().parseFromString(await res.text(), 'application/xml');
-        } catch {
-          return null;
-        }
-      };
-      const locs = (doc: Document): string[] =>
-        [...doc.querySelectorAll('loc')].map((l) => l.textContent?.trim() ?? '');
+  let onPageUrls: string[] = [];
+  try {
+    const [execResult] = await chrome.scripting.executeScript<string[]>({
+      target: { tabId },
+      func: () => {
+        const docOrigin = location.origin;
+        const out = new Set<string>();
 
-      const root = await readSitemap('/sitemap.xml');
-      if (root) {
-        // Sitemap index (WordPress/Yoast etc.): follow one level of child sitemaps.
-        const children = root.querySelector('sitemapindex')
-          ? await Promise.all(locs(root).slice(0, 10).map(readSitemap))
-          : [root];
-        for (const doc of children) {
-          if (!doc) continue;
-          for (const loc of locs(doc)) {
-            const url = normalize(loc);
-            if (url && !/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(url)) out.add(url);
+        const normalize = (raw: string | null | undefined): string | null => {
+          if (!raw) return null;
+          const trimmed = raw.trim();
+          if (
+            trimmed.startsWith('#') ||
+            trimmed.startsWith('javascript:') ||
+            trimmed.startsWith('mailto:') ||
+            trimmed.startsWith('tel:') ||
+            trimmed.startsWith('data:')
+          ) {
+            return null;
           }
-        }
-      }
+          try {
+            const u = new URL(trimmed, location.href);
+            if (u.origin !== docOrigin) return null;
+            u.hash = '';
+            const path = u.pathname.replace(/\/+$/, '') || '/';
+            const normalized = u.origin + path + (u.search || '');
+            if (
+              /\.(xml|pdf|jpe?g|png|gif|webp|svg|zip|mp4|mp3|gz|tar|woff2?|ttf|css|js|json)$/i.test(
+                normalized
+              )
+            ) {
+              return null;
+            }
+            return normalized;
+          } catch {
+            return null;
+          }
+        };
 
-      if (out.size === 0) {
-        for (const a of document.querySelectorAll('a[href]')) {
-          const url = normalize(a.getAttribute('href') ?? '');
+        for (const a of document.querySelectorAll('a[href], area[href]')) {
+          const href = a.getAttribute('href') || (a as HTMLAnchorElement).href;
+          const url = normalize(href);
           if (url) out.add(url);
         }
-      }
 
-      return [...out];
-    },
-  });
+        for (const link of document.querySelectorAll(
+          'link[rel="canonical"], link[rel="alternate"]'
+        )) {
+          const href = link.getAttribute('href');
+          const url = normalize(href);
+          if (url) out.add(url);
+        }
 
-  return execResult?.result ?? [];
+        const current = normalize(location.href);
+        if (current) out.add(current);
+
+        return [...out];
+      },
+    });
+
+    onPageUrls = execResult?.result ?? [];
+  } catch {
+    // in-page script fallback
+  }
+
+  if (!origin && onPageUrls.length > 0) {
+    try {
+      origin = new URL(onPageUrls[0]).origin;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!origin) return onPageUrls;
+
+  const allUrls = new Set<string>(onPageUrls);
+  if (tabUrl) {
+    const cleanCurrent = tabUrl.replace(/#.*$/, '');
+    allUrls.add(cleanCurrent);
+  }
+
+  // Sitemap probe with 2.5s timeout
+  try {
+    const sitemapPaths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap/sitemap.xml'];
+    await Promise.all(
+      sitemapPaths.map(async (path) => {
+        try {
+          const res = await fetch(`${origin}${path}`, {
+            credentials: 'include',
+            signal: AbortSignal.timeout(2500),
+          });
+          if (!res.ok) return;
+          const text = await res.text();
+          if (
+            !text.includes('<loc') &&
+            !text.includes('<urlset') &&
+            !text.includes('<sitemapindex')
+          ) {
+            return;
+          }
+
+          const doc = new DOMParser().parseFromString(text, 'application/xml');
+          const locs = [...doc.querySelectorAll('loc')].map(
+            (l) => l.textContent?.trim() ?? ''
+          );
+
+          const isIndex = Boolean(doc.querySelector('sitemapindex'));
+          const childSitemaps = isIndex ? locs.slice(0, 5) : [];
+
+          if (childSitemaps.length > 0) {
+            await Promise.all(
+              childSitemaps.map(async (childUrl) => {
+                try {
+                  const childRes = await fetch(childUrl, {
+                    credentials: 'include',
+                    signal: AbortSignal.timeout(2000),
+                  });
+                  if (!childRes.ok) return;
+                  const childText = await childRes.text();
+                  const childDoc = new DOMParser().parseFromString(
+                    childText,
+                    'application/xml'
+                  );
+                  for (const l of childDoc.querySelectorAll('loc')) {
+                    const u = l.textContent?.trim();
+                    if (u && u.startsWith(origin)) {
+                      const clean =
+                        u.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
+                      if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
+                        allUrls.add(clean);
+                      }
+                    }
+                  }
+                } catch {
+                  // ignore
+                }
+              })
+            );
+          } else {
+            for (const loc of locs) {
+              if (loc && loc.startsWith(origin)) {
+                const clean =
+                  loc.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
+                if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
+                  allUrls.add(clean);
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+      })
+    );
+  } catch {
+    // sitemap error ignored
+  }
+
+  // Shallow background crawl of top-level section pages if link count is low
+  if (allUrls.size < 25) {
+    const seeds = [...allUrls]
+      .filter((u) => u !== origin && u !== `${origin}/`)
+      .slice(0, 8);
+
+    await Promise.all(
+      seeds.map(async (pageUrl) => {
+        try {
+          const res = await fetch(pageUrl, { signal: AbortSignal.timeout(2000) });
+          if (!res.ok) return;
+          const html = await res.text();
+          const matches = html.matchAll(/href=["']([^"'#\s>]+)["']/gi);
+          for (const m of matches) {
+            const raw = m[1]?.trim();
+            if (
+              !raw ||
+              raw.startsWith('javascript:') ||
+              raw.startsWith('mailto:') ||
+              raw.startsWith('tel:')
+            ) {
+              continue;
+            }
+            try {
+              const u = new URL(raw, pageUrl);
+              if (u.origin === origin) {
+                u.hash = '';
+                const path = u.pathname.replace(/\/+$/, '') || '/';
+                const norm = u.origin + path + (u.search || '');
+                if (
+                  !/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip|mp4|mp3|gz|tar|woff2?|ttf|css|js|json)$/i.test(
+                    norm
+                  )
+                ) {
+                  allUrls.add(norm);
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+        } catch {
+          // ignore
+        }
+      })
+    );
+  }
+
+  return [...allUrls].sort((a, b) => a.localeCompare(b));
 }
 
 function waitForTabComplete(tabId: number): Promise<void> {
