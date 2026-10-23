@@ -39,10 +39,13 @@ async function runSketchVerification(): Promise<void> {
         box: { x: 50, y: 80, w: 300, h: 150 },
         style: {
           fills: [{ type: 'solid', color: 'rgba(34, 197, 94, 1)' }],
-          strokes: [],
+          strokes: [{ color: 'rgba(0, 0, 0, 1)', width: 2, style: 'dashed' }],
           opacity: 1,
           radius: { topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 12 },
-          shadows: [],
+          shadows: [
+            { x: 0, y: 4, blur: 6, color: 'rgba(0, 0, 0, 0.1)', inset: false },
+            { x: 0, y: 2, blur: 2, color: 'rgba(0, 0, 0, 0.05)', inset: true },
+          ],
         },
       },
       {
@@ -153,6 +156,21 @@ async function runSketchVerification(): Promise<void> {
       node.box.h,
       `Layer ${node.id} height coordinate mismatch: expected ${node.box.h}, got ${layer.frame.height}`
     );
+    if (node.id === 'node-rect-1') {
+      const layerRecord = layer as unknown as {
+        style?: {
+          borders?: Array<{ thickness: number }>;
+          shadows?: Array<unknown>;
+          innerShadows?: Array<unknown>;
+        };
+      };
+      const style = layerRecord.style;
+      assert.ok(style, 'Layer missing style');
+      assert.strictEqual(style.borders?.length, 1, 'Border count mismatch');
+      assert.strictEqual(style.borders[0].thickness, 2, 'Border thickness mismatch');
+      assert.strictEqual(style.shadows?.length, 1, 'Outer shadow count mismatch');
+      assert.strictEqual(style.innerShadows?.length, 1, 'Inner shadow count mismatch');
+    }
   }
 
   console.log('Programmatic .sketch verification passed: all 4 required files exist and artboard/layer boxes match');

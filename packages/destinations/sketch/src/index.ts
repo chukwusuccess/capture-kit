@@ -1,16 +1,21 @@
 /**
  * Sketch destination writer.
  *
- * Known simplifications for Phase 0:
- * - First fill only: only the first solid fill is converted; secondary fills, gradients, and image fills are ignored.
- * - No strokes: border properties are omitted from layer styles.
- * - No shadows: inner and outer box shadows are omitted from layer styles.
- * - No font embedding: custom web fonts are not packed into the zip; system/fallback names are referenced directly.
- * - No groups or symbols: flat layer hierarchy directly inside a single artboard; parentId relationships are not nested into groups.
+ * Current fidelity features:
+ * - Solid fills and background colors.
+ * - Stroke conversion: border width, stroke color, border styles (solid, dashed, dotted).
+ * - Outer and inner box shadows (blur, offset, spread, color).
+ * - Text layers with attributedString, color, and font metrics.
+ * - Corner radii on rectangle layers.
+ *
+ * In-progress / Planned:
+ * - Embedded image assets as native bitmap layers.
+ * - Multiple stacked fills.
+ * - Hierarchical group layers from parentId.
  */
 
 import JSZip from 'jszip';
-import type { Capture, Node } from '@capture-kit/model';
+import type { Capture, Node, Shadow, Stroke } from '@capture-kit/model';
 
 interface SketchColor {
   _class: 'color';
@@ -111,6 +116,79 @@ function makeRectPoints(radius: number) {
   ];
 }
 
+function convertStrokes(strokes: Stroke[]): {
+  borders: Array<Record<string, unknown>>;
+  borderOptions?: Record<string, unknown>;
+} {
+  const borders: Array<Record<string, unknown>> = [];
+  let dashPattern: number[] = [];
+
+  for (const stroke of strokes) {
+    if (stroke.width <= 0) continue;
+    borders.push({
+      _class: 'border',
+      isEnabled: true,
+      fillType: 0,
+      color: parseCssColor(stroke.color),
+      position: 1, // inside (matches CSS border-box)
+      thickness: stroke.width,
+    });
+
+    if (stroke.style === 'dashed') {
+      dashPattern = [stroke.width * 3, stroke.width * 2];
+    } else if (stroke.style === 'dotted') {
+      dashPattern = [stroke.width, stroke.width * 1.5];
+    }
+  }
+
+  const borderOptions =
+    borders.length > 0
+      ? {
+          _class: 'borderOptions',
+          isEnabled: true,
+          dashPattern,
+          lineCapStyle: 0,
+          lineJoinStyle: 0,
+        }
+      : undefined;
+
+  return { borders, borderOptions };
+}
+
+function convertShadows(shadows: Shadow[]): {
+  outerShadows: Array<Record<string, unknown>>;
+  innerShadows: Array<Record<string, unknown>>;
+} {
+  const outerShadows: Array<Record<string, unknown>> = [];
+  const innerShadows: Array<Record<string, unknown>> = [];
+
+  for (const shadow of shadows) {
+    const isInner = Boolean(shadow.inset);
+    const shadowObj = {
+      _class: isInner ? 'innerShadow' : 'shadow',
+      isEnabled: true,
+      blurRadius: shadow.blur,
+      color: parseCssColor(shadow.color),
+      contextSettings: {
+        _class: 'graphicsContextSettings',
+        blendMode: 0,
+        opacity: 1,
+      },
+      offsetX: shadow.x,
+      offsetY: shadow.y,
+      spread: shadow.spread ?? 0,
+    };
+
+    if (isInner) {
+      innerShadows.push(shadowObj);
+    } else {
+      outerShadows.push(shadowObj);
+    }
+  }
+
+  return { outerShadows, innerShadows };
+}
+
 function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
   const commonFrame = {
     _class: 'rect',
@@ -120,6 +198,9 @@ function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
     width: node.box.w,
     height: node.box.h,
   };
+
+  const { borders, borderOptions } = convertStrokes(node.style.strokes ?? []);
+  const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
 
   if (node.type === 'text') {
     const textProps = node.text ?? {
@@ -162,6 +243,10 @@ function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
         miterLimit: 10,
         startMarkerType: 0,
         windingRule: 1,
+        borders,
+        ...(borderOptions ? { borderOptions } : {}),
+        shadows: outerShadows,
+        innerShadows,
         textStyle: {
           _class: 'textStyle',
           encodedAttributes: {
@@ -267,6 +352,10 @@ function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
       startMarkerType: 0,
       windingRule: 1,
       fills: fillList,
+      borders,
+      ...(borderOptions ? { borderOptions } : {}),
+      shadows: outerShadows,
+      innerShadows,
     },
     edited: false,
     isClosed: true,
@@ -285,7 +374,7 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
 
   // meta.json
   const metaJson = {
-    commit: 'capture-kit-phase0',
+    commit: 'capture-kit-phase2',
     pagesAndArtboards: {
       [pageId]: {
         name: 'Page 1',
