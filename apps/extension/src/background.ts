@@ -323,6 +323,7 @@ function samePage(a: string, b: string): boolean {
   const strip = (u: string): string => u.replace(/#.*$/, '').replace(/\/+$/, '');
   return strip(a) === strip(b);
 }
+let cancelRunRequested = false;
 
 async function handleCaptureRun(
   rawUrls: unknown,
@@ -352,12 +353,22 @@ async function handleCaptureRun(
   const captures: Capture[] = [];
   const skipped: string[] = [];
   const total = urls.length * sizes.length;
+  cancelRunRequested = false;
   try {
     for (const [i, url] of urls.entries()) {
+      if (cancelRunRequested) {
+        skipped.push('Run cancelled by user');
+        break;
+      }
       try {
         await loadInTab(tabId, url);
+        if (cancelRunRequested) {
+          skipped.push('Run cancelled by user');
+          break;
+        }
         await injectSerializer(tabId);
         for (const [j, width] of sizes.entries()) {
+          if (cancelRunRequested) break;
           reportProgress(i * sizes.length + j, total, url);
           await fitViewport(win.id, tabId, width);
           captures.push(await runSerializer(tabId, scrollStitch));
@@ -428,6 +439,12 @@ chrome.runtime.onMessage.addListener(
           (capture) => sendResponse({ success: true, capture }),
           fail
         );
+        return true;
+      }
+
+      if (action === 'cancel-run') {
+        cancelRunRequested = true;
+        sendResponse({ success: true });
         return true;
       }
     }

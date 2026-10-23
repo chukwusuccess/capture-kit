@@ -51,6 +51,10 @@ const siteLine = $('#site-line');
 const currentW = $('#current-w');
 const sizesTally = $('#sizes-tally');
 const optScrollStitch = $<HTMLInputElement>('#opt-scroll-stitch');
+const progressWrap = $('#progress-wrap');
+const progressFill = $('#progress-fill');
+const progressPct = $('#progress-pct');
+const cancelBtn = $<HTMLButtonElement>('#cancel-btn');
 const pageGroups = $('#page-groups');
 const pageSearch = $<HTMLInputElement>('#page-search');
 const sizeButtons = [...document.querySelectorAll<HTMLButtonElement>('.size')];
@@ -533,6 +537,7 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
   return `Downloaded ${name}.${format}`;
 }
 async function finish(response: CaptureMessageResponse | undefined): Promise<void> {
+  if (progressWrap) progressWrap.hidden = true;
   const captures = response?.captures ?? (response?.capture ? [response.capture] : []);
   if (!response?.success || captures.length === 0) {
     setStatus(response?.error ?? 'Nothing was captured', 'error');
@@ -550,8 +555,23 @@ async function finish(response: CaptureMessageResponse | undefined): Promise<voi
 
 chrome.runtime?.onMessage?.addListener((message: unknown) => {
   const p = message as ProgressMessage;
-  if (p?.type === 'progress' && p.url) {
-    setStatus(`Capturing ${p.done + 1} of ${p.total} — ${pagePath(p.url)}`, 'busy');
+  if (p?.type === 'progress' && p.total > 0) {
+    if (progressWrap) progressWrap.hidden = false;
+    const pct = Math.min(100, Math.round((p.done / p.total) * 100));
+    if (progressFill) progressFill.style.width = `${pct}%`;
+    if (progressPct) progressPct.textContent = `${p.done}/${p.total} (${pct}%)`;
+    if (p.url) {
+      setStatus(`Capturing ${p.done + 1} of ${p.total} — ${pagePath(p.url)}`, 'busy');
+    }
+  }
+});
+
+cancelBtn?.addEventListener('click', async () => {
+  setStatus('Cancelling capture run…', 'busy');
+  try {
+    await chrome.runtime.sendMessage({ action: 'cancel-run' });
+  } catch {
+    // ignore
   }
 });
 
@@ -577,6 +597,7 @@ captureBtn?.addEventListener('click', async () => {
     setStatus(err instanceof Error ? err.message : String(err), 'error');
   } finally {
     updateCaptureButton();
+    if (progressWrap) progressWrap.hidden = true;
   }
 });
 
