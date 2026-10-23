@@ -87,8 +87,15 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
   }
 
   // Handle rect or frame
+  const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const imageFill = style.fills.find((f) => f.type === 'image' && f.assetRef);
+
+  if (gradFill) {
+    return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
+      box.w
+    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr} />`;
+  }
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
@@ -145,6 +152,33 @@ function buildFigmaLayers(capture: Capture): string {
   return rootNodes.map(renderTree).join('\n');
 }
 
+function buildFigmaDefs(captures: Capture[]): string {
+  const defs: string[] = [];
+  for (const capture of captures) {
+    for (const node of capture.nodes) {
+      const gradFill = node.style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+      if (gradFill && gradFill.stops) {
+        const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        const x1 = `${Math.round((0.5 - cos * 0.5) * 100)}%`;
+        const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
+        const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
+        const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
+
+        const stops = gradFill.stops
+          .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
+          .join('\n');
+
+        defs.push(`    <linearGradient id="grad-${escapeXml(node.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
+      }
+    }
+  }
+
+  if (defs.length === 0) return '';
+  return `  <defs>\n${defs.join('\n')}\n  </defs>\n`;
+}
+
 // Gap between pages/viewports when several captures share one paste.
 const CAPTURE_GAP = 120;
 
@@ -158,13 +192,15 @@ function captureLabel(capture: Capture): string {
 }
 
 function buildFigmaSvg(captures: Capture[]): string {
+  const defs = buildFigmaDefs(captures);
   if (captures.length === 1) {
     const { width, height } = captures[0].frame;
     return [
       `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
+      defs,
       buildFigmaLayers(captures[0]),
       '</svg>',
-    ].join('\n');
+    ].filter(Boolean).join('\n');
   }
 
   // Several captures: one row per page, its sizes left to right, one named group each.
@@ -192,9 +228,10 @@ function buildFigmaSvg(captures: Capture[]): string {
   const height = y - CAPTURE_GAP;
   return [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
-    ...groups,
+    defs,
+    groups.join('\n'),
     '</svg>',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 export function modelToFigma(

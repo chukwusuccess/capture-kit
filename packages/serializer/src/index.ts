@@ -123,6 +123,65 @@ function extractCssUrl(bgImage: string): string | null {
   const match = bgImage.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
   return match && match[1] ? match[1] : null;
 }
+function parseCssGradients(bgImage: string): Fill[] {
+  if (!bgImage || bgImage === 'none') return [];
+  const fills: Fill[] = [];
+
+  const linearMatches = bgImage.matchAll(/linear-gradient\(\s*([^()]+|\([^()]*\))+\)/gi);
+  for (const m of linearMatches) {
+    const inside = m[0].replace(/^linear-gradient\(\s*|\s*\)$/gi, '').trim();
+    const parts = inside.split(/,(?![^(]*\))/).map((s) => s.trim());
+    if (parts.length >= 2) {
+      let angle = 180;
+      let stopStartIndex = 0;
+
+      const first = parts[0].toLowerCase();
+      if (first.includes('deg')) {
+        angle = parseFloat(first) || 180;
+        stopStartIndex = 1;
+      } else if (first.includes('to right')) {
+        angle = 90;
+        stopStartIndex = 1;
+      } else if (first.includes('to left')) {
+        angle = 270;
+        stopStartIndex = 1;
+      } else if (first.includes('to top')) {
+        angle = 0;
+        stopStartIndex = 1;
+      } else if (first.includes('to bottom')) {
+        angle = 180;
+        stopStartIndex = 1;
+      }
+
+      const rawStops = parts.slice(stopStartIndex);
+      const stops: Array<{ color: string; position: number }> = [];
+
+      for (let i = 0; i < rawStops.length; i++) {
+        const s = rawStops[i];
+        const match = s.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+)(?:\s+([\d.]+)%)?/i);
+        if (match) {
+          const color = match[1];
+          const defaultPos = rawStops.length > 1 ? i / (rawStops.length - 1) : 0;
+          const position = match[2] ? parseFloat(match[2]) / 100 : defaultPos;
+          stops.push({ color, position: Math.max(0, Math.min(1, position)) });
+        }
+      }
+
+      if (stops.length >= 2) {
+        fills.push({
+          type: 'gradient',
+          gradientType: 'linear',
+          angle,
+          stops,
+          opacity: 1,
+        });
+      }
+    }
+  }
+
+  return fills;
+}
+
 
 async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(buffer);
@@ -521,6 +580,10 @@ async function serializeSubtree(
         }
       }
     }
+    // CSS gradient resolution
+    const gradients = parseCssGradients(computed.backgroundImage);
+    fills.push(...gradients);
+
 
     const strokes = parseStrokes(computed);
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));

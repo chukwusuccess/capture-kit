@@ -233,6 +233,39 @@ function convertFills(
           opacity: fill.opacity ?? 1,
         },
       });
+    } else if (fill.type === 'gradient' && fill.stops && fill.stops.length > 0) {
+      const angleRad = (((fill.angle ?? 180) - 90) * Math.PI) / 180;
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const fromX = Number((0.5 - cos * 0.5).toFixed(3));
+      const fromY = Number((0.5 - sin * 0.5).toFixed(3));
+      const toX = Number((0.5 + cos * 0.5).toFixed(3));
+      const toY = Number((0.5 + sin * 0.5).toFixed(3));
+
+      const gradientStops = fill.stops.map((s) => ({
+        _class: 'gradientStop',
+        position: s.position,
+        color: parseCssColor(s.color),
+      }));
+
+      fillList.push({
+        _class: 'fill',
+        isEnabled: true,
+        fillType: 1, // 1 = gradient
+        gradient: {
+          _class: 'gradient',
+          elipseLength: 0,
+          from: `{${fromX}, ${fromY}}`,
+          to: `{${toX}, ${toY}}`,
+          gradientType: fill.gradientType === 'radial' ? 1 : 0,
+          stops: gradientStops,
+        },
+        contextSettings: {
+          _class: 'graphicsContextSettings',
+          blendMode: 0,
+          opacity: fill.opacity ?? 1,
+        },
+      });
     }
   }
 

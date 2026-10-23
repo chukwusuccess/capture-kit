@@ -7,11 +7,19 @@ export const BoxSchema = z.object({
   h: z.number().gte(0, 'Height must be non-negative'),
 });
 
+export const GradientStopSchema = z.object({
+  color: z.string(),
+  position: z.number().min(0).max(1),
+});
+
 export const FillSchema = z.object({
-  type: z.enum(['solid', 'image']).default('solid'),
+  type: z.enum(['solid', 'image', 'gradient']).default('solid'),
   color: z.string().optional(),
   assetRef: z.string().optional(),
   opacity: z.number().min(0).max(1).optional(),
+  gradientType: z.enum(['linear', 'radial']).optional(),
+  angle: z.number().optional(),
+  stops: z.array(GradientStopSchema).optional(),
 });
 
 export const StrokeSchema = z.object({
@@ -112,6 +120,7 @@ export const SiteCaptureSchema = z.object({
 });
 
 export type Box = z.infer<typeof BoxSchema>;
+export type GradientStop = z.infer<typeof GradientStopSchema>;
 export type Fill = z.infer<typeof FillSchema>;
 export type Stroke = z.infer<typeof StrokeSchema>;
 export type CornerRadius = z.infer<typeof CornerRadiusSchema>;

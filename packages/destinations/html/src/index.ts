@@ -65,6 +65,14 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (solidFill && solidFill.color) {
     styles.push(`background-color: ${solidFill.color}`);
   }
+  const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+  if (gradFill && gradFill.stops) {
+    const stopsStr = gradFill.stops
+      .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
+      .join(', ');
+    styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+  }
+
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
