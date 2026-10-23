@@ -16,8 +16,9 @@ capture-kit/
 │       ├── sketch/           # Capture -> open sketch-file-format zip (.sketch) with bitmap assets, groups, and multi-fills
 │       ├── svg/              # Capture -> SVG string (.svg)
 │       ├── figma/            # Capture -> Figma HTML/SVG clipboard payload (Cmd+V into Figma canvas)
-│       └── html/             # Capture -> standalone HTML/CSS component document (.html)
-├── tools/
+│       ├── html/             # Capture -> standalone HTML/CSS component document (.html)
+│       ├── markdown/         # Capture -> structured design-token component specification (.md) for AI reproduction
+│       └── react/            # Capture -> production-ready React + Tailwind CSS component (.tsx)
 │   └── diff/                 # Automated layout comparison engine (IoU geometry, color matching, diff reports)
 ├── scripts/
 │   ├── verify-sketch.ts      # Programmatic .sketch archive structure and coordinate verification
@@ -31,7 +32,7 @@ capture-kit/
 ## Architecture
 
 - Single neutral JSON model (`@capture-kit/model`): The serializer produces a single, flat, deterministic data structure describing frame bounds, layer geometry, typography, and assets.
-- Pure destinations: Exporters (`sketch`, `svg`, `figma`, `html`) are pure transforms from model to target format without side-effects or browser API dependencies.
+- Pure destinations: Exporters (`sketch`, `svg`, `figma`, `html`, `markdown`, `react`) are pure transforms from model to target format without side-effects or browser API dependencies.
 - Browser API boundary: Only `apps/extension` touches `chrome.*` APIs. Packages remain importable in standards-compliant browser environments.
 
 ## Phase Plan
@@ -78,6 +79,16 @@ pnpm test:figma
 Run HTML destination export tests:
 ```bash
 pnpm test:html
+```
+
+Run Markdown AI export tests:
+```bash
+pnpm test:markdown
+```
+
+Run React Tailwind export tests:
+```bash
+pnpm test:react
 ```
 
 Run visual accuracy diff harness tests:

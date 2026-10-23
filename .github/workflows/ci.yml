@@ -47,6 +47,12 @@ jobs:
       - name: Run HTML destination tests
         run: pnpm test:html
 
+      - name: Run Markdown AI export tests
+        run: pnpm test:markdown
+
+      - name: Run React Tailwind export tests
+        run: pnpm test:react
+
       - name: Run visual accuracy diff harness
         run: pnpm test:diff
 
