@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
+    "package:extension": "pnpm --filter @capture-kit/extension build && tsx scripts/package-extension.ts",
     "test": "tsx packages/model/test.ts",
     "test:serializer": "tsx packages/serializer/test.ts",
     "test:sketch": "tsx scripts/verify-sketch.ts",
