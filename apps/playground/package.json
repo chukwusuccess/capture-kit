@@ -7,6 +7,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "@capture-kit/destination-figma": "workspace:*",
     "@capture-kit/destination-sketch": "workspace:*",
     "@capture-kit/destination-svg": "workspace:*",
     "@capture-kit/model": "workspace:*",

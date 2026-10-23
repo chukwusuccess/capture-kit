@@ -26,6 +26,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@capture-kit/destination-figma':
+        specifier: workspace:*
+        version: link:../../packages/destinations/figma
       '@capture-kit/model':
         specifier: workspace:*
         version: link:../../packages/model
@@ -42,6 +45,9 @@ importers:
 
   apps/playground:
     dependencies:
+      '@capture-kit/destination-figma':
+        specifier: workspace:*
+        version: link:../../packages/destinations/figma
       '@capture-kit/destination-sketch':
         specifier: workspace:*
         version: link:../../packages/destinations/sketch

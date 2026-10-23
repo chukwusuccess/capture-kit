@@ -6,6 +6,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "@capture-kit/destination-figma": "workspace:*",
     "@capture-kit/model": "workspace:*",
     "@capture-kit/serializer": "workspace:*"
   },

@@ -6,7 +6,7 @@
     <title>capture-kit</title>
     <style>
       body {
-        width: 240px;
+        width: 250px;
         padding: 16px;
         font-family: system-ui, -apple-system, sans-serif;
         margin: 0;
@@ -17,10 +17,15 @@
         font-size: 16px;
         margin: 0 0 12px;
       }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
       button {
         width: 100%;
-        padding: 10px;
-        font-size: 14px;
+        padding: 9px;
+        font-size: 13px;
         font-weight: 600;
         border: 1px solid #222;
         border-radius: 6px;
@@ -28,12 +33,17 @@
         color: #fff;
         cursor: pointer;
       }
+      button.secondary {
+        background: #ffffff;
+        color: #111;
+        border-color: #ccc;
+      }
       button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
       #status {
-        margin-top: 10px;
+        margin-top: 12px;
         font-size: 12px;
         color: #555;
         word-break: break-word;
@@ -42,7 +52,11 @@
   </head>
   <body>
     <h1>capture-kit</h1>
-    <button id="capture-btn">Capture this tab</button>
+    <div class="actions">
+      <button id="capture-btn">Capture this tab</button>
+      <button id="pick-btn" class="secondary">Pick element</button>
+      <button id="figma-btn" class="secondary" disabled>Copy to Figma</button>
+    </div>
     <div id="status">Ready</div>
     <script type="module" src="./src/popup.ts"></script>
   </body>
