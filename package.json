@@ -8,7 +8,8 @@
     "test": "tsx packages/model/test.ts",
     "test:serializer": "tsx packages/serializer/test.ts",
     "test:sketch": "tsx scripts/verify-sketch.ts",
-    "test:figma": "tsx packages/destinations/figma/test.ts"
+    "test:figma": "tsx packages/destinations/figma/test.ts",
+    "test:diff": "tsx tools/diff/test.ts"
   },
   "devDependencies": {
     "jszip": "^3.10.1",

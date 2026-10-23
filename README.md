@@ -36,7 +36,7 @@ capture-kit/
 - Phase 1 (Done): Serializer v1 with deeper real-page accuracy (Range text metrics, inline SVG vector serialization, CSS background-images, form controls, visual container and text separation).
 - Phase 2 (Done): Sketch destination fidelity (strokes and borders, outer/inner box shadows, embedded image assets and native bitmap layers, multiple stacked fills, hierarchical group layers from parentId).
 - Phase 3 (Done): Interactive visual element picker and Figma clipboard payload exporter (paste vectors directly into Figma with Cmd+V).
-- Phase 4: Accuracy harness in `tools/diff` (Playwright screenshot comparison, automated diff report), full-page scroll stitching, iframe traversal, and pseudo-elements.
+- Phase 4 (Done): Accuracy diff harness in `tools/diff`, full-page scroll stitching and lazy-load trigger, same-origin iframe traversal, and pseudo-elements (::before & ::after).
 - Phase 5: Production packaging, store zips, user options, and HTML export.
 
 ## Commands
@@ -69,6 +69,11 @@ Run Figma destination clipboard tests:
 ```bash
 pnpm test:figma
 ```
+Run visual accuracy diff harness tests:
+```bash
+pnpm test:diff
+```
+
 
 
 Start the playground demo locally:
