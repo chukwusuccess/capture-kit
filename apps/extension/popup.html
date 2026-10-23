@@ -193,7 +193,7 @@
         display: none;
       }
       .groups {
-        height: 160px;
+        height: 134px;
         margin: 6px -14px 0;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -413,14 +413,15 @@
 
       /* ---- export ---- */
       .formats {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
         gap: 2px;
         padding: 2px;
         background: var(--canvas);
         border-radius: 6px;
       }
       .formats label {
-        flex: 1;
+        min-width: 0;
         cursor: pointer;
       }
       .formats input {
@@ -667,6 +668,7 @@
         <label><input type="radio" name="format" value="svg" /><span>SVG</span></label>
         <label><input type="radio" name="format" value="html" /><span>HTML</span></label>
         <label><input type="radio" name="format" value="json" /><span>JSON</span></label>
+      </div>
       <label class="opt">
         <input type="checkbox" class="cb" id="opt-scroll-stitch" />
         Scroll each page first to load lazy images
