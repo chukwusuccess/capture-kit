@@ -3,6 +3,7 @@ import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
 import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
 import { modelToHtml } from '@capture-kit/destination-html';
+import JSZip from 'jszip';
 import { groupPages, pagePath } from './pages';
 
 interface CaptureMessageResponse {
@@ -476,16 +477,61 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
     return `Copied ${plural(captures.length, 'frame')} — paste into Figma with ⌘V`;
   }
   const withWidth = new Set(captures.map((c) => c.frame.width)).size > 1;
-  for (const capture of captures) {
-    const name = fileName(capture, withWidth);
-    if (format === 'sketch') triggerDownload(await modelToSketch(capture), `${name}.sketch`);
-    else if (format === 'svg') triggerDownload(new Blob([modelToSvg(capture)], { type: 'image/svg+xml' }), `${name}.svg`);
-    else if (format === 'html') triggerDownload(new Blob([modelToHtml(capture)], { type: 'text/html' }), `${name}.html`);
-    else triggerDownload(new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' }), `${name}.json`);
-  }
-  return `Downloaded ${plural(captures.length, format.toUpperCase() + ' file')}`;
-}
+  const host = siteOrigin ? new URL(siteOrigin).hostname.replace(/[^a-z0-9.-]/gi, '-') : 'site';
 
+  // If multiple captures, bundle into one zip to avoid multiple browser download prompts
+  if (captures.length > 1) {
+    const zip = new JSZip();
+    const fileLinks: Array<{ name: string; file: string }> = [];
+
+    for (const capture of captures) {
+      const name = fileName(capture, withWidth);
+      if (format === 'sketch') {
+        const blob = await modelToSketch(capture);
+        const buffer = await blob.arrayBuffer();
+        zip.file(`${name}.sketch`, buffer);
+        fileLinks.push({ name, file: `${name}.sketch` });
+      } else if (format === 'svg') {
+        const svg = modelToSvg(capture);
+        zip.file(`${name}.svg`, svg);
+        fileLinks.push({ name, file: `${name}.svg` });
+      } else if (format === 'html') {
+        const html = modelToHtml(capture);
+        zip.file(`${name}.html`, html);
+        fileLinks.push({ name, file: `${name}.html` });
+      } else {
+        const json = JSON.stringify(capture, null, 2);
+        zip.file(`${name}.json`, json);
+        fileLinks.push({ name, file: `${name}.json` });
+      }
+    }
+
+    // Add an index.html navigation page in the zip
+    const indexHtml = [
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Captured Pages</title>',
+      '<style>body{font-family:system-ui,sans-serif;padding:24px;max-width:800px;margin:auto;}ul{line-height:2;}a{color:#0d99ff;text-decoration:none;}a:hover{text-decoration:underline;}</style>',
+      '</head><body>',
+      `<h1>${host} captures (${captures.length} files)</h1>`,
+      '<ul>',
+      ...fileLinks.map((l) => `  <li><a href="${l.file}">${l.name}</a></li>`),
+      '</ul></body></html>',
+    ].join('\n');
+    zip.file('index.html', indexHtml);
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(zipBlob, `${host}-captures.zip`);
+    return `Downloaded ${captures.length} files bundled in ${host}-captures.zip`;
+  }
+
+  // Single capture direct download
+  const capture = captures[0];
+  const name = fileName(capture, withWidth);
+  if (format === 'sketch') triggerDownload(await modelToSketch(capture), `${name}.sketch`);
+  else if (format === 'svg') triggerDownload(new Blob([modelToSvg(capture)], { type: 'image/svg+xml' }), `${name}.svg`);
+  else if (format === 'html') triggerDownload(new Blob([modelToHtml(capture)], { type: 'text/html' }), `${name}.html`);
+  else triggerDownload(new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' }), `${name}.json`);
+  return `Downloaded ${name}.${format}`;
+}
 async function finish(response: CaptureMessageResponse | undefined): Promise<void> {
   const captures = response?.captures ?? (response?.capture ? [response.capture] : []);
   if (!response?.success || captures.length === 0) {

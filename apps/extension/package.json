@@ -11,7 +11,8 @@
     "@capture-kit/destination-sketch": "workspace:*",
     "@capture-kit/destination-svg": "workspace:*",
     "@capture-kit/model": "workspace:*",
-    "@capture-kit/serializer": "workspace:*"
+    "@capture-kit/serializer": "workspace:*",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "typescript": "^5.8.2",
