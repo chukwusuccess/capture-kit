@@ -32,9 +32,9 @@ capture-kit/
 
 ## Phase Plan
 
-- Phase 0 (Current): Core model, Phase 0 DOM serializer, valid Sketch archive generator, SVG export, extension MV3 shell, playground app.
-- Phase 1: Serializer v1 with deeper real-page accuracy (nested styles, inherited text traits, clipping).
-- Phase 2: Sketch destination fidelity (multi-fills, strokes, shadows, asset embedding, group hierarchies).
+- Phase 0 (Done): Core model, Phase 0 DOM serializer, valid Sketch archive generator, SVG export, extension MV3 shell, playground app.
+- Phase 1 (Done): Serializer v1 with deeper real-page accuracy (Range text metrics, inline SVG vector serialization, CSS background-images, form controls, visual container and text separation).
+- Phase 2 (Done): Sketch destination fidelity (strokes and borders, outer/inner box shadows, embedded image assets and native bitmap layers, multiple stacked fills, hierarchical group layers from parentId).
 - Phase 3: Interactive visual element picker and Figma clipboard payload exporter.
 - Phase 4: Accuracy harness in `tools/diff` (Playwright screenshot comparison, automated diff report), full-page scroll stitching, iframe traversal, and pseudo-elements.
 - Phase 5: Production packaging, store zips, user options, and HTML export.
@@ -54,6 +54,11 @@ pnpm -r build
 Run model validation tests:
 ```bash
 pnpm test
+```
+
+Run serializer accuracy tests:
+```bash
+pnpm test:serializer
 ```
 
 Run programmatic .sketch archive verification:
