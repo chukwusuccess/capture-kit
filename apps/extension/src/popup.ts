@@ -635,6 +635,7 @@ $('#sel-all')?.addEventListener('click', () => setSelected(visibleUrls(siteUrls)
 $('#sel-none')?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), false));
 optScrollStitch?.addEventListener('change', saveSettings);
 
-void loadSettings();
-void loadTabInfo();
-if (getScope() === 'site') void discoverSite();
+// Settings decide the scope and the tab gives the origin; both before discovery.
+void Promise.all([loadSettings(), loadTabInfo()]).then(() => {
+  if (getScope() === 'site') void discoverSite();
+});
