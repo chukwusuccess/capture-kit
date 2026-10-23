@@ -300,15 +300,6 @@ chrome.runtime.onMessage.addListener(
         sendResponse({ success: false, error: msg });
       };
 
-      if (action === 'capture') {
-        const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
-        handleFullCapture(scrollStitch).then(
-          (capture) => sendResponse({ success: true, capture }),
-          fail
-        );
-        return true;
-      }
-
       if (action === 'capture-run') {
         const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
         const urls = 'urls' in message ? message.urls : undefined;
