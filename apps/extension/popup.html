@@ -6,7 +6,7 @@
     <title>capture-kit</title>
     <style>
       body {
-        width: 250px;
+        width: 260px;
         padding: 16px;
         font-family: system-ui, -apple-system, sans-serif;
         margin: 0;
@@ -21,6 +21,7 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+        margin-bottom: 12px;
       }
       button {
         width: 100%;
@@ -42,6 +43,29 @@
         opacity: 0.5;
         cursor: not-allowed;
       }
+      .options-box {
+        border-top: 1px solid #e5e5e5;
+        padding-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .option-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #444;
+      }
+      .option-row input[type="checkbox"] {
+        margin-right: 6px;
+      }
+      .option-row select {
+        padding: 3px 6px;
+        font-size: 11px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+      }
       #status {
         margin-top: 12px;
         font-size: 12px;
@@ -57,6 +81,26 @@
       <button id="pick-btn" class="secondary">Pick element</button>
       <button id="figma-btn" class="secondary" disabled>Copy to Figma</button>
     </div>
+
+    <div class="options-box">
+      <label class="option-row">
+        <div>
+          <input type="checkbox" id="opt-scroll-stitch" />
+          <span>Auto-scroll</span>
+        </div>
+      </label>
+      <label class="option-row">
+        <span>Format:</span>
+        <select id="opt-format">
+          <option value="json">capture.json</option>
+          <option value="sketch">.sketch</option>
+          <option value="svg">.svg</option>
+          <option value="html">.html</option>
+          <option value="figma">Figma clipboard</option>
+        </select>
+      </label>
+    </div>
+
     <div id="status">Ready</div>
     <script type="module" src="./src/popup.ts"></script>
   </body>

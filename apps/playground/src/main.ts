@@ -6,6 +6,7 @@ import {
 } from '@capture-kit/serializer';
 import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
+import { modelToHtml } from '@capture-kit/destination-html';
 import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
 
 let latestCapture: Capture | null = null;
@@ -16,6 +17,7 @@ const copyFigmaBtn = document.getElementById('btn-copy-figma') as HTMLButtonElem
 const dlJsonBtn = document.getElementById('btn-dl-json') as HTMLButtonElement | null;
 const dlSketchBtn = document.getElementById('btn-dl-sketch') as HTMLButtonElement | null;
 const dlSvgBtn = document.getElementById('btn-dl-svg') as HTMLButtonElement | null;
+const dlHtmlBtn = document.getElementById('btn-dl-html') as HTMLButtonElement | null;
 const statusEl = document.getElementById('status') as HTMLSpanElement | null;
 const jsonPreview = document.getElementById('json-preview') as HTMLPreElement | null;
 
@@ -30,6 +32,7 @@ function enableActionButtons(): void {
   if (dlJsonBtn) dlJsonBtn.disabled = false;
   if (dlSketchBtn) dlSketchBtn.disabled = false;
   if (dlSvgBtn) dlSvgBtn.disabled = false;
+  if (dlHtmlBtn) dlHtmlBtn.disabled = false;
 }
 
 function triggerDownload(blob: Blob, filename: string): void {
@@ -134,5 +137,19 @@ dlSvgBtn?.addEventListener('click', () => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`SVG export error: ${message}`);
+  }
+});
+
+dlHtmlBtn?.addEventListener('click', () => {
+  if (!latestCapture) return;
+  setStatus('Generating .html document...');
+  try {
+    const htmlString = modelToHtml(latestCapture, { title: 'Captured Page' });
+    const htmlBlob = new Blob([htmlString], { type: 'text/html' });
+    triggerDownload(htmlBlob, 'capture.html');
+    setStatus('Downloaded capture.html');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`HTML export error: ${message}`);
   }
 });

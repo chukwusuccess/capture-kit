@@ -7,7 +7,7 @@ interface CaptureResponse {
 }
 
 interface WindowWithCaptureKit {
-  __captureKitSerialize?: () => Promise<unknown>;
+  __captureKitSerialize?: (opts?: { scrollStitch?: boolean }) => Promise<unknown>;
   __captureKitPickElement?: () => Promise<unknown>;
 }
 
@@ -31,7 +31,7 @@ async function downloadCapture(capture: Capture, filename = 'capture.json'): Pro
   });
 }
 
-async function handleFullCapture(): Promise<Capture> {
+async function handleFullCapture(scrollStitch = false): Promise<Capture> {
   const tabId = await getActiveTabId();
 
   await chrome.scripting.executeScript({
@@ -41,12 +41,14 @@ async function handleFullCapture(): Promise<Capture> {
 
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
-    func: async () => {
+    args: [scrollStitch],
+    func: async (...args: unknown[]) => {
+      const stitch = Boolean(args[0]);
       const customWindow = window as unknown as WindowWithCaptureKit;
       if (!customWindow.__captureKitSerialize) {
         throw new Error('Capture-kit serializer is not available on page');
       }
-      return await customWindow.__captureKitSerialize();
+      return await customWindow.__captureKitSerialize({ scrollStitch: stitch });
     },
   });
 
@@ -95,7 +97,9 @@ chrome.runtime.onMessage.addListener(
     if (message && typeof message === 'object' && 'action' in message) {
       const action = message.action;
       if (action === 'capture') {
-        handleFullCapture().then(
+        const scrollStitch =
+          'scrollStitch' in message && Boolean(message.scrollStitch);
+        handleFullCapture(scrollStitch).then(
           (capture) => sendResponse({ success: true, capture }),
           (error: unknown) => {
             const msg = error instanceof Error ? error.message : String(error);

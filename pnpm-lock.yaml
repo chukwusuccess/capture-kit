@@ -29,6 +29,15 @@ importers:
       '@capture-kit/destination-figma':
         specifier: workspace:*
         version: link:../../packages/destinations/figma
+      '@capture-kit/destination-html':
+        specifier: workspace:*
+        version: link:../../packages/destinations/html
+      '@capture-kit/destination-sketch':
+        specifier: workspace:*
+        version: link:../../packages/destinations/sketch
+      '@capture-kit/destination-svg':
+        specifier: workspace:*
+        version: link:../../packages/destinations/svg
       '@capture-kit/model':
         specifier: workspace:*
         version: link:../../packages/model
@@ -48,6 +57,9 @@ importers:
       '@capture-kit/destination-figma':
         specifier: workspace:*
         version: link:../../packages/destinations/figma
+      '@capture-kit/destination-html':
+        specifier: workspace:*
+        version: link:../../packages/destinations/html
       '@capture-kit/destination-sketch':
         specifier: workspace:*
         version: link:../../packages/destinations/sketch

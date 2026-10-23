@@ -18,7 +18,8 @@ declare const chrome: {
     executeScript<T = unknown>(injection: {
       target: { tabId: number };
       files?: string[];
-      func?: () => T | Promise<T>;
+      args?: unknown[];
+      func?: (...args: unknown[]) => T | Promise<T>;
     }): Promise<Array<{ result: T }>>;
   };
   downloads: {
@@ -27,5 +28,11 @@ declare const chrome: {
       filename: string;
       saveAs?: boolean;
     }): Promise<number>;
+  };
+  storage: {
+    local: {
+      get(keys: string | string[]): Promise<Record<string, unknown>>;
+      set(items: Record<string, unknown>): Promise<void>;
+    };
   };
 };
