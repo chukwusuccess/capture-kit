@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { serializeDocument } from './src/index.js';
+import { serializeDocument, serializeElement, startElementPicker } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -82,12 +82,15 @@ class MockElement extends MockNode {
   children: MockElement[] = [];
   childNodes: MockNode[] = [];
   styleOverrides: Partial<MockComputedStyle> = {};
+  style: Record<string, string> = {};
+  id = '';
   rect = { left: 0, top: 0, width: 100, height: 40 };
   outerHTML = '';
   value = '';
   placeholder = '';
   src = '';
   currentSrc = '';
+  ownerDocument: Document = null as unknown as Document;
 
   constructor(tagName: string, rect?: { left: number; top: number; width: number; height: number }) {
     super(1 /* ELEMENT_NODE */);
@@ -101,11 +104,23 @@ class MockElement extends MockNode {
 
   appendChild<T extends MockNode>(child: T): T {
     child.parentNode = this;
-    this.childNodes.push(child);
     if (child instanceof MockElement) {
+      child.ownerDocument = this.ownerDocument;
       this.children.push(child);
     }
+    this.childNodes.push(child);
     return child;
+  }
+  removeChild<T extends MockNode>(child: T): T {
+    this.childNodes = this.childNodes.filter((c) => c !== child);
+    if (child instanceof MockElement) {
+      this.children = this.children.filter((c) => c !== child);
+    }
+    return child;
+  }
+
+  contains(_el: unknown): boolean {
+    return false;
   }
 
   getAttribute(attr: string): string | null {
@@ -135,10 +150,27 @@ function createMockDocument() {
 
   const styleMap = new Map<MockElement, MockComputedStyle>();
 
+  const listeners = new Map<string, Array<EventListener>>();
   const doc = {
     documentElement: html,
     body,
     baseURI: 'https://example.com/demo',
+    createElement: (tag: string) => {
+      const el = new MockElement(tag);
+      el.ownerDocument = doc as unknown as Document;
+      return el;
+    },
+    getElementById: () => null,
+    addEventListener: (type: string, fn: EventListener) => {
+      const list = listeners.get(type) ?? [];
+      list.push(fn);
+      listeners.set(type, list);
+    },
+    removeEventListener: (type: string, fn: EventListener) => {
+      const list = listeners.get(type) ?? [];
+      listeners.set(type, list.filter((f) => f !== fn));
+    },
+    elementFromPoint: () => null,
     defaultView: {
       location: { href: 'https://example.com/demo', origin: 'https://example.com' },
       scrollX: 0,
@@ -184,7 +216,8 @@ function createMockDocument() {
       };
     },
   };
-
+  html.ownerDocument = doc as unknown as Document;
+  body.ownerDocument = doc as unknown as Document;
   return { doc, body, styleMap };
 }
 
@@ -272,6 +305,21 @@ async function runSerializerAccuracyTests() {
     (n) => n.parentId === inputNode.id && n.text?.content === 'User Input Text'
   );
   assert.ok(inputTextNode, 'Input text node not found');
+
+  // Verify serializeElement on isolated component
+  const elCapture = await serializeElement(card as unknown as Element);
+  assert.strictEqual(elCapture.frame.width, 300, 'Element capture width mismatch');
+  assert.strictEqual(elCapture.frame.height, 150, 'Element capture height mismatch');
+  const relativeCard = elCapture.nodes.find((n) => n.box.x === 0 && n.box.y === 0);
+  assert.ok(relativeCard, 'Element capture root node should be normalized to (0, 0)');
+
+  // Verify startElementPicker lifecycle
+  const cleanupPicker = startElementPicker(doc as unknown as Document, {
+    onSelect: () => {},
+    onCancel: () => {},
+  });
+  assert.strictEqual(typeof cleanupPicker, 'function');
+  cleanupPicker();
 
   console.log('packages/serializer accuracy tests passed: all scenarios verified');
 }

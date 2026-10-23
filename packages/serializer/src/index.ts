@@ -12,6 +12,13 @@ import {
 export interface SerializeOptions {
   baseURI?: string;
 }
+
+export interface ElementPickerOptions {
+  onSelect: (el: Element) => void;
+  onCancel?: () => void;
+  highlightColor?: string;
+}
+
 const IGNORED_TAGS: Record<string, true> = {
   script: true,
   style: true,
@@ -116,7 +123,6 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
         width,
         style: style === 'dashed' || style === 'dotted' ? style : 'solid',
       });
-      // If uniform borders, one stroke is sufficient
       break;
     }
   }
@@ -124,30 +130,15 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
   return strokes;
 }
 
-export async function serializeDocument(
+async function serializeSubtree(
+  root: Element,
   doc: Document,
+  frameRect: { originX: number; originY: number; width: number; height: number },
   opts?: SerializeOptions
 ): Promise<Capture> {
   const defaultView = doc.defaultView ?? window;
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
-
-  const docEl = doc.documentElement;
-  const body = doc.body;
-
-  const frameWidth = Math.max(
-    docEl?.scrollWidth ?? 0,
-    docEl?.clientWidth ?? 0,
-    body?.scrollWidth ?? 0,
-    defaultView.innerWidth ?? 1200
-  );
-
-  const frameHeight = Math.max(
-    docEl?.scrollHeight ?? 0,
-    docEl?.clientHeight ?? 0,
-    body?.scrollHeight ?? 0,
-    defaultView.innerHeight ?? 800
-  );
 
   const baseURI = opts?.baseURI || doc.baseURI || defaultView.location?.href || 'about:blank';
 
@@ -155,11 +146,12 @@ export async function serializeDocument(
     url: defaultView.location?.href || baseURI,
     version: '0.1.0',
     frame: {
-      width: Math.max(1, frameWidth),
-      height: Math.max(1, frameHeight),
+      width: Math.max(1, Math.round(frameRect.width)),
+      height: Math.max(1, Math.round(frameRect.height)),
       baseURI,
     },
   });
+
   const nodes: Node[] = [];
   const assets: Record<string, Asset> = {};
   let nextNodeId = 1;
@@ -172,22 +164,20 @@ export async function serializeDocument(
   // TODO(phase-4): Support ::before and ::after pseudo-elements
   // TODO(phase-4): Support custom web font extraction and embedding
 
-
   const elements: Element[] = [];
-  if (body) {
-    const showElementFilter = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT : 1;
-    const walker = doc.createTreeWalker(body, showElementFilter);
-    let currentNode: globalThis.Node | null = walker.currentNode;
-    while (currentNode) {
-      if (currentNode.nodeType === 1) {
-        const el = currentNode as Element;
-        const tag = el.tagName.toLowerCase();
-        if (!IGNORED_TAGS[tag]) {
-          elements.push(el);
-        }
+  const showElementFilter = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT : 1;
+  const walker = doc.createTreeWalker(root, showElementFilter);
+
+  let currentNode: globalThis.Node | null = walker.currentNode;
+  while (currentNode) {
+    if (currentNode.nodeType === 1) {
+      const el = currentNode as Element;
+      const tag = el.tagName.toLowerCase();
+      if (!IGNORED_TAGS[tag]) {
+        elements.push(el);
       }
-      currentNode = walker.nextNode();
     }
+    currentNode = walker.nextNode();
   }
 
   for (const el of elements) {
@@ -197,8 +187,8 @@ export async function serializeDocument(
     }
 
     const rect = el.getBoundingClientRect();
-    const x = Math.round(rect.left + scrollX);
-    const y = Math.round(rect.top + scrollY);
+    const x = Math.round(rect.left + scrollX - frameRect.originX);
+    const y = Math.round(rect.top + scrollY - frameRect.originY);
     const w = Math.round(rect.width);
     const h = Math.round(rect.height);
 
@@ -272,7 +262,7 @@ export async function serializeDocument(
             }
           }
         } catch {
-          // Cross-origin or network error ignored gracefully
+          // Cross-origin or network error ignored
         }
       }
     }
@@ -314,7 +304,7 @@ export async function serializeDocument(
           assetRef = assetKey;
         }
       } catch {
-        // Fallback to placeholder rect if serialization fails
+        // Fallback placeholder rect
       }
 
       nodes.push({
@@ -328,7 +318,7 @@ export async function serializeDocument(
       continue;
     }
 
-    // 2. Image elements (with srcset / currentSrc support)
+    // 2. Image elements
     if (tagName === 'img') {
       const img = el as HTMLImageElement;
       let assetRef: string | undefined;
@@ -367,7 +357,7 @@ export async function serializeDocument(
               }
             }
           } catch {
-            // Gracefully ignore fetch / cross-origin failures
+            // Fetch failure ignored gracefully
           }
         }
       }
@@ -383,7 +373,7 @@ export async function serializeDocument(
       continue;
     }
 
-    // 3. Form controls (input, textarea, select)
+    // 3. Form controls
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
       let controlText = '';
       if (tagName === 'input') {
@@ -398,7 +388,6 @@ export async function serializeDocument(
           select.options?.[select.selectedIndex]?.text || select.value || '';
       }
 
-      // Container node for the control
       nodes.push({
         id: nodeId,
         parentId,
@@ -442,7 +431,7 @@ export async function serializeDocument(
       continue;
     }
 
-    // 4. Regular DOM elements: inspect direct child text nodes
+    // 4. Regular DOM elements
     const childTextNodes: globalThis.Node[] = [];
     for (let i = 0; i < el.childNodes.length; i++) {
       const child = el.childNodes[i];
@@ -461,7 +450,6 @@ export async function serializeDocument(
       shadows.length > 0 ||
       radius.topLeft > 0;
 
-    // If element is a pure text container without visual decorations and has no element children
     if (!hasVisualDecoration && !hasChildren && childTextNodes.length > 0) {
       const combinedText = childTextNodes
         .map((n) => n.textContent || '')
@@ -498,7 +486,6 @@ export async function serializeDocument(
       continue;
     }
 
-    // Container element (frame or rect)
     nodes.push({
       id: nodeId,
       parentId,
@@ -507,7 +494,6 @@ export async function serializeDocument(
       style,
     });
 
-    // If container element has direct text nodes, emit each measured text node
     for (const textNode of childTextNodes) {
       const textVal = textNode.textContent?.trim() || '';
       if (!textVal) continue;
@@ -517,20 +503,19 @@ export async function serializeDocument(
       let textW = w;
       let textH = h;
 
-      // Use Range for precise sub-pixel text bounding box if available
       if (typeof doc.createRange === 'function') {
         try {
           const range = doc.createRange();
           range.selectNodeContents(textNode);
           const rangeRect = range.getBoundingClientRect();
           if (rangeRect.width > 0 && rangeRect.height > 0) {
-            textX = Math.round(rangeRect.left + scrollX);
-            textY = Math.round(rangeRect.top + scrollY);
+            textX = Math.round(rangeRect.left + scrollX - frameRect.originX);
+            textY = Math.round(rangeRect.top + scrollY - frameRect.originY);
             textW = Math.round(rangeRect.width);
             textH = Math.round(rangeRect.height);
           }
         } catch {
-          // Range calculation fallback
+          // Range fallback
         }
       }
 
@@ -580,4 +565,175 @@ export async function serializeDocument(
   capture.assets = assets;
 
   return capture;
+}
+
+export async function serializeDocument(
+  doc: Document,
+  opts?: SerializeOptions
+): Promise<Capture> {
+  const defaultView = doc.defaultView ?? window;
+  const docEl = doc.documentElement;
+  const body = doc.body;
+
+  const frameWidth = Math.max(
+    docEl?.scrollWidth ?? 0,
+    docEl?.clientWidth ?? 0,
+    body?.scrollWidth ?? 0,
+    defaultView.innerWidth ?? 1200
+  );
+
+  const frameHeight = Math.max(
+    docEl?.scrollHeight ?? 0,
+    docEl?.clientHeight ?? 0,
+    body?.scrollHeight ?? 0,
+    defaultView.innerHeight ?? 800
+  );
+
+  const targetRoot = body || docEl;
+  if (!targetRoot) {
+    return emptyCapture({
+      url: defaultView.location?.href || 'about:blank',
+      version: '0.1.0',
+    });
+  }
+
+  return serializeSubtree(
+    targetRoot,
+    doc,
+    {
+      originX: 0,
+      originY: 0,
+      width: frameWidth,
+      height: frameHeight,
+    },
+    opts
+  );
+}
+
+export async function serializeElement(
+  el: Element,
+  opts?: SerializeOptions
+): Promise<Capture> {
+  const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
+  const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
+  const scrollX = defaultView.scrollX ?? 0;
+  const scrollY = defaultView.scrollY ?? 0;
+
+  const rect = el.getBoundingClientRect();
+  const originX = Math.round(rect.left + scrollX);
+  const originY = Math.round(rect.top + scrollY);
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+
+  return serializeSubtree(
+    el,
+    doc,
+    {
+      originX,
+      originY,
+      width,
+      height,
+    },
+    opts
+  );
+}
+
+export function startElementPicker(
+  doc: Document,
+  options: ElementPickerOptions
+): () => void {
+  const highlightColor = options.highlightColor || '#0284c7';
+  const overlayId = '__capture_kit_picker_overlay';
+  const badgeId = '__capture_kit_picker_badge';
+
+  let overlay = doc.getElementById(overlayId);
+  if (!overlay && doc.body) {
+    overlay = doc.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.position = 'fixed';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.zIndex = '2147483647';
+    overlay.style.border = `2px solid ${highlightColor}`;
+    overlay.style.backgroundColor = `${highlightColor}20`;
+    overlay.style.transition = 'all 60ms ease-out';
+    overlay.style.display = 'none';
+
+    const badge = doc.createElement('div');
+    badge.id = badgeId;
+    badge.style.position = 'absolute';
+    badge.style.top = '-24px';
+    badge.style.left = '0';
+    badge.style.backgroundColor = highlightColor;
+    badge.style.color = '#ffffff';
+    badge.style.fontSize = '11px';
+    badge.style.fontFamily = 'monospace';
+    badge.style.fontWeight = '600';
+    badge.style.padding = '2px 6px';
+    badge.style.borderRadius = '3px';
+    badge.style.whiteSpace = 'nowrap';
+    overlay.appendChild(badge);
+
+    doc.body.appendChild(overlay);
+  }
+
+  const badgeEl = doc.getElementById(badgeId);
+  let currentTarget: Element | null = null;
+
+  function updateOverlay(el: Element) {
+    if (!overlay || el === overlay || overlay.contains(el)) return;
+    currentTarget = el;
+    const rect = el.getBoundingClientRect();
+    overlay.style.display = 'block';
+    overlay.style.left = `${rect.left}px`;
+    overlay.style.top = `${rect.top}px`;
+    overlay.style.width = `${rect.width}px`;
+    overlay.style.height = `${rect.height}px`;
+
+    if (badgeEl) {
+      const tag = el.tagName.toLowerCase();
+      const idStr = el.id ? `#${el.id}` : '';
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      badgeEl.textContent = `${tag}${idStr} (${w}x${h})`;
+    }
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (typeof doc.elementFromPoint !== 'function') return;
+    const el = doc.elementFromPoint(e.clientX, e.clientY);
+    if (el && el !== overlay && !overlay?.contains(el)) {
+      updateOverlay(el);
+    }
+  }
+
+  function handleClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (currentTarget) {
+      cleanup();
+      options.onSelect(currentTarget);
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      cleanup();
+      options.onCancel?.();
+    }
+  }
+
+  function cleanup() {
+    doc.removeEventListener('mousemove', handleMouseMove as EventListener, true);
+    doc.removeEventListener('click', handleClick as EventListener, true);
+    doc.removeEventListener('keydown', handleKeyDown as EventListener, true);
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+    }
+  }
+
+  doc.addEventListener('mousemove', handleMouseMove as EventListener, true);
+  doc.addEventListener('click', handleClick as EventListener, true);
+  doc.addEventListener('keydown', handleKeyDown as EventListener, true);
+
+  return cleanup;
 }
