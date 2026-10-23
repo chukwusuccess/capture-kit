@@ -195,7 +195,15 @@ async function waitForLayout(tabId: number): Promise<void> {
     target: { tabId },
     func: () =>
       new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 250)));
+        // rAF never fires in hidden tabs; the timeout stops the crawl hanging there.
+        const settle = (): void => void setTimeout(resolve, 250);
+        const fallback = setTimeout(settle, 400);
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            clearTimeout(fallback);
+            settle();
+          })
+        );
       }),
   });
 }
