@@ -11,7 +11,8 @@
     "test:sketch": "tsx scripts/verify-sketch.ts",
     "test:figma": "tsx packages/destinations/figma/test.ts",
     "test:html": "tsx packages/destinations/html/test.ts",
-    "test:diff": "tsx tools/diff/test.ts"
+    "test:diff": "tsx tools/diff/test.ts",
+    "test:extension": "tsx apps/extension/test.ts"
   },
   "devDependencies": {
     "jszip": "^3.10.1",
