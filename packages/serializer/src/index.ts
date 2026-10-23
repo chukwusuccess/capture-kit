@@ -464,7 +464,49 @@ async function serializeSubtree(
       continue;
     }
 
-    // 3. Form controls
+    // 3. Iframe elements (same-origin traversal)
+    if (tagName === 'iframe') {
+      nodes.push({
+        id: nodeId,
+        parentId,
+        type: 'frame',
+        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+        style,
+      });
+
+      try {
+        const iframeEl = el as HTMLIFrameElement;
+        const iframeDoc = iframeEl.contentDocument;
+        if (iframeDoc && (iframeDoc.body || iframeDoc.documentElement)) {
+          const iframeRoot = iframeDoc.body || iframeDoc.documentElement;
+          const iframeCapture = await serializeSubtree(
+            iframeRoot,
+            iframeDoc,
+            {
+              originX: -x,
+              originY: -y,
+              width: w,
+              height: h,
+            },
+            opts
+          );
+
+          for (const childNode of iframeCapture.nodes) {
+            if (!childNode.parentId) {
+              childNode.parentId = nodeId;
+            }
+            nodes.push(childNode);
+          }
+
+          Object.assign(assets, iframeCapture.assets);
+        }
+      } catch {
+        // Cross-origin iframe or inaccessible document ignored gracefully
+      }
+      continue;
+    }
+
+    // 4. Form controls
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
       let controlText = '';
       if (tagName === 'input') {

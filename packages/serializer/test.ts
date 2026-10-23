@@ -98,6 +98,7 @@ class MockElement extends MockNode {
   src = '';
   currentSrc = '';
   ownerDocument: Document = null as unknown as Document;
+  contentDocument?: unknown;
 
   constructor(tagName: string, rect?: { left: number; top: number; width: number; height: number }) {
     super(1 /* ELEMENT_NODE */);
@@ -278,6 +279,16 @@ async function runSerializerAccuracyTests() {
   };
   body.appendChild(inputEl);
 
+  // 5. Same-origin iframe
+  const iframeEl = new MockElement('iframe', { left: 50, top: 500, width: 300, height: 200 });
+  const iframeMockDoc = createMockDocument();
+  const iframeChild = new MockElement('div', { left: 10, top: 15, width: 100, height: 30 });
+  const iframeChildText = new MockNode(3 /* TEXT_NODE */, 'Iframe Embedded Content');
+  iframeChild.appendChild(iframeChildText);
+  iframeMockDoc.body.appendChild(iframeChild);
+  iframeEl.contentDocument = iframeMockDoc.doc;
+  body.appendChild(iframeEl);
+
   // Run serializer
   const capture = await serializeDocument(doc as unknown as Document);
 
@@ -328,6 +339,16 @@ async function runSerializerAccuracyTests() {
     (n) => n.parentId === inputNode.id && n.text?.content === 'User Input Text'
   );
   assert.ok(inputTextNode, 'Input text node not found');
+
+  // Verify same-origin iframe traversal
+  const iframeNode = validated.nodes.find((n) => n.box.x === 50 && n.box.y === 500 && n.type === 'frame');
+  assert.ok(iframeNode, 'Iframe container node not found');
+  const iframeTextNode = validated.nodes.find(
+    (n) => n.text?.content === 'Iframe Embedded Content'
+  );
+  assert.ok(iframeTextNode, 'Iframe child text node not found');
+  assert.strictEqual(iframeTextNode.box.x, 60, 'Iframe child x offset mismatch (50 + 10 = 60)');
+  assert.strictEqual(iframeTextNode.box.y, 515, 'Iframe child y offset mismatch (500 + 15 = 515)');
 
   // Verify serializeElement on isolated component
   const elCapture = await serializeElement(card as unknown as Element);
