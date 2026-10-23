@@ -81,8 +81,16 @@ async function runSketchVerification(): Promise<void> {
           radius: { topLeft: 8, topRight: 8, bottomRight: 8, bottomLeft: 8 },
           shadows: [],
         },
+        assetRef: 'asset-img-1',
       },
     ],
+    assets: {
+      'asset-img-1': {
+        kind: 'image',
+        mimeType: 'image/png',
+        base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      },
+    },
   });
 
   const blob = await modelToSketch(sampleCapture);
@@ -103,6 +111,9 @@ async function runSketchVerification(): Promise<void> {
     const file = zip.file(filename);
     assert.ok(file, `Missing required Sketch archive entry: ${filename}`);
   }
+  // Assert embedded image asset exists in zip
+  const embeddedImage = zip.file('images/asset-img-1.png');
+  assert.ok(embeddedImage, 'Embedded image asset images/asset-img-1.png not found in zip');
 
   // 2. Parse meta.json and document.json
   const metaText = await zip.file('meta.json')!.async('text');
@@ -170,6 +181,17 @@ async function runSketchVerification(): Promise<void> {
       assert.strictEqual(style.borders[0].thickness, 2, 'Border thickness mismatch');
       assert.strictEqual(style.shadows?.length, 1, 'Outer shadow count mismatch');
       assert.strictEqual(style.innerShadows?.length, 1, 'Inner shadow count mismatch');
+    }
+    if (node.id === 'node-image-1') {
+      assert.strictEqual(layer._class, 'bitmap', 'Expected bitmap class for image node with asset');
+      const bitmapLayer = layer as unknown as {
+        image?: {
+          _class: string;
+          _ref: string;
+        };
+      };
+      assert.strictEqual(bitmapLayer.image?._class, 'MSJSONFileReference');
+      assert.strictEqual(bitmapLayer.image?._ref, 'images/asset-img-1.png');
     }
   }
 

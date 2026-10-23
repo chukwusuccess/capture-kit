@@ -3,13 +3,14 @@
  *
  * Current fidelity features:
  * - Solid fills and background colors.
+ * - Embedded image assets and native bitmap layers (_class: "bitmap").
+ * - Pattern image fills on shape layers.
  * - Stroke conversion: border width, stroke color, border styles (solid, dashed, dotted).
  * - Outer and inner box shadows (blur, offset, spread, color).
  * - Text layers with attributedString, color, and font metrics.
  * - Corner radii on rectangle layers.
  *
  * In-progress / Planned:
- * - Embedded image assets as native bitmap layers.
  * - Multiple stacked fills.
  * - Hierarchical group layers from parentId.
  */
@@ -189,7 +190,10 @@ function convertShadows(shadows: Shadow[]): {
   return { outerShadows, innerShadows };
 }
 
-function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
+function convertNodeToSketchLayer(
+  node: Node,
+  assets: Capture['assets']
+): Record<string, unknown> {
   const commonFrame = {
     _class: 'rect',
     constrainProportions: false,
@@ -289,23 +293,125 @@ function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
     };
   }
 
-  // Handle frame, rect, and image
-  const isImage = node.type === 'image';
+  // Handle image type: native bitmap layer if asset is present
+  if (node.type === 'image') {
+    if (node.assetRef && assets[node.assetRef]) {
+      return {
+        _class: 'bitmap',
+        do_objectID: node.id,
+        booleanOperation: -1,
+        isFixedToViewport: false,
+        isFlippedHorizontal: false,
+        isFlippedVertical: false,
+        isLocked: false,
+        isVisible: true,
+        layerListExpandedType: 0,
+        name: `Image ${node.id}`,
+        nameIsFixed: false,
+        resizingConstraint: 63,
+        resizingType: 0,
+        rotation: 0,
+        shouldBreakMaskChain: false,
+        hasClippingMask: false,
+        clippingMaskMode: 0,
+        isTemplate: false,
+        frame: commonFrame,
+        style: {
+          _class: 'style',
+          endMarkerType: 0,
+          miterLimit: 10,
+          startMarkerType: 0,
+          windingRule: 1,
+          fills: [],
+          borders,
+          ...(borderOptions ? { borderOptions } : {}),
+          shadows: outerShadows,
+          innerShadows,
+        },
+        image: {
+          _class: 'MSJSONFileReference',
+          _ref_class: 'MSImageData',
+          _ref: `images/${node.assetRef}.png`,
+        },
+        clippingMask: '{{0, 0}, {1, 1}}',
+        fillReplacesImage: false,
+      };
+    }
+
+    // Fallback placeholder rect if asset is absent
+    return {
+      _class: 'rectangle',
+      do_objectID: node.id,
+      booleanOperation: -1,
+      isFixedToViewport: false,
+      isFlippedHorizontal: false,
+      isFlippedVertical: false,
+      isLocked: false,
+      isVisible: true,
+      layerListExpandedType: 0,
+      name: `Image ${node.id}`,
+      nameIsFixed: false,
+      resizingConstraint: 63,
+      resizingType: 0,
+      rotation: 0,
+      shouldBreakMaskChain: false,
+      hasClippingMask: false,
+      clippingMaskMode: 0,
+      isTemplate: false,
+      frame: commonFrame,
+      style: {
+        _class: 'style',
+        endMarkerType: 0,
+        miterLimit: 10,
+        startMarkerType: 0,
+        windingRule: 1,
+        fills: [
+          {
+            _class: 'fill',
+            isEnabled: true,
+            fillType: 0,
+            color: {
+              _class: 'color',
+              red: 0.82,
+              green: 0.82,
+              blue: 0.82,
+              alpha: 1,
+            },
+          },
+        ],
+        borders,
+        ...(borderOptions ? { borderOptions } : {}),
+        shadows: outerShadows,
+        innerShadows,
+      },
+      edited: false,
+      isClosed: true,
+      pointRadiusBehaviour: 1,
+      points: makeRectPoints(node.style.radius?.topLeft ?? 0),
+      fixedRadius: node.style.radius?.topLeft ?? 0,
+      needsConvertionToNewRoundCorners: false,
+    };
+  }
+
+  // Handle frame and rect
   const firstSolid = node.style.fills.find((f) => f.type === 'solid' && f.color);
+  const imageFill = node.style.fills.find((f) => f.type === 'image' && f.assetRef);
   const fillList: Array<Record<string, unknown>> = [];
 
-  if (isImage) {
+  if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     fillList.push({
       _class: 'fill',
       isEnabled: true,
-      fillType: 0,
-      color: {
-        _class: 'color',
-        red: 0.82,
-        green: 0.82,
-        blue: 0.82,
-        alpha: 1,
+      fillType: 4, // pattern / image fill
+      image: {
+        _class: 'MSJSONFileReference',
+        _ref_class: 'MSImageData',
+        _ref: `images/${imageFill.assetRef}.png`,
       },
+      patternFillType: 1,
+      patternTileScale: 1,
+      noiseIntensity: 0,
+      noiseIndex: 0,
     });
   } else if (firstSolid && firstSolid.color) {
     const parsed = parseCssColor(firstSolid.color);
@@ -335,7 +441,7 @@ function convertNodeToSketchLayer(node: Node): Record<string, unknown> {
     isLocked: false,
     isVisible: true,
     layerListExpandedType: 0,
-    name: isImage ? `Image ${node.id}` : `${node.type} ${node.id}`,
+    name: `${node.type} ${node.id}`,
     nameIsFixed: false,
     resizingConstraint: 63,
     resizingType: 0,
@@ -371,6 +477,13 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
 
   const pageId = 'page-1';
   const artboardId = 'artboard-1';
+
+  // Embed assets into images/ folder
+  for (const [key, asset] of Object.entries(capture.assets)) {
+    if (asset.base64) {
+      zip.file(`images/${key}.png`, asset.base64, { base64: true });
+    }
+  }
 
   // meta.json
   const metaJson = {
@@ -454,7 +567,9 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
   };
 
   // Build artboard and layers
-  const artboardLayers = capture.nodes.map(convertNodeToSketchLayer);
+  const artboardLayers = capture.nodes.map((node) =>
+    convertNodeToSketchLayer(node, capture.assets)
+  );
 
   const pageJson = {
     _class: 'page',
