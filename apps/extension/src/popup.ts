@@ -75,9 +75,10 @@ function setStatus(text: string, kind: 'idle' | 'busy' | 'ok' | 'error' = 'idle'
   }
 }
 
+const pageKey = (u: string): string => u.replace(/#.*$/, '').replace(/\/+$/, '');
+
 function samePage(a: string, b: string): boolean {
-  const strip = (u: string): string => u.replace(/#.*$/, '').replace(/\/+$/, '');
-  return strip(a) === strip(b);
+  return pageKey(a) === pageKey(b);
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -302,9 +303,11 @@ async function loadTabInfo(): Promise<void> {
 }
 
 // Current page always appears, even if the sitemap leaves it out.
+// Dedupes /x vs /x/ (DOM links and sitemaps disagree) and keeps the current page listed.
 function withCurrent(urls: string[]): string[] {
-  if (!currentUrl || urls.some((u) => samePage(u, currentUrl))) return urls;
-  return [currentUrl, ...urls];
+  const byKey = new Map<string, string>();
+  for (const u of currentUrl ? [currentUrl, ...urls] : urls) if (!byKey.has(pageKey(u))) byKey.set(pageKey(u), u);
+  return [...byKey.values()];
 }
 
 async function restoreSelection(): Promise<void> {
