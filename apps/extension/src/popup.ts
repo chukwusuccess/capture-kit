@@ -3,6 +3,7 @@ import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
 import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
 import { modelToHtml } from '@capture-kit/destination-html';
+import { groupPages, pagePath } from './pages';
 
 interface CaptureMessageResponse {
   success: boolean;
@@ -24,6 +25,12 @@ let latestCapture: Capture | null = null;
 let siteUrls: string[] = [];
 let discoverySeq = 0;
 let browserWidth = 0;
+let siteOrigin = '';
+const selected = new Set<string>();
+const collapsed = new Set<string>();
+
+// Mirrors MAX_SITE_PAGES in background.ts — the popup must stay open per run.
+const MAX_SITE_PAGES = 50;
 
 const $ = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
 
@@ -42,7 +49,11 @@ const vpPanel = $('#viewports-panel') as HTMLElement | null;
 const optScrollStitch = $('#opt-scroll-stitch') as HTMLInputElement | null;
 const pageCount = $('#page-count') as HTMLSpanElement | null;
 const scopeNote = $('#scope-note') as HTMLElement | null;
-const pageList = $('#page-list') as HTMLUListElement | null;
+const picker = $('#picker') as HTMLElement | null;
+const pageGroups = $('#page-groups') as HTMLElement | null;
+const pageSearch = $('#page-search') as HTMLInputElement | null;
+const pickerFoot = $('#picker-foot') as HTMLElement | null;
+const tools = $('#tools') as HTMLElement | null;
 
 const vpRows = Array.from(document.querySelectorAll('.vp-row').values()).slice(
   1
@@ -76,60 +87,168 @@ function setStatus(text: string, kind: 'idle' | 'busy' | 'ok' | 'error' = 'idle'
   if (statusText) statusText.textContent = text;
 }
 
-function pagePath(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.pathname === '/' ? '/' : u.pathname.replace(/\/+$/, '');
-  } catch {
-    return url;
-  }
+// ---- page picker ----
+
+const CHEVRON =
+  '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="m2.5 3.75 2.5 2.5 2.5-2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function visibleUrls(urls: string[]): string[] {
+  const q = pageSearch?.value.trim().toLowerCase() ?? '';
+  return q ? urls.filter((u) => pagePath(u).toLowerCase().includes(q)) : urls;
 }
 
-function renderPageList(): void {
-  if (!pageList) return;
-  const site = getScope() === 'site';
-  pageList.hidden = !site || siteUrls.length === 0;
-  if (pageList.hidden) return;
+function pickedUrls(): string[] {
+  return siteUrls.filter((u) => selected.has(u));
+}
 
-  const shown = siteUrls.slice(0, 6);
-  const rest = siteUrls.length - shown.length;
-  pageList.innerHTML = '';
-  for (const url of shown) {
-    const li = document.createElement('li');
-    li.innerHTML =
-      '<svg width="10" height="12" viewBox="0 0 10 12" fill="none" aria-hidden="true"><path d="M1 1.5A.5.5 0 0 1 1.5 1h4L9 4.5v6a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-9Z" stroke="currentColor" stroke-width="1"/><path d="M5.5 1v3.5H9" stroke="currentColor" stroke-width="1"/></svg>';
-    const span = document.createElement('span');
-    span.textContent = pagePath(url);
-    span.title = url;
-    li.appendChild(span);
-    pageList.appendChild(li);
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function renderPicker(): void {
+  if (!picker || !pageGroups) return;
+  picker.hidden = getScope() !== 'site' || siteUrls.length === 0;
+  if (picker.hidden) return;
+
+  pageGroups.replaceChildren();
+  const groups = groupPages(siteUrls)
+    .map((g) => ({ ...g, urls: visibleUrls(g.urls) }))
+    .filter((g) => g.urls.length > 0);
+
+  if (groups.length === 0) {
+    pageGroups.append(el('p', 'empty', 'No pages match'));
   }
-  if (rest > 0) {
-    const li = document.createElement('li');
-    li.className = 'more';
-    li.textContent = `+ ${rest} more page${rest === 1 ? '' : 's'}`;
-    pageList.appendChild(li);
+
+  for (const group of groups) {
+    const section = el('section', 'grp');
+    section.dataset.key = group.key;
+
+    const head = el('div', 'grp-head');
+    const pick = el('label', 'grp-pick');
+    const box = el('input', 'cb');
+    box.type = 'checkbox';
+    box.dataset.group = group.key;
+    pick.append(box, el('span', 'grp-name', group.label));
+    const count = el('span', 'grp-count');
+    const toggle = el('button', 'grp-toggle');
+    toggle.type = 'button';
+    toggle.innerHTML = CHEVRON;
+    toggle.setAttribute('aria-label', `Toggle ${group.label}`);
+    head.append(pick, count, toggle);
+
+    const list = el('ul', 'grp-list');
+    for (const url of group.urls) {
+      const li = el('li');
+      const row = el('label', 'pg');
+      row.title = url;
+      const cb = el('input', 'cb');
+      cb.type = 'checkbox';
+      cb.dataset.url = url;
+      const path = pagePath(url);
+      const cut = path.lastIndexOf('/', path.length - 2) + 1;
+      const label = el('span', 'pg-path');
+      label.append(el('span', 'dim', path.slice(0, cut)), path.slice(cut));
+      row.append(cb, label);
+      li.append(row);
+      list.append(li);
+    }
+    section.append(head, list);
+    pageGroups.append(section);
   }
+  syncPicker();
+}
+
+// Update checkbox/count state in place so keyboard focus survives.
+function syncPicker(): void {
+  if (!pageGroups) return;
+  for (const section of pageGroups.querySelectorAll<HTMLElement>('.grp')) {
+    const boxes = [...section.querySelectorAll<HTMLInputElement>('.cb[data-url]')];
+    const on = boxes.filter((b) => {
+      b.checked = selected.has(b.dataset.url ?? '');
+      return b.checked;
+    }).length;
+    const groupBox = section.querySelector<HTMLInputElement>('.cb[data-group]');
+    if (groupBox) {
+      groupBox.checked = on > 0 && on === boxes.length;
+      groupBox.indeterminate = on > 0 && on < boxes.length;
+    }
+    const count = section.querySelector('.grp-count');
+    if (count) count.textContent = `${on}/${boxes.length}`;
+    const open = !collapsed.has(section.dataset.key ?? '');
+    section.querySelector('.grp-toggle')?.setAttribute('aria-expanded', String(open));
+    const list = section.querySelector<HTMLElement>('.grp-list');
+    if (list) list.hidden = !open;
+  }
+
+  const n = pickedUrls().length;
+  if (pickerFoot) {
+    const over = n > MAX_SITE_PAGES;
+    pickerFoot.classList.toggle('over', over);
+    pickerFoot.replaceChildren(
+      el('span', '', `${n} of ${siteUrls.length} selected`),
+      el('span', '', over ? `Max ${MAX_SITE_PAGES} per run` : 'At current width')
+    );
+  }
+  updateCaptureUI();
+}
+
+function setSelected(urls: string[], on: boolean): void {
+  for (const url of urls) {
+    if (on) selected.add(url);
+    else selected.delete(url);
+  }
+  syncPicker();
+  saveSelection();
+}
+
+function saveSelection(): void {
+  if (!chrome.storage?.local || !siteOrigin) return;
+  chrome.storage.local.set({ [`pages:${siteOrigin}`]: pickedUrls() });
+}
+
+async function restoreSelection(): Promise<void> {
+  selected.clear();
+  const key = `pages:${siteOrigin}`;
+  const data = chrome.storage?.local && siteOrigin ? await chrome.storage.local.get([key]) : {};
+  const saved = Array.isArray(data[key]) ? (data[key] as unknown[]) : null;
+  if (saved) {
+    for (const url of saved) if (typeof url === 'string' && siteUrls.includes(url)) selected.add(url);
+    if (selected.size > 0) return;
+  }
+  // Default: everything when it fits in one run, else just the main pages.
+  const pick = siteUrls.length <= MAX_SITE_PAGES ? siteUrls : groupPages(siteUrls)[0]?.urls ?? [];
+  for (const url of pick.slice(0, MAX_SITE_PAGES)) selected.add(url);
 }
 
 function updateCaptureUI(): void {
   if (!captureSub || !captureTitle) return;
   const site = getScope() === 'site';
 
-  vpPanel?.classList.toggle('off', site);
-  captureTitle.textContent = site ? 'Capture site' : 'Capture page';
-  renderPageList();
+  if (vpPanel) vpPanel.hidden = site;
+  if (tools) tools.hidden = site;
+  if (scopeNote && !site) scopeNote.hidden = true;
+  if (picker && !site) picker.hidden = true;
 
   if (site) {
-    if (siteUrls.length > 0) {
-      captureSub.textContent = `${siteUrls.length} pages via sitemap / links`;
-      if (captureBtn) captureBtn.disabled = false;
+    const n = pickedUrls().length;
+    captureTitle.textContent = n === 1 ? 'Capture 1 page' : `Capture ${n} pages`;
+    if (siteUrls.length === 0) {
+      captureTitle.textContent = 'Capture site';
+      captureSub.textContent = discoverySeq > 0 ? 'No pages to capture' : 'Finding pages…';
+    } else if (n === 0) {
+      captureSub.textContent = 'Select at least one page';
+    } else if (n > MAX_SITE_PAGES) {
+      captureSub.textContent = `Deselect ${n - MAX_SITE_PAGES} — max ${MAX_SITE_PAGES} per run`;
     } else {
-      captureSub.textContent = 'Finding pages…';
-      if (captureBtn) captureBtn.disabled = true;
+      captureSub.textContent = 'Opens each in a background tab · keep this open';
     }
+    if (captureBtn) captureBtn.disabled = n === 0 || n > MAX_SITE_PAGES;
     return;
   }
+  captureTitle.textContent = 'Capture page';
 
   const widths = selectedWidths();
   const browserOn = vpBrowser?.checked ?? false;
@@ -236,6 +355,7 @@ async function loadTabInfo(): Promise<void> {
   if (!tab) return;
   if (tabHost && tab.url) {
     try {
+      siteOrigin = new URL(tab.url).origin;
       tabHost.textContent = new URL(tab.url).hostname || 'current tab';
       tabHost.title = tab.url;
     } catch {
@@ -254,32 +374,37 @@ async function loadTabInfo(): Promise<void> {
 
 async function discoverSite(): Promise<void> {
   const seq = ++discoverySeq;
+  siteUrls = [];
+  renderPicker();
   if (scopeNote) {
     scopeNote.hidden = false;
     scopeNote.textContent = 'Finding pages via sitemap.xml, then internal links…';
   }
+  updateCaptureUI();
   try {
     const response = (await chrome.runtime.sendMessage({
       action: 'discover-site',
     })) as CaptureMessageResponse | undefined;
     if (seq !== discoverySeq) return;
     siteUrls = response?.success ? response.urls ?? [] : [];
-    if (pageCount) {
-      pageCount.hidden = siteUrls.length === 0;
-      pageCount.textContent = String(siteUrls.length);
-    }
+    await restoreSelection();
+    if (seq !== discoverySeq) return;
     if (scopeNote) {
-      scopeNote.textContent =
-        siteUrls.length > 0
-          ? `Found ${siteUrls.length} pages (max 20 per capture).`
-          : 'No pages found — no sitemap and no internal links.';
+      scopeNote.hidden = siteUrls.length > 0;
+      scopeNote.textContent = response?.success
+        ? 'No pages found — no sitemap and no internal links.'
+        : response?.error ?? 'Could not scan this site.';
     }
   } catch {
     if (seq !== discoverySeq) return;
     siteUrls = [];
-    if (pageCount) pageCount.hidden = true;
     if (scopeNote) scopeNote.textContent = 'Could not scan this site.';
   }
+  if (pageCount) {
+    pageCount.hidden = siteUrls.length === 0;
+    pageCount.textContent = String(siteUrls.length);
+  }
+  renderPicker();
   updateCaptureUI();
 }
 
@@ -408,6 +533,7 @@ captureBtn?.addEventListener('click', async () => {
       const response = (await chrome.runtime.sendMessage({
         action: 'capture-site',
         scrollStitch,
+        urls: pickedUrls(),
       })) as CaptureMessageResponse | undefined;
       await handleResponse(response, 'site');
     } else if (widths.length > 0) {
@@ -481,8 +607,32 @@ scopeRadios.forEach((r) =>
     saveSettings();
     updateCaptureUI();
     if (getScope() === 'site' && siteUrls.length === 0) void discoverSite();
+    else renderPicker();
   })
 );
+
+pageGroups?.addEventListener('change', (event) => {
+  const box = event.target as HTMLInputElement;
+  if (box.dataset.url) setSelected([box.dataset.url], box.checked);
+  if (box.dataset.group !== undefined) {
+    const section = box.closest('.grp');
+    const urls = [...(section?.querySelectorAll<HTMLInputElement>('.cb[data-url]') ?? [])].map(
+      (b) => b.dataset.url ?? ''
+    );
+    setSelected(urls, box.checked);
+  }
+});
+pageGroups?.addEventListener('click', (event) => {
+  const toggle = (event.target as HTMLElement).closest('.grp-toggle');
+  const key = toggle?.closest<HTMLElement>('.grp')?.dataset.key;
+  if (key === undefined) return;
+  if (collapsed.has(key)) collapsed.delete(key);
+  else collapsed.add(key);
+  syncPicker();
+});
+pageSearch?.addEventListener('input', renderPicker);
+$('#sel-all')?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), true));
+$('#sel-none')?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), false));
 optScrollStitch?.addEventListener('change', saveSettings);
 
 void loadSettings();

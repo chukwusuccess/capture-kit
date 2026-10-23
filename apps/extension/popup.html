@@ -54,10 +54,13 @@
       * {
         box-sizing: border-box;
       }
+      [hidden] {
+        display: none !important;
+      }
       body {
         width: 360px;
         margin: 0;
-        padding: 14px;
+        padding: 12px 12px 10px;
         background: var(--bg);
         color: var(--ink);
         font: 400 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -75,7 +78,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin: 2px 2px 14px;
+        margin: 2px 2px 8px;
       }
       .brand {
         display: flex;
@@ -136,7 +139,7 @@
       .panel {
         min-width: 0;
         margin: 0 0 8px;
-        padding: 12px;
+        padding: 10px 12px;
         border: 0;
         background: var(--card);
         border-radius: 12px;
@@ -150,7 +153,7 @@
       legend {
         float: left;
         width: 100%;
-        margin: 0 0 10px;
+        margin: 0 0 8px;
         padding: 0;
         font-size: 11px;
         font-weight: 600;
@@ -158,6 +161,14 @@
       }
       legend + * {
         clear: both;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
 
       /* ---- segmented controls (scope + format share one look) ---- */
@@ -187,7 +198,7 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
-        height: 30px;
+        height: 28px;
         font-size: 12.5px;
         font-weight: 550;
         color: var(--muted);
@@ -264,12 +275,229 @@
         font-family: inherit;
       }
 
+      /* ---- page picker ---- */
+      .picker {
+        margin-top: 10px;
+      }
+      .picker-bar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+        height: 28px;
+        margin-right: 4px;
+        padding: 0 8px;
+        color: var(--muted);
+        background: var(--sunk);
+        border: 1px solid transparent;
+        border-radius: 7px;
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+      }
+      .search:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+      .search input {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        color: var(--ink);
+        background: none;
+        border: 0;
+        outline: none;
+      }
+      .search input::placeholder {
+        color: var(--muted);
+      }
+      .link {
+        height: 28px;
+        padding: 0 7px;
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 550;
+        color: var(--ink-2);
+        background: none;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .link:hover {
+        color: var(--ink);
+        background: var(--sunk);
+      }
+      .groups {
+        max-height: 172px;
+        margin: 8px -6px 0;
+        padding: 0 6px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+      }
+      .grp + .grp {
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px solid var(--line);
+      }
+      .grp-head,
+      .pg {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 26px;
+        margin: 0 -6px;
+        padding: 0 6px;
+        border-radius: 6px;
+      }
+      .grp-head:hover,
+      .pg:hover {
+        background: var(--sunk);
+      }
+      .grp-pick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        cursor: pointer;
+        user-select: none;
+      }
+      .grp-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .grp-count {
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+      .grp-toggle {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        color: var(--muted);
+        background: none;
+        border: 0;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .grp-toggle:hover {
+        color: var(--ink);
+        background: var(--line);
+      }
+      .grp-toggle svg {
+        transition: transform 0.15s var(--ease);
+      }
+      .grp-toggle[aria-expanded="false"] svg {
+        transform: rotate(-90deg);
+      }
+      .grp-list {
+        margin: 0;
+        padding: 0 0 0 16px;
+        list-style: none;
+      }
+      .pg {
+        cursor: pointer;
+        user-select: none;
+      }
+      .pg-path {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font: 450 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: var(--ink-2);
+      }
+      .pg-path .dim {
+        color: var(--muted);
+      }
+      .pg:has(.cb:checked) .pg-path {
+        color: var(--ink);
+      }
+      .cb {
+        appearance: none;
+        flex: none;
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        display: grid;
+        place-content: center;
+        background: var(--card);
+        border: 1.5px solid var(--line-2);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease;
+      }
+      .cb::before {
+        content: "";
+        width: 7px;
+        height: 3.5px;
+        margin-top: -2px;
+        border: solid #fff;
+        border-width: 0 0 2px 2px;
+        transform: rotate(-45deg) scale(0.6);
+        opacity: 0;
+        transition: transform 0.15s var(--ease), opacity 0.1s ease;
+      }
+      .cb:checked,
+      .cb:indeterminate {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .cb:checked::before {
+        transform: rotate(-45deg) scale(1);
+        opacity: 1;
+      }
+      .cb:indeterminate::before {
+        width: 7px;
+        height: 0;
+        margin: 0;
+        border-width: 0 0 2px;
+        transform: none;
+        opacity: 1;
+      }
+      .picker-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 6px 0 0;
+        padding-top: 7px;
+        border-top: 1px solid var(--line);
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+      .picker-foot.over {
+        color: var(--danger);
+      }
+      .empty {
+        margin: 12px 0;
+        font-size: 11.5px;
+        text-align: center;
+        color: var(--muted);
+      }
+
       /* ---- viewport rows ---- */
       .vp-row {
         display: flex;
         align-items: center;
         gap: 6px;
-        height: 34px;
+        height: 30px;
         margin: 0 -6px;
         padding: 0 6px;
         border-radius: 8px;
@@ -277,9 +505,6 @@
       }
       .vp-row:hover {
         background: var(--sunk);
-      }
-      .vp-row + .vp-row {
-        margin-top: 1px;
       }
       .vp-pick {
         display: flex;
@@ -389,8 +614,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin-top: 10px;
-        padding-top: 10px;
+        margin-top: 8px;
+        padding-top: 8px;
         border-top: 1px solid var(--line);
         cursor: pointer;
         user-select: none;
@@ -480,8 +705,8 @@
         white-space: nowrap;
       }
       .hero {
-        margin: 4px 0 8px;
-        padding: 12px 14px;
+        margin: 0 0 8px;
+        padding: 10px 14px;
         color: var(--cta-ink);
         background: var(--cta);
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15), 0 6px 16px -6px rgba(0, 0, 0, 0.3);
@@ -530,7 +755,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 12px;
+        margin-top: 8px;
         padding: 0 4px;
         min-height: 18px;
         font-size: 11.5px;
@@ -606,7 +831,7 @@
     </header>
 
     <fieldset class="panel">
-      <legend>Pages</legend>
+      <legend class="sr-only">Pages</legend>
       <div class="seg">
         <label>
           <input type="radio" name="scope" value="page" checked />
@@ -618,7 +843,21 @@
         </label>
       </div>
       <p class="scope-note" id="scope-note" hidden></p>
-      <ul class="page-list" id="page-list" hidden></ul>
+      <div class="picker" id="picker" hidden>
+        <div class="picker-bar">
+          <label class="search">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4" />
+              <path d="m8.5 8.5 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+            <input type="search" id="page-search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" />
+          </label>
+          <button type="button" class="link" id="sel-all">All</button>
+          <button type="button" class="link" id="sel-none">None</button>
+        </div>
+        <div class="groups" id="page-groups" role="group" aria-label="Pages to capture"></div>
+        <p class="picker-foot" id="picker-foot" aria-live="polite"></p>
+      </div>
     </fieldset>
 
     <fieldset class="panel" id="viewports-panel">
@@ -713,7 +952,7 @@
       </span>
     </button>
 
-    <div class="grid2">
+    <div class="grid2" id="tools">
       <button id="pick-btn" class="card pick">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
           <path d="M9 1.5v3M9 13.5v3M1.5 9h3M13.5 9h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
