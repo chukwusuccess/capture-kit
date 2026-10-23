@@ -179,21 +179,45 @@ async function discoverSiteUrls(
   return [...allUrls].sort((a, b) => a.localeCompare(b));
 }
 
-function waitForTabComplete(tabId: number): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      chrome.tabs.onUpdated.removeListener(onUpdate);
-      resolve();
-    };
-    const onUpdate = (id: number, info: { status?: string }): void => {
-      if (id === tabId && info.status === 'complete') finish();
-    };
-    chrome.tabs.onUpdated.addListener(onUpdate);
-    setTimeout(finish, 20_000); // some pages never report complete
-  });
+function waitForTabReady(tabId: number, maxWaitMs = 5000): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  let settled = false;
+
+  const finish = (): void => {
+    if (settled) return;
+    settled = true;
+    chrome.tabs.onUpdated.removeListener(onUpdate);
+    clearInterval(pollTimer);
+    clearTimeout(timeoutTimer);
+    resolve();
+  };
+
+  const onUpdate = (id: number, info: { status?: string }): void => {
+    if (id === tabId && info.status === 'complete') finish();
+  };
+
+  chrome.tabs.onUpdated.addListener(onUpdate);
+  const timeoutTimer = setTimeout(finish, maxWaitMs);
+
+  const pollTimer = setInterval(async () => {
+    try {
+      const [res] = await chrome.scripting.executeScript<{ ready: boolean }>({
+        target: { tabId },
+        func: () => ({
+          ready:
+            document.readyState === 'interactive' ||
+            document.readyState === 'complete',
+        }),
+      });
+      if (res?.result?.ready) {
+        finish();
+      }
+    } catch {
+      // not ready yet
+    }
+  }, 350);
+
+  return promise;
 }
 
 // Keep only http(s) URLs on the active tab's origin — the popup sends these.
@@ -242,8 +266,8 @@ async function waitForLayout(tabId: number): Promise<void> {
     func: () =>
       new Promise<void>((resolve) => {
         // rAF never fires in hidden tabs; the timeout stops the crawl hanging there.
-        const settle = (): void => void setTimeout(resolve, 250);
-        const fallback = setTimeout(settle, 400);
+        const settle = (): void => void setTimeout(resolve, 80);
+        const fallback = setTimeout(settle, 180);
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             clearTimeout(fallback);
@@ -314,7 +338,7 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
 }
 
 async function loadInTab(tabId: number, url: string): Promise<void> {
-  const loaded = waitForTabComplete(tabId);
+  const loaded = waitForTabReady(tabId);
   await chrome.tabs.update(tabId, { url });
   await loaded;
 }
