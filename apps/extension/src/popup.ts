@@ -23,6 +23,7 @@ interface ProgressMessage {
 let latestCapture: Capture | null = null;
 let siteUrls: string[] = [];
 let discoverySeq = 0;
+let browserWidth = 0;
 
 const $ = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
 
@@ -243,6 +244,7 @@ async function loadTabInfo(): Promise<void> {
   }
   if (tabSize && typeof tab.width === 'number') {
     tabSize.textContent = `${tab.width} px viewport`;
+    browserWidth = tab.width;
     if (vpBrowserW) vpBrowserW.textContent = String(tab.width);
   }
   updateCaptureUI();
@@ -413,10 +415,12 @@ captureBtn?.addEventListener('click', async () => {
         `Capturing ${widths.length + (vpBrowser?.checked ? 1 : 0)} viewports — window will resize…`,
         'busy'
       );
+      // "Browser" means the tab's current width; capture it alongside the presets.
+      const all = vpBrowser?.checked && browserWidth > 0 ? [browserWidth, ...widths] : widths;
       const response = (await chrome.runtime.sendMessage({
         action: 'capture-breakpoints',
         scrollStitch,
-        widths,
+        widths: [...new Set(all)],
       })) as CaptureMessageResponse | undefined;
       await handleResponse(response, 'breakpoints');
     } else {
