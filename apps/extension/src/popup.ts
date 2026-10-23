@@ -30,6 +30,7 @@ const OPEN_GROUP_LIMIT = 6;
 let siteUrls: string[] = [];
 let siteOrigin = '';
 let currentUrl = '';
+let currentTabId = 0;
 let browserWidth = 0;
 let discovered = false;
 let latestCaptures: Capture[] = [];
@@ -258,16 +259,30 @@ async function loadSettings(): Promise<void> {
   }
 }
 
-async function loadTabInfo(): Promise<void> {
-  if (!chrome.tabs?.query) return;
-  let [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.url) {
-    [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+async function queryActiveTab(): Promise<{ id?: number; url?: string; width?: number } | undefined> {
+  if (!chrome.tabs?.query) return undefined;
+  const [current] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (current?.id && current?.url && /^https?:/.test(current.url)) {
+    return current;
   }
-  if (!tab?.url) return;
+  const [lastFocused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (lastFocused?.id && lastFocused?.url && /^https?:/.test(lastFocused.url)) {
+    return lastFocused;
+  }
+  const all = await chrome.tabs.query({ active: true });
+  return all.find((t) => t.id && t.url && /^https?:/.test(t.url)) || current || lastFocused;
+}
+
+async function loadTabInfo(): Promise<void> {
+  const tab = await queryActiveTab();
+  if (!tab?.url) {
+    if (siteLine) siteLine.textContent = 'Open a website to capture it';
+    return;
+  }
   try {
     const u = new URL(tab.url);
     if (!/^https?:$/.test(u.protocol)) throw new Error('not a web page');
+    currentTabId = tab.id ?? 0;
     siteOrigin = u.origin;
     currentUrl = u.origin + u.pathname + u.search;
     if (siteLine) siteLine.textContent = u.hostname;
@@ -321,9 +336,12 @@ async function discoverSite(): Promise<void> {
   }
 
   try {
-    const response = (await chrome.runtime.sendMessage({ action: 'discover-site' })) as
-      | CaptureMessageResponse
-      | undefined;
+    const response = (await chrome.runtime.sendMessage({
+      action: 'discover-site',
+      tabId: currentTabId,
+      origin: siteOrigin,
+      url: currentUrl,
+    })) as CaptureMessageResponse | undefined;
     if (response?.success) {
       const fresh = response.urls ?? [];
       chrome.storage?.local?.set({ [cacheKey]: fresh });

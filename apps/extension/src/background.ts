@@ -31,23 +31,38 @@ async function getActiveTabId(): Promise<number> {
 
 // ponytail: hard cap — the popup must stay open for the whole crawl
 const MAX_SITE_PAGES = 50;
-
 function reportProgress(done: number, total: number, url: string): void {
   void chrome.runtime.sendMessage({ type: 'progress', done, total, url }).catch(() => {
     /* popup closed */
   });
 }
 
-async function discoverSiteUrls(tabId: number): Promise<string[]> {
-  const tab = await chrome.tabs.get(tabId).catch(() => null);
-  const tabUrl = tab?.url || '';
-  let origin = '';
-  try {
-    origin = new URL(tabUrl).origin;
-  } catch {
-    // ignore
-  }
 
+function extractSitemapLocs(xmlText: string): string[] {
+  const locs: string[] = [];
+  const matches = xmlText.matchAll(/<loc>\s*(https?:\/\/[^<\s]+)\s*<\/loc>/gi);
+  for (const m of matches) {
+    if (m[1]) locs.push(m[1].trim());
+  }
+  return locs;
+}
+
+async function discoverSiteUrls(
+  tabId: number,
+  passedOrigin = '',
+  passedUrl = ''
+): Promise<string[]> {
+  let origin = passedOrigin;
+  let tabUrl = passedUrl;
+  if (!origin || !tabUrl) {
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    tabUrl = tabUrl || tab?.url || '';
+    try {
+      origin = origin || new URL(tabUrl).origin;
+    } catch {
+      // ignore
+    }
+  }
   let onPageUrls: string[] = [];
   try {
     const [execResult] = await chrome.scripting.executeScript<string[]>({
@@ -129,7 +144,7 @@ async function discoverSiteUrls(tabId: number): Promise<string[]> {
     allUrls.add(cleanCurrent);
   }
 
-  // Sitemap probe with 2.5s timeout
+  // Sitemap probe with 2.5s timeout (Service-Worker safe regex parser)
   try {
     const sitemapPaths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap/sitemap.xml'];
     await Promise.all(
@@ -141,20 +156,10 @@ async function discoverSiteUrls(tabId: number): Promise<string[]> {
           });
           if (!res.ok) return;
           const text = await res.text();
-          if (
-            !text.includes('<loc') &&
-            !text.includes('<urlset') &&
-            !text.includes('<sitemapindex')
-          ) {
-            return;
-          }
+          if (!text.includes('<loc')) return;
 
-          const doc = new DOMParser().parseFromString(text, 'application/xml');
-          const locs = [...doc.querySelectorAll('loc')].map(
-            (l) => l.textContent?.trim() ?? ''
-          );
-
-          const isIndex = Boolean(doc.querySelector('sitemapindex'));
+          const locs = extractSitemapLocs(text);
+          const isIndex = text.includes('<sitemapindex');
           const childSitemaps = isIndex ? locs.slice(0, 5) : [];
 
           if (childSitemaps.length > 0) {
@@ -167,30 +172,26 @@ async function discoverSiteUrls(tabId: number): Promise<string[]> {
                   });
                   if (!childRes.ok) return;
                   const childText = await childRes.text();
-                  const childDoc = new DOMParser().parseFromString(
-                    childText,
-                    'application/xml'
-                  );
-                  for (const l of childDoc.querySelectorAll('loc')) {
-                    const u = l.textContent?.trim();
-                    if (u && u.startsWith(origin)) {
+                  const childLocs = extractSitemapLocs(childText);
+                  for (const locUrl of childLocs) {
+                    if (locUrl.startsWith(origin)) {
                       const clean =
-                        u.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
+                        locUrl.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
                       if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
                         allUrls.add(clean);
                       }
                     }
                   }
                 } catch {
-                  // ignore
+                  // ignore child sitemap error
                 }
               })
             );
           } else {
-            for (const loc of locs) {
-              if (loc && loc.startsWith(origin)) {
+            for (const locUrl of locs) {
+              if (locUrl.startsWith(origin)) {
                 const clean =
-                  loc.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
+                  locUrl.replace(/#.*$/, '').replace(/\/+$/, '') || `${origin}/`;
                 if (!/\.(xml|pdf|jpe?g|png|gif|webp|svg|zip)$/i.test(clean)) {
                   allUrls.add(clean);
                 }
@@ -198,14 +199,13 @@ async function discoverSiteUrls(tabId: number): Promise<string[]> {
             }
           }
         } catch {
-          // ignore
+          // ignore sitemap path error
         }
       })
     );
   } catch {
-    // sitemap error ignored
+    // sitemap probe catch
   }
-
   // Shallow background crawl of top-level section pages if link count is low
   if (allUrls.size < 25) {
     const seeds = [...allUrls]
@@ -479,8 +479,21 @@ chrome.runtime.onMessage.addListener(
       }
 
       if (action === 'discover-site') {
-        getActiveTabId()
-          .then((tabId) => discoverSiteUrls(tabId))
+        const getTab =
+          'tabId' in message && typeof message.tabId === 'number' && message.tabId > 0
+            ? Promise.resolve(message.tabId)
+            : getActiveTabId();
+        const origin =
+          'origin' in message && typeof message.origin === 'string'
+            ? message.origin
+            : '';
+        const pageUrl =
+          'url' in message && typeof message.url === 'string'
+            ? message.url
+            : '';
+
+        getTab
+          .then((tabId) => discoverSiteUrls(tabId, origin, pageUrl))
           .then(
             (urls) => sendResponse({ success: true, urls, count: urls.length }),
             fail
