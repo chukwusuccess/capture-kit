@@ -16,7 +16,7 @@
  */
 
 import JSZip from 'jszip';
-import type { Capture, Node, Shadow, Stroke } from '@capture-kit/model';
+import type { Capture, Fill, Node, Shadow, Stroke } from '@capture-kit/model';
 
 interface SketchColor {
   _class: 'color';
@@ -188,6 +188,57 @@ function convertShadows(shadows: Shadow[]): {
   }
 
   return { outerShadows, innerShadows };
+}
+function convertFills(
+  fills: Fill[],
+  assets: Capture['assets']
+): Array<Record<string, unknown>> {
+  const fillList: Array<Record<string, unknown>> = [];
+
+  for (const fill of fills) {
+    if (fill.type === 'image' && fill.assetRef && assets[fill.assetRef]) {
+      fillList.push({
+        _class: 'fill',
+        isEnabled: true,
+        fillType: 4, // pattern / image fill
+        image: {
+          _class: 'MSJSONFileReference',
+          _ref_class: 'MSImageData',
+          _ref: `images/${fill.assetRef}.png`,
+        },
+        patternFillType: 1, // fill / stretch
+        patternTileScale: 1,
+        noiseIntensity: 0,
+        noiseIndex: 0,
+        contextSettings: {
+          _class: 'graphicsContextSettings',
+          blendMode: 0,
+          opacity: fill.opacity ?? 1,
+        },
+      });
+    } else if (fill.type === 'solid' && fill.color) {
+      const parsed = parseCssColor(fill.color);
+      fillList.push({
+        _class: 'fill',
+        isEnabled: true,
+        fillType: 0, // solid color
+        color: {
+          _class: 'color',
+          red: parsed.red,
+          green: parsed.green,
+          blue: parsed.blue,
+          alpha: (fill.opacity ?? 1) * parsed.alpha,
+        },
+        contextSettings: {
+          _class: 'graphicsContextSettings',
+          blendMode: 0,
+          opacity: fill.opacity ?? 1,
+        },
+      });
+    }
+  }
+
+  return fillList;
 }
 
 function convertNodeToSketchLayer(
@@ -394,40 +445,7 @@ function convertNodeToSketchLayer(
   }
 
   // Handle frame and rect
-  const firstSolid = node.style.fills.find((f) => f.type === 'solid' && f.color);
-  const imageFill = node.style.fills.find((f) => f.type === 'image' && f.assetRef);
-  const fillList: Array<Record<string, unknown>> = [];
-
-  if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
-    fillList.push({
-      _class: 'fill',
-      isEnabled: true,
-      fillType: 4, // pattern / image fill
-      image: {
-        _class: 'MSJSONFileReference',
-        _ref_class: 'MSImageData',
-        _ref: `images/${imageFill.assetRef}.png`,
-      },
-      patternFillType: 1,
-      patternTileScale: 1,
-      noiseIntensity: 0,
-      noiseIndex: 0,
-    });
-  } else if (firstSolid && firstSolid.color) {
-    const parsed = parseCssColor(firstSolid.color);
-    fillList.push({
-      _class: 'fill',
-      isEnabled: true,
-      fillType: 0,
-      color: {
-        _class: 'color',
-        red: parsed.red,
-        green: parsed.green,
-        blue: parsed.blue,
-        alpha: (firstSolid.opacity ?? 1) * parsed.alpha,
-      },
-    });
-  }
+  const fillList = convertFills(node.style.fills ?? [], assets);
 
   const radius = node.style.radius?.topLeft ?? 0;
 

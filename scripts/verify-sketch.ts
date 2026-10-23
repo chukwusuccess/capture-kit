@@ -38,7 +38,10 @@ async function runSketchVerification(): Promise<void> {
         type: 'rect',
         box: { x: 50, y: 80, w: 300, h: 150 },
         style: {
-          fills: [{ type: 'solid', color: 'rgba(34, 197, 94, 1)' }],
+          fills: [
+            { type: 'solid', color: 'rgba(34, 197, 94, 1)' },
+            { type: 'image', assetRef: 'asset-img-1', opacity: 0.8 },
+          ],
           strokes: [{ color: 'rgba(0, 0, 0, 1)', width: 2, style: 'dashed' }],
           opacity: 1,
           radius: { topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 12 },
@@ -170,6 +173,7 @@ async function runSketchVerification(): Promise<void> {
     if (node.id === 'node-rect-1') {
       const layerRecord = layer as unknown as {
         style?: {
+          fills?: Array<{ fillType: number }>;
           borders?: Array<{ thickness: number }>;
           shadows?: Array<unknown>;
           innerShadows?: Array<unknown>;
@@ -178,6 +182,9 @@ async function runSketchVerification(): Promise<void> {
       const style = layerRecord.style;
       assert.ok(style, 'Layer missing style');
       assert.strictEqual(style.borders?.length, 1, 'Border count mismatch');
+      assert.strictEqual(style.fills?.length, 2, 'Multiple fills count mismatch');
+      assert.strictEqual(style.fills[0].fillType, 0, 'First fill should be solid');
+      assert.strictEqual(style.fills[1].fillType, 4, 'Second fill should be pattern image fill');
       assert.strictEqual(style.borders[0].thickness, 2, 'Border thickness mismatch');
       assert.strictEqual(style.shadows?.length, 1, 'Outer shadow count mismatch');
       assert.strictEqual(style.innerShadows?.length, 1, 'Inner shadow count mismatch');
