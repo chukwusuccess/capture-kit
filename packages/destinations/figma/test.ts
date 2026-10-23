@@ -130,16 +130,14 @@ function runFigmaDestinationTests() {
     'Parent group element missing'
   );
 
-  // 8. Several captures share one paste, laid out left to right
-  const second: Capture = {
-    ...sampleCapture,
-    url: 'https://test.figma-destination.local/pricing',
-    frame: { ...sampleCapture.frame, width: 390, height: 900 },
-  };
-  const multi = modelToFigma([sampleCapture, second]).svg;
-  assert.ok(multi.startsWith('<svg width="1710" height="900"'), 'Combined frame size wrong');
-  assert.ok(multi.includes('transform="translate(1320 0)"'), 'Second capture not offset');
-  assert.ok(multi.includes('id="/pricing @ 390"'), 'Capture group not labelled');
+  // 8. Several captures share one paste: a row per page, its sizes side by side
+  const mobile: Capture = { ...sampleCapture, frame: { ...sampleCapture.frame, width: 390, height: 900 } };
+  const pricing: Capture = { ...sampleCapture, url: 'https://test.figma-destination.local/pricing' };
+  const multi = modelToFigma([sampleCapture, mobile, pricing]).svg;
+  assert.ok(multi.startsWith('<svg width="1710" height="1820"'), 'Combined frame size wrong');
+  assert.ok(multi.includes('transform="translate(1320 0)"'), 'Second size not beside the first');
+  assert.ok(multi.includes('transform="translate(0 1020)"'), 'Second page not on its own row');
+  assert.ok(multi.includes('id="/pricing @ 1200"'), 'Capture group not labelled');
 
   console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }

@@ -167,19 +167,29 @@ function buildFigmaSvg(captures: Capture[]): string {
     ].join('\n');
   }
 
-  // Several captures: lay them out left to right, one named group each.
-  let x = 0;
-  const groups = captures.map((capture) => {
-    const group = [
-      `<g id="${escapeXml(captureLabel(capture))}" transform="translate(${x} 0)">`,
-      buildFigmaLayers(capture),
-      '</g>',
-    ].join('\n');
-    x += capture.frame.width + CAPTURE_GAP;
-    return group;
-  });
-  const width = x - CAPTURE_GAP;
-  const height = Math.max(...captures.map((c) => c.frame.height));
+  // Several captures: one row per page, its sizes left to right, one named group each.
+  const rows = new Map<string, Capture[]>();
+  for (const capture of captures) rows.set(capture.url, [...(rows.get(capture.url) ?? []), capture]);
+
+  const groups: string[] = [];
+  let y = 0;
+  let width = 0;
+  for (const row of rows.values()) {
+    let x = 0;
+    for (const capture of row) {
+      groups.push(
+        [
+          `<g id="${escapeXml(captureLabel(capture))}" transform="translate(${x} ${y})">`,
+          buildFigmaLayers(capture),
+          '</g>',
+        ].join('\n')
+      );
+      x += capture.frame.width + CAPTURE_GAP;
+    }
+    width = Math.max(width, x - CAPTURE_GAP);
+    y += Math.max(...row.map((c) => c.frame.height)) + CAPTURE_GAP;
+  }
+  const height = y - CAPTURE_GAP;
   return [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
     ...groups,
