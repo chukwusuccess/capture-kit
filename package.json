@@ -6,6 +6,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "tsx packages/model/test.ts",
+    "test:serializer": "tsx packages/serializer/test.ts",
     "test:sketch": "tsx scripts/verify-sketch.ts"
   },
   "devDependencies": {

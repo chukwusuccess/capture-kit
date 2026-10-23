@@ -1,6 +1,7 @@
 import {
   type Asset,
   type Capture,
+  type CornerRadius,
   type Fill,
   type Node,
   type Stroke,
@@ -11,6 +12,16 @@ import {
 export interface SerializeOptions {
   baseURI?: string;
 }
+const IGNORED_TAGS: Record<string, true> = {
+  script: true,
+  style: true,
+  noscript: true,
+  template: true,
+  head: true,
+  meta: true,
+  link: true,
+  title: true,
+};
 
 function parseBoxShadow(shadowStr: string) {
   if (!shadowStr || shadowStr === 'none') return [];
@@ -53,6 +64,12 @@ function parseTextAlign(alignStr: string): TextProps['align'] {
   return 'left';
 }
 
+function extractCssUrl(bgImage: string): string | null {
+  if (!bgImage || bgImage === 'none') return null;
+  const match = bgImage.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
+  return match && match[1] ? match[1] : null;
+}
+
 async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -61,6 +78,50 @@ async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+function parseCornerRadius(computed: CSSStyleDeclaration): CornerRadius {
+  return {
+    topLeft: Math.max(0, parseFloat(computed.borderTopLeftRadius) || 0),
+    topRight: Math.max(0, parseFloat(computed.borderTopRightRadius) || 0),
+    bottomRight: Math.max(0, parseFloat(computed.borderBottomRightRadius) || 0),
+    bottomLeft: Math.max(0, parseFloat(computed.borderBottomLeftRadius) || 0),
+  };
+}
+
+function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
+  const strokes: Stroke[] = [];
+  const edges = [
+    { width: computed.borderTopWidth, style: computed.borderTopStyle, color: computed.borderTopColor },
+    { width: computed.borderRightWidth, style: computed.borderRightStyle, color: computed.borderRightColor },
+    { width: computed.borderBottomWidth, style: computed.borderBottomStyle, color: computed.borderBottomColor },
+    { width: computed.borderLeftWidth, style: computed.borderLeftStyle, color: computed.borderLeftColor },
+  ];
+
+  for (const edge of edges) {
+    const width = Math.max(0, parseFloat(edge.width) || 0);
+    const style = edge.style;
+    const color = edge.color;
+
+    if (
+      width > 0 &&
+      style &&
+      style !== 'none' &&
+      color &&
+      color !== 'transparent' &&
+      color !== 'rgba(0, 0, 0, 0)'
+    ) {
+      strokes.push({
+        color,
+        width,
+        style: style === 'dashed' || style === 'dotted' ? style : 'solid',
+      });
+      // If uniform borders, one stroke is sufficient
+      break;
+    }
+  }
+
+  return strokes;
 }
 
 export async function serializeDocument(
@@ -99,7 +160,6 @@ export async function serializeDocument(
       baseURI,
     },
   });
-
   const nodes: Node[] = [];
   const assets: Record<string, Asset> = {};
   let nextNodeId = 1;
@@ -112,13 +172,19 @@ export async function serializeDocument(
   // TODO(phase-4): Support ::before and ::after pseudo-elements
   // TODO(phase-4): Support custom web font extraction and embedding
 
+
   const elements: Element[] = [];
   if (body) {
-    const walker = doc.createTreeWalker(body, NodeFilter.SHOW_ELEMENT);
+    const showElementFilter = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT : 1;
+    const walker = doc.createTreeWalker(body, showElementFilter);
     let currentNode: globalThis.Node | null = walker.currentNode;
     while (currentNode) {
-      if (currentNode instanceof Element) {
-        elements.push(currentNode);
+      if (currentNode.nodeType === 1) {
+        const el = currentNode as Element;
+        const tag = el.tagName.toLowerCase();
+        if (!IGNORED_TAGS[tag]) {
+          elements.push(el);
+        }
       }
       currentNode = walker.nextNode();
     }
@@ -136,7 +202,6 @@ export async function serializeDocument(
     const w = Math.round(rect.width);
     const h = Math.round(rect.height);
 
-    // Skip empty non-visible nodes
     if (w <= 0 && h <= 0) {
       continue;
     }
@@ -165,33 +230,56 @@ export async function serializeDocument(
       });
     }
 
-    const strokes: Stroke[] = [];
-    const borderWidth = parseFloat(computed.borderTopWidth) || 0;
-    const borderColor = computed.borderTopColor;
-    const borderStyle = computed.borderTopStyle;
-    if (
-      borderWidth > 0 &&
-      borderStyle !== 'none' &&
-      borderColor !== 'transparent' &&
-      borderColor !== 'rgba(0, 0, 0, 0)'
-    ) {
-      strokes.push({
-        color: borderColor,
-        width: borderWidth,
-        style:
-          borderStyle === 'dashed' || borderStyle === 'dotted'
-            ? borderStyle
-            : 'solid',
-      });
+    // CSS background-image resolution
+    const bgImageUrl = extractCssUrl(computed.backgroundImage);
+    if (bgImageUrl) {
+      if (bgImageUrl.startsWith('data:')) {
+        const match = bgImageUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          const assetKey = `asset-${nextAssetId++}`;
+          assets[assetKey] = {
+            kind: 'image',
+            mimeType: match[1],
+            base64: match[2],
+          };
+          fills.push({
+            type: 'image',
+            assetRef: assetKey,
+            opacity: 1,
+          });
+        }
+      } else {
+        try {
+          const resolvedUrl = new URL(bgImageUrl, baseURI);
+          const isSameOrigin = resolvedUrl.origin === defaultView.location?.origin;
+          if (isSameOrigin || resolvedUrl.protocol === 'blob:') {
+            const res = await fetch(resolvedUrl.href);
+            if (res.ok) {
+              const blob = await res.blob();
+              const buffer = await blob.arrayBuffer();
+              const base64 = await arrayBufferToBase64(buffer);
+              const assetKey = `asset-${nextAssetId++}`;
+              assets[assetKey] = {
+                kind: 'image',
+                mimeType: blob.type || 'image/png',
+                base64,
+              };
+              fills.push({
+                type: 'image',
+                assetRef: assetKey,
+                opacity: 1,
+              });
+            }
+          }
+        } catch {
+          // Cross-origin or network error ignored gracefully
+        }
+      }
     }
 
+    const strokes = parseStrokes(computed);
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
-    const radius = {
-      topLeft: Math.max(0, parseFloat(computed.borderTopLeftRadius) || 0),
-      topRight: Math.max(0, parseFloat(computed.borderTopRightRadius) || 0),
-      bottomRight: Math.max(0, parseFloat(computed.borderBottomRightRadius) || 0),
-      bottomLeft: Math.max(0, parseFloat(computed.borderBottomLeftRadius) || 0),
-    };
+    const radius = parseCornerRadius(computed);
     const shadows = parseBoxShadow(computed.boxShadow);
 
     const style = {
@@ -203,42 +291,49 @@ export async function serializeDocument(
     };
 
     const tagName = el.tagName.toLowerCase();
-    const isImage = tagName === 'img';
 
-    // Direct text detection
-    let directText = '';
-    for (let i = 0; i < el.childNodes.length; i++) {
-      const child = el.childNodes[i];
-      if (child.nodeType === 3 /* Node.TEXT_NODE */) {
-        directText += child.textContent || '';
+    // 1. Inline SVG elements
+    if (tagName === 'svg') {
+      let assetRef: string | undefined;
+      try {
+        let svgString: string;
+        if (typeof XMLSerializer !== 'undefined') {
+          svgString = new XMLSerializer().serializeToString(el);
+        } else {
+          svgString = el.outerHTML;
+        }
+
+        if (svgString) {
+          const base64 = btoa(unescape(encodeURIComponent(svgString)));
+          const assetKey = `asset-${nextAssetId++}`;
+          assets[assetKey] = {
+            kind: 'image',
+            mimeType: 'image/svg+xml',
+            base64,
+          };
+          assetRef = assetKey;
+        }
+      } catch {
+        // Fallback to placeholder rect if serialization fails
       }
+
+      nodes.push({
+        id: nodeId,
+        parentId,
+        type: 'image',
+        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+        style,
+        assetRef,
+      });
+      continue;
     }
-    directText = directText.trim();
 
-    const isTypographicTag = [
-      'h1',
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'p',
-      'span',
-      'a',
-      'label',
-      'button',
-      'li',
-      'strong',
-      'em',
-      'b',
-      'i',
-    ].includes(tagName);
-
-    if (isImage) {
+    // 2. Image elements (with srcset / currentSrc support)
+    if (tagName === 'img') {
       const img = el as HTMLImageElement;
       let assetRef: string | undefined;
 
-      const src = img.src || img.getAttribute('src');
+      const src = img.currentSrc || img.src || img.getAttribute('src');
       if (src) {
         if (src.startsWith('data:')) {
           const match = src.match(/^data:([^;]+);base64,(.+)$/);
@@ -272,7 +367,7 @@ export async function serializeDocument(
               }
             }
           } catch {
-            // Gracefully ignore fetch / cross-origin failures per Phase 0 spec
+            // Gracefully ignore fetch / cross-origin failures
           }
         }
       }
@@ -285,10 +380,94 @@ export async function serializeDocument(
         style,
         assetRef,
       });
-    } else if (
-      directText.length > 0 &&
-      (isTypographicTag || el.children.length === 0)
-    ) {
+      continue;
+    }
+
+    // 3. Form controls (input, textarea, select)
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+      let controlText = '';
+      if (tagName === 'input') {
+        const input = el as HTMLInputElement;
+        controlText = input.value || input.placeholder || '';
+      } else if (tagName === 'textarea') {
+        const textarea = el as HTMLTextAreaElement;
+        controlText = textarea.value || textarea.placeholder || '';
+      } else if (tagName === 'select') {
+        const select = el as HTMLSelectElement;
+        controlText =
+          select.options?.[select.selectedIndex]?.text || select.value || '';
+      }
+
+      // Container node for the control
+      nodes.push({
+        id: nodeId,
+        parentId,
+        type: 'rect',
+        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+        style,
+      });
+
+      if (controlText.trim().length > 0) {
+        const fontSize = parseFloat(computed.fontSize) || 14;
+        const textNodeId = `node-${nextNodeId++}`;
+        nodes.push({
+          id: textNodeId,
+          parentId: nodeId,
+          type: 'text',
+          box: {
+            x: x + 8,
+            y: y + Math.max(0, Math.round((h - fontSize) / 2)),
+            w: Math.max(0, w - 16),
+            h: Math.min(h, Math.round(fontSize * 1.4)),
+          },
+          style: {
+            fills: [],
+            strokes: [],
+            opacity: 1,
+            radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+            shadows: [],
+          },
+          text: {
+            content: controlText.trim(),
+            fontFamily: computed.fontFamily || 'system-ui, sans-serif',
+            fontSize,
+            fontWeight: computed.fontWeight || 400,
+            lineHeight: fontSize * 1.2,
+            letterSpacing: parseFloat(computed.letterSpacing) || 0,
+            align: parseTextAlign(computed.textAlign),
+            color: computed.color || 'rgba(0, 0, 0, 1)',
+          },
+        });
+      }
+      continue;
+    }
+
+    // 4. Regular DOM elements: inspect direct child text nodes
+    const childTextNodes: globalThis.Node[] = [];
+    for (let i = 0; i < el.childNodes.length; i++) {
+      const child = el.childNodes[i];
+      if (child.nodeType === 3 /* Node.TEXT_NODE */) {
+        const textVal = child.textContent?.trim() || '';
+        if (textVal.length > 0) {
+          childTextNodes.push(child);
+        }
+      }
+    }
+
+    const hasChildren = el.children.length > 0;
+    const hasVisualDecoration =
+      fills.length > 0 ||
+      strokes.length > 0 ||
+      shadows.length > 0 ||
+      radius.topLeft > 0;
+
+    // If element is a pure text container without visual decorations and has no element children
+    if (!hasVisualDecoration && !hasChildren && childTextNodes.length > 0) {
+      const combinedText = childTextNodes
+        .map((n) => n.textContent || '')
+        .join(' ')
+        .trim();
+
       const fontSize = parseFloat(computed.fontSize) || 16;
       const lineHeightValue = parseFloat(computed.lineHeight);
       const lineHeight = Number.isNaN(lineHeightValue)
@@ -299,33 +478,100 @@ export async function serializeDocument(
         ? 0
         : letterSpacingValue;
 
-      const textProps: TextProps = {
-        content: directText,
-        fontFamily: computed.fontFamily || 'system-ui, sans-serif',
-        fontSize,
-        fontWeight: computed.fontWeight || 400,
-        lineHeight,
-        letterSpacing,
-        align: parseTextAlign(computed.textAlign),
-        color: computed.color || 'rgba(0, 0, 0, 1)',
-      };
-
       nodes.push({
         id: nodeId,
         parentId,
         type: 'text',
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
         style,
-        text: textProps,
+        text: {
+          content: combinedText,
+          fontFamily: computed.fontFamily || 'system-ui, sans-serif',
+          fontSize,
+          fontWeight: computed.fontWeight || 400,
+          lineHeight,
+          letterSpacing,
+          align: parseTextAlign(computed.textAlign),
+          color: computed.color || 'rgba(0, 0, 0, 1)',
+        },
       });
-    } else {
-      const isFrame = el.children.length > 0;
+      continue;
+    }
+
+    // Container element (frame or rect)
+    nodes.push({
+      id: nodeId,
+      parentId,
+      type: hasChildren ? 'frame' : 'rect',
+      box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+      style,
+    });
+
+    // If container element has direct text nodes, emit each measured text node
+    for (const textNode of childTextNodes) {
+      const textVal = textNode.textContent?.trim() || '';
+      if (!textVal) continue;
+
+      let textX = x;
+      let textY = y;
+      let textW = w;
+      let textH = h;
+
+      // Use Range for precise sub-pixel text bounding box if available
+      if (typeof doc.createRange === 'function') {
+        try {
+          const range = doc.createRange();
+          range.selectNodeContents(textNode);
+          const rangeRect = range.getBoundingClientRect();
+          if (rangeRect.width > 0 && rangeRect.height > 0) {
+            textX = Math.round(rangeRect.left + scrollX);
+            textY = Math.round(rangeRect.top + scrollY);
+            textW = Math.round(rangeRect.width);
+            textH = Math.round(rangeRect.height);
+          }
+        } catch {
+          // Range calculation fallback
+        }
+      }
+
+      const fontSize = parseFloat(computed.fontSize) || 16;
+      const lineHeightValue = parseFloat(computed.lineHeight);
+      const lineHeight = Number.isNaN(lineHeightValue)
+        ? fontSize * 1.2
+        : lineHeightValue;
+      const letterSpacingValue = parseFloat(computed.letterSpacing);
+      const letterSpacing = Number.isNaN(letterSpacingValue)
+        ? 0
+        : letterSpacingValue;
+
+      const textNodeId = `node-${nextNodeId++}`;
       nodes.push({
-        id: nodeId,
-        parentId,
-        type: isFrame ? 'frame' : 'rect',
-        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
-        style,
+        id: textNodeId,
+        parentId: nodeId,
+        type: 'text',
+        box: {
+          x: textX,
+          y: textY,
+          w: Math.max(0, textW),
+          h: Math.max(0, textH),
+        },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: textVal,
+          fontFamily: computed.fontFamily || 'system-ui, sans-serif',
+          fontSize,
+          fontWeight: computed.fontWeight || 400,
+          lineHeight,
+          letterSpacing,
+          align: parseTextAlign(computed.textAlign),
+          color: computed.color || 'rgba(0, 0, 0, 1)',
+        },
       });
     }
   }
