@@ -129,6 +129,97 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
 
   return strokes;
 }
+function extractPseudoElement(
+  el: Element,
+  pseudo: '::before' | '::after',
+  parentBox: { x: number; y: number; w: number; h: number },
+  defaultView: Window & typeof globalThis,
+  parentId: string,
+  nextNodeId: () => string
+): Node | null {
+  try {
+    const computed = defaultView.getComputedStyle(el, pseudo);
+    if (!computed || computed.display === 'none' || computed.visibility === 'hidden') {
+      return null;
+    }
+
+    const contentRaw = computed.content;
+    if (!contentRaw || contentRaw === 'none' || contentRaw === 'normal') {
+      return null;
+    }
+
+    const cleanContent = contentRaw.replace(/^["']|["']$/g, '').trim();
+
+    const bg = computed.backgroundColor;
+    const hasBg = bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)';
+    const strokes = parseStrokes(computed);
+    const radius = parseCornerRadius(computed);
+    const shadows = parseBoxShadow(computed.boxShadow);
+    const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
+
+    const widthVal = parseFloat(computed.width) || 0;
+    const heightVal = parseFloat(computed.height) || 0;
+    const isVisibleShape = (hasBg || strokes.length > 0) && widthVal > 0 && heightVal > 0;
+
+    if (!cleanContent && !isVisibleShape) {
+      return null;
+    }
+
+    const fills: Fill[] = hasBg ? [{ type: 'solid', color: bg, opacity: 1 }] : [];
+    const style = { fills, strokes, opacity, radius, shadows };
+
+    const topVal = parseFloat(computed.top) || 0;
+    const leftVal = parseFloat(computed.left) || 0;
+    const isAbsolute = computed.position === 'absolute' || computed.position === 'fixed';
+
+    const w = widthVal > 0 ? widthVal : Math.max(1, parentBox.w);
+    const h = heightVal > 0 ? heightVal : Math.max(1, parentBox.h);
+    const x = isAbsolute ? parentBox.x + leftVal : parentBox.x;
+    const y = isAbsolute
+      ? parentBox.y + topVal
+      : pseudo === '::after'
+      ? parentBox.y + parentBox.h - h
+      : parentBox.y;
+
+    const box = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+
+    if (cleanContent.length > 0) {
+      const fontSize = parseFloat(computed.fontSize) || 14;
+      const lineHeightValue = parseFloat(computed.lineHeight);
+      const lineHeight = Number.isNaN(lineHeightValue) ? fontSize * 1.2 : lineHeightValue;
+      const letterSpacingValue = parseFloat(computed.letterSpacing);
+      const letterSpacing = Number.isNaN(letterSpacingValue) ? 0 : letterSpacingValue;
+
+      return {
+        id: nextNodeId(),
+        parentId,
+        type: 'text',
+        box,
+        style,
+        text: {
+          content: cleanContent,
+          fontFamily: computed.fontFamily || 'system-ui, sans-serif',
+          fontSize,
+          fontWeight: computed.fontWeight || 400,
+          lineHeight,
+          letterSpacing,
+          align: parseTextAlign(computed.textAlign),
+          color: computed.color || 'rgba(0, 0, 0, 1)',
+        },
+      };
+    }
+
+    return {
+      id: nextNodeId(),
+      parentId,
+      type: 'rect',
+      box,
+      style,
+    };
+  } catch {
+    return null;
+  }
+}
 
 async function serializeSubtree(
   root: Element,
@@ -493,6 +584,18 @@ async function serializeSubtree(
       box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
       style,
     });
+    // ::before pseudo-element
+    const beforeNode = extractPseudoElement(
+      el,
+      '::before',
+      { x, y, w, h },
+      defaultView,
+      nodeId,
+      () => `node-${nextNodeId++}`
+    );
+    if (beforeNode) {
+      nodes.push(beforeNode);
+    }
 
     for (const textNode of childTextNodes) {
       const textVal = textNode.textContent?.trim() || '';
@@ -558,6 +661,18 @@ async function serializeSubtree(
           color: computed.color || 'rgba(0, 0, 0, 1)',
         },
       });
+    }
+    // ::after pseudo-element
+    const afterNode = extractPseudoElement(
+      el,
+      '::after',
+      { x, y, w, h },
+      defaultView,
+      nodeId,
+      () => `node-${nextNodeId++}`
+    );
+    if (afterNode) {
+      nodes.push(afterNode);
     }
   }
 

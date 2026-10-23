@@ -32,6 +32,12 @@ interface MockComputedStyle {
   letterSpacing: string;
   textAlign: string;
   color: string;
+  content?: string;
+  position?: string;
+  top?: string;
+  left?: string;
+  width?: string;
+  height?: string;
 }
 
 const defaultStyle: MockComputedStyle = {
@@ -82,6 +88,7 @@ class MockElement extends MockNode {
   children: MockElement[] = [];
   childNodes: MockNode[] = [];
   styleOverrides: Partial<MockComputedStyle> = {};
+  pseudoOverrides?: Record<string, Partial<MockComputedStyle>>;
   style: Record<string, string> = {};
   id = '';
   rect = { left: 0, top: 0, width: 100, height: 40 };
@@ -177,7 +184,10 @@ function createMockDocument() {
       scrollY: 0,
       innerWidth: 1200,
       innerHeight: 800,
-      getComputedStyle: (el: MockElement): MockComputedStyle => {
+      getComputedStyle: (el: MockElement, pseudo?: string): MockComputedStyle => {
+        if (pseudo && el.pseudoOverrides?.[pseudo]) {
+          return { ...defaultStyle, ...el.pseudoOverrides[pseudo] };
+        }
         return styleMap.get(el) ?? { ...defaultStyle, ...el.styleOverrides };
       },
     },
@@ -233,6 +243,13 @@ async function runSerializerAccuracyTests() {
     borderTopStyle: 'solid',
     borderTopColor: 'rgba(200, 200, 200, 1)',
   };
+  card.pseudoOverrides = {
+    '::before': {
+      content: '"BULLET"',
+      color: 'rgba(239, 68, 68, 1)',
+      fontSize: '12px',
+    },
+  };
   const cardText = new MockNode(3 /* TEXT_NODE */, 'Card Header Text');
   card.appendChild(cardText);
   body.appendChild(card);
@@ -280,6 +297,12 @@ async function runSerializerAccuracyTests() {
   );
   assert.ok(cardTextNode, 'Card child text node not found');
   assert.strictEqual(cardTextNode.type, 'text');
+  // Verify ::before pseudo-element
+  const beforeNode = validated.nodes.find(
+    (n) => n.parentId === cardNode.id && n.text?.content === 'BULLET'
+  );
+  assert.ok(beforeNode, '::before pseudo-element node not found');
+  assert.strictEqual(beforeNode.text?.color, 'rgba(239, 68, 68, 1)');
 
   // Verify inline SVG
   const svgNode = validated.nodes.find((n) => n.box.x === 40 && n.box.y === 40);
