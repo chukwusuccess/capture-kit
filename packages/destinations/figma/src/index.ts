@@ -20,21 +20,52 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
+function parseStopAlpha(color: string): number {
+  const c = color.trim().toLowerCase();
+  if (c === 'transparent') return 0;
+  const rgba = c.match(/^rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)$/);
+  return rgba ? Math.max(0, Math.min(1, parseFloat(rgba[1]))) : 1;
+}
+
+function svgTransformMatrix(node: Node) {
+  const m = node.style.transform?.match(/^matrix\(([^)]+)\)$/);
+  if (!m?.[1]) return null;
+  const p = m[1].split(',').map((s) => parseFloat(s.trim()));
+  if (p.length !== 6 || p.some((n) => Number.isNaN(n))) return null;
+  const [a, b, c, d, tx, ty] = p;
+  if (a === 1 && b === 0 && c === 0 && d === 1 && tx === 0 && ty === 0) return null;
+  const { x, y, w, h } = node.box;
+  const isZero = node.style.transformOrigin === '0 0' || node.style.transformOrigin === '0px 0px';
+  const ox = isZero ? x : x + w / 2;
+  const oy = isZero ? y : y + h / 2;
+  const e = Math.round((tx + ox - (a * ox + c * oy)) * 1e6) / 1e6;
+  const f = Math.round((ty + oy - (b * ox + d * oy)) * 1e6) / 1e6;
+  const matrix = `matrix(${Math.round(a * 1e6) / 1e6} ${Math.round(b * 1e6) / 1e6} ${Math.round(c * 1e6) / 1e6} ${Math.round(d * 1e6) / 1e6} ${e} ${f})`;
+  return { attr: ` transform="${matrix}"`, matrix, a, b, c, d, e, f };
+}
+
+function isNodeOffscreen(node: Node, frame: Capture['frame']): boolean {
+  const { x, y, w, h } = node.box;
+  if (w <= 0 && h <= 0 && node.type !== 'frame') return true;
+  const tm = svgTransformMatrix(node);
+  const pts = tm
+    ? [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].map(([cx, cy]) => [tm.a * cx + tm.c * cy + tm.e, tm.b * cx + tm.d * cy + tm.f])
+    : [[x, y], [x + w, y + h]];
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  return Math.max(...ys) <= 0 || Math.max(...xs) <= 0 || Math.min(...xs) >= frame.width || Math.min(...ys) >= frame.height;
+}
+
+function renderNodeToFigmaSvg(node: Node, assets: Capture['assets'], isGroupSelf = false, inlineLeadWidth = 0): string {
   const { box, style, type } = node;
-  const opacityAttr =
-    style.opacity !== undefined && style.opacity < 1
-      ? ` opacity="${style.opacity}"`
-      : '';
+  const opacityAttr = style.opacity !== undefined && style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
   const rxVal = style.radius?.topLeft ? Math.min(style.radius.topLeft, box.w / 2, box.h / 2) : 0;
   const rx = rxVal > 0 ? ` rx="${rxVal}" ry="${rxVal}"` : '';
-  const transformStyle = style.transform
-    ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
-    : '';
-  const filterAttr = style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
-  // Masked glow washes: point at the mask built in defs from maskImage.
-  const maskAttr = style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
-  // Stroke attributes
+  const tm = svgTransformMatrix(node);
+  const transformAttr = tm ? tm.attr : '';
+  const filterAttr = !isGroupSelf && style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+  const maskAttr = !isGroupSelf && style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
+  const leafClipAttr = !isGroupSelf && style.clip ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
   if (style.strokes && style.strokes.length > 0) {
     const stroke = style.strokes[0];
@@ -69,13 +100,26 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     // bg-clip:text nodes carry the gradient in fills with a transparent text
     // color: emit the gradient on the <text> so the fill survives the paste.
     const textFillAttr = textGradFill ? ` fill="url(#grad-${escapeXml(node.id)})"` : ` fill="${escapeXml(text.color)}"`;
+    let effectiveRuns = text.runs;
+    if ((!effectiveRuns || effectiveRuns.length <= 1) && inlineLeadWidth > 0 && box.h >= lh * 1.6) {
+      const words = text.content.trim().split(/\s+/);
+      const firstMax = Math.max(8, Math.floor((box.w - inlineLeadWidth) / (text.fontSize * 0.52)));
+      const line1: string[] = [];
+      for (const w of words) {
+        if (line1.length > 0 && line1.join(' ').length + 1 + w.length > firstMax) break;
+        line1.push(w);
+      }
+      const rest = words.slice(line1.length).join(' ');
+      if (line1.length > 0 && rest) effectiveRuns = [{ text: line1.join(' ') }, { text: rest }];
+    }
+    const firstRunX = inlineLeadWidth > 0 && anchor === 'start' ? Math.round((box.x + inlineLeadWidth + 8) * 100) / 100 : textX;
     const innerContent =
-      text.runs && text.runs.length > 0
-        ? text.runs
+      effectiveRuns && effectiveRuns.length > 0
+        ? effectiveRuns
           .map((r, idx) => {
             const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
             const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
-            const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : '';
+            const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : inlineLeadWidth > 0 ? ` x="${firstRunX}"` : '';
             return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
           })
           .join('')
@@ -84,12 +128,12 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     // Figma's SVG importer ignores dominant-baseline="text-before-edge" and
     // treats y as the alphabetic baseline. Compute the true baseline from the
     // first line's vertical midpoint plus cap-height half-offset (0.35 * em).
-    const hasMultiRuns = Boolean(text.runs && text.runs.length > 1);
+    const hasMultiRuns = Boolean(effectiveRuns && effectiveRuns.length > 1);
     const firstLineH = hasMultiRuns ? lh : box.h > 0 ? box.h : lh;
     const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.35) * 100) / 100;
-    return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
+    return `    <text id="${escapeXml(node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     // Path data lives in viewBox units: scale into the laid-out box with a
@@ -109,9 +153,11 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
         return `      <path d="${escapeXml(p.d)}"${fill}${stroke}${sw} />`;
       })
       .join('\n');
-    return `    <g id="${escapeXml(node.id)}" transform="translate(${dx} ${dy})${scale}"${opacityAttr}>\n${paths}\n    </g>`;
+    const inner = `<g transform="translate(${dx} ${dy})${scale}">\n${paths}\n      </g>`;
+    return leafClipAttr
+      ? `    <g id="${escapeXml(node.id)}"${transformAttr}${leafClipAttr}${opacityAttr}>\n      ${inner}\n    </g>`
+      : `    <g id="${escapeXml(node.id)}" transform="${tm ? `${tm.matrix} ` : ''}translate(${dx} ${dy})${scale}"${opacityAttr}>\n${paths}\n    </g>`;
   }
-
 
   if (type === 'image') {
     const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
@@ -121,11 +167,11 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
       return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
         box.w
-      }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformStyle}${filterAttr} />`;
+      }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`;
     }
     return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" fill="#cccccc"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr} />`;
+    }" height="${box.h}" fill="#cccccc"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${leafClipAttr} />`;
   }
 
   // Handle rect or frame
@@ -136,7 +182,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
   if (gradFill) {
     return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr}${maskAttr} />`;
+    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`;
   }
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
@@ -144,14 +190,15 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
     return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"${opacityAttr}${rx}${transformStyle}${filterAttr} />`;
+    }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`;
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
+  if (isGroupSelf && fill === 'none' && !strokeAttrs) return '';
 
   return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
     box.w
-  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr}${maskAttr} />`;
+  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`;
 }
 
 function buildFigmaLayers(capture: Capture): string {
@@ -174,33 +221,29 @@ function buildFigmaLayers(capture: Capture): string {
     }
   }
 
+  function findInlineLeadWidth(node: Node): number {
+    if (node.type !== 'text' || !node.parentId) return 0;
+    const sibs = childrenMap.get(node.parentId) ?? [];
+    const lead = sibs.find((s) => s.id !== node.id && s.type === 'text' && Math.abs(s.box.x - node.box.x) < 2 && Math.abs(s.box.y - node.box.y) < 4 && s.box.w < node.box.w * 0.5);
+    return lead ? lead.box.w : 0;
+  }
+
   function renderTree(node: Node): string {
     const children = childrenMap.get(node.id);
     if (!children || children.length === 0) {
-      return renderNodeToFigmaSvg(node, capture.assets);
+      return isNodeOffscreen(node, capture.frame) ? '' : renderNodeToFigmaSvg(node, capture.assets, false, findInlineLeadWidth(node));
     }
-
-    const selfLayer = renderNodeToFigmaSvg(node, capture.assets);
-    const childrenSvg = children.map(renderTree).join('\n');
-
-    const clipAttr = node.style.clip
-      ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"`
-      : '';
-    // No auto-layout hints: Figma reflows children with its own font and
-    // box metrics on import, shifting pills, labels, and hero text. Absolute
-    // boxes already place every child exactly — groups stay untyped.
-    void node.style.layout;
-    const layoutAttrs = '';
-
-    return [
-      `  <g id="group-${escapeXml(node.id)}"${clipAttr}${layoutAttrs}>`,
-      selfLayer,
-      childrenSvg,
-      '  </g>',
-    ].join('\n');
+    const childrenSvg = children.map(renderTree).filter(Boolean).join('\n');
+    if (!childrenSvg && isNodeOffscreen(node, capture.frame)) return '';
+    const selfLayer = renderNodeToFigmaSvg(node, capture.assets, true);
+    const clipAttr = node.style.clip ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"` : '';
+    const groupOpacity = !selfLayer && node.style.opacity !== undefined && node.style.opacity < 1 ? ` opacity="${node.style.opacity}"` : '';
+    const groupMask = node.style.maskImage && node.style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
+    const groupFilter = node.style.filter && node.style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+    return [`  <g id="group-${escapeXml(node.id)}"${clipAttr}${groupOpacity}${groupMask}${groupFilter}>`, selfLayer, childrenSvg, '  </g>'].filter(Boolean).join('\n');
   }
 
-  return rootNodes.map(renderTree).join('\n');
+  return rootNodes.map(renderTree).filter(Boolean).join('\n');
 }
 
 /** Map a CSS filter chain to SVG filter primitives. */
@@ -283,19 +326,16 @@ function buildFigmaDefs(captures: Capture[]): string {
       // CSS mask-image gradient fades: luminance mask so glows fade out.
       const mask = node.style.maskImage;
       if (mask && mask !== 'none') {
-        const stops = [...mask.matchAll(/((?:rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}|[a-z]+(?:\s+[a-z]+)?))\s+([\d.]+)(%|px)?/gi)].map((m) => ({
-           color: m[1].trim(),
-           position: m[3] === 'px' ? (parseFloat(m[2]) > 0 ? 0.02 : 0) : Math.max(0, Math.min(1, parseFloat(m[2]) / 100)),
-        }));
-        // Collapse adjacent stops closer than 2%: dot-pattern masks repeat
-        // the same color and would band in the importer.
+        const rawStops = [...mask.matchAll(/((?:rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}|[a-z]+(?:\s+[a-z]+)?))\s+([\d.]+)(%|px)?/gi)];
+        const isDot = rawStops.length > 0 && rawStops.every((m) => m[3] === 'px' && parseFloat(m[2]) <= 2);
+        const stops = isDot
+          ? [{ alpha: 0.25, position: 0 }, { alpha: 0, position: 0.85 }]
+          : rawStops.map((m) => ({ alpha: parseStopAlpha(m[1]), position: m[3] === 'px' ? (parseFloat(m[2]) > 0 ? 0.02 : 0) : Math.max(0, Math.min(1, parseFloat(m[2]) / 100)) }));
         for (let k = stops.length - 1; k > 0; k--) {
           if (Math.abs(stops[k].position - stops[k - 1].position) < 0.02) stops.splice(k, 1);
         }
         if (stops.length >= 2) {
-           const stopXml = stops
-             .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
-             .join('\n');
+           const stopXml = stops.map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="#ffffff" stop-opacity="${s.alpha}" />`).join('\n');
            const isRadial = mask.trimStart().toLowerCase().startsWith('radial-gradient');
            const { box } = node;
            defs.push(
