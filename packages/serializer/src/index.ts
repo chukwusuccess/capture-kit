@@ -2085,82 +2085,97 @@ async function serializeSubtree(
         h: Math.max(1, h - num(computed.borderTopWidth) - num(computed.borderBottomWidth) - num(computed.paddingTop) - num(computed.paddingBottom)),
       };
 
+      const fontSize = parseFloat(computed.fontSize) || 16;
+      const lineHeightValue = parseFloat(computed.lineHeight);
+      const lineHeight: number | string = Number.isNaN(lineHeightValue) ? 'normal' : lineHeightValue;
+      const letterSpacingValue = parseFloat(computed.letterSpacing);
+      const letterSpacing = Number.isNaN(letterSpacingValue) ? 0 : letterSpacingValue;
+      const lineBoxes: Array<{ text: string; x: number; y: number; w: number; h: number }> = [];
+
       if (typeof doc.createRange === 'function') {
         try {
           const range = doc.createRange();
           range.selectNodeContents(textNode);
-          const rangeRect = range.getBoundingClientRect();
-          if (rangeRect.width > 0 && rangeRect.height > 0) {
-            textX = rangeRect.left + scrollX - frameRect.originX;
-            textY = rangeRect.top + scrollY - frameRect.originY;
-            textW = rangeRect.width + 2;
-            textH = rangeRect.height;
-          } else {
-            textX = contentBox.x;
-            textY = contentBox.y;
-            textW = contentBox.w;
-            textH = contentBox.h;
+          const clientRects = range.getClientRects?.();
+          const fullStr = textNode.textContent || '';
+          if (clientRects && clientRects.length > 1) {
+            let curText = '';
+            let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+            let prevTop: number | null = null;
+            const crRange = doc.createRange();
+            for (let ci = 0; ci < fullStr.length; ci++) {
+              crRange.setStart(textNode, ci);
+              crRange.setEnd(textNode, ci + 1);
+              const cr = crRange.getBoundingClientRect();
+              if (cr.width === 0 && cr.height === 0) {
+                curText += fullStr[ci];
+                continue;
+              }
+              if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
+                if (curText.trim() && minL < Infinity) {
+                  lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
+                }
+                curText = fullStr[ci];
+                minL = cr.left; minT = cr.top; maxR = cr.right; maxB = cr.bottom;
+              } else {
+                curText += fullStr[ci];
+                minL = Math.min(minL, cr.left); minT = Math.min(minT, cr.top);
+                maxR = Math.max(maxR, cr.right); maxB = Math.max(maxB, cr.bottom);
+              }
+              prevTop = cr.top;
+            }
+            if (curText.trim() && minL < Infinity) {
+              lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
+            }
+          }
+          if (lineBoxes.length === 0) {
+            const rangeRect = range.getBoundingClientRect();
+            if (rangeRect.width > 0 && rangeRect.height > 0) {
+              lineBoxes.push({ text: textVal, x: rangeRect.left + scrollX - frameRect.originX, y: rangeRect.top + scrollY - frameRect.originY, w: rangeRect.width + 2, h: rangeRect.height });
+            }
           }
         } catch {
-          textX = contentBox.x;
-          textY = contentBox.y;
-          textW = contentBox.w;
-          textH = contentBox.h;
+          // fallback below
         }
-      } else {
-        textX = contentBox.x;
-        textY = contentBox.y;
-        textW = contentBox.w;
-        textH = contentBox.h;
+      }
+      if (lineBoxes.length === 0) {
+        lineBoxes.push({ text: textVal, x: contentBox.x, y: contentBox.y, w: contentBox.w, h: contentBox.h });
       }
 
-      const fontSize = parseFloat(computed.fontSize) || 16;
-      const lineHeightValue = parseFloat(computed.lineHeight);
-      const lineHeight: number | string = Number.isNaN(lineHeightValue)
-        ? 'normal'
-        : lineHeightValue;
-      const letterSpacingValue = parseFloat(computed.letterSpacing);
-      const letterSpacing = Number.isNaN(letterSpacingValue)
-        ? 0
-        : letterSpacingValue;
-
-      const textNodeId = `node-${nextNodeId++}`;
-      const childTextNode = {
-        id: textNodeId,
-        parentId: nodeId,
-        type: 'text' as const,
-        box: {
-          x: textX,
-          y: textY,
-          w: Math.max(0, textW),
-          h: Math.max(0, textH),
-        },
-        style: {
-          fills: isBgClipText ? style.fills : [],
-          strokes: [],
-          opacity: 1,
-          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
-          shadows: [],
-          clip: false,
-          ...(isBgClipText ? { backgroundClip: 'text' } : {}),
-        },
-        text: {
-          content: textVal,
-          fontFamily: computed.fontFamily || 'system-ui, sans-serif',
-          fontSize,
-          fontWeight: computed.fontWeight || 400,
-          lineHeight,
-          letterSpacing,
-          align: parseTextAlign(computed.textAlign),
-          color:
-            isBgClipText && style.fills[0]?.stops?.[0]?.color
-              ? style.fills[0].stops[0].color
-              : computed.color || 'rgba(0, 0, 0, 1)',
-          ...extractTextFidelity(computed),
-        },
-      };
-      foldNodeChain(childTextNode, el, frameRect, chainFor);
-      nodes.push(childTextNode);
+      for (const lb of lineBoxes) {
+        const textNodeId = `node-${nextNodeId++}`;
+        const childTextNode = {
+          id: textNodeId,
+          parentId: nodeId,
+          type: 'text' as const,
+          box: { x: lb.x, y: lb.y, w: Math.max(0, lb.w), h: Math.max(0, lb.h) },
+          style: {
+            fills: isBgClipText ? style.fills : [],
+            strokes: [],
+            opacity: 1,
+            radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+            shadows: [],
+            clip: false,
+            ...(isBgClipText ? { backgroundClip: 'text' } : {}),
+          },
+          text: {
+            content: lb.text,
+            fontFamily: computed.fontFamily || 'system-ui, sans-serif',
+            fontSize,
+            fontWeight: computed.fontWeight || 400,
+            lineHeight,
+            letterSpacing,
+            align: parseTextAlign(computed.textAlign),
+            color:
+              isBgClipText && style.fills[0]?.stops?.[0]?.color
+                ? style.fills[0].stops[0].color
+                : computed.color || 'rgba(0, 0, 0, 1)',
+            ...extractTextFidelity(computed),
+          },
+        };
+        foldNodeChain(childTextNode, el, frameRect, chainFor);
+        nodes.push(childTextNode);
+      }
     }
     // ::after pseudo-element
     const afterNodes = extractPseudoElement(
