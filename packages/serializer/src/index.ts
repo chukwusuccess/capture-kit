@@ -119,10 +119,63 @@ function parseTextAlign(alignStr: string): TextProps['align'] {
   return 'left';
 }
 
+// Text fidelity: italic/decoration/case/shadow/overflow as rendered.
+function extractTextFidelity(computed: CSSStyleDeclaration): Pick<
+  TextProps,
+  'italic' | 'decoration' | 'textTransform' | 'textShadow' | 'overflow'
+> {
+  const out: Pick<TextProps, 'italic' | 'decoration' | 'textTransform' | 'textShadow' | 'overflow'> = {};
+  if (computed.fontStyle === 'italic' || computed.fontStyle === 'oblique') out.italic = true;
+  const deco = [computed.textDecorationLine, computed.textDecorationStyle]
+    .filter((v) => v && v !== 'none' && v !== 'solid')
+    .join(' ');
+  const decoColor = computed.textDecorationColor;
+  if (computed.textDecorationLine && computed.textDecorationLine !== 'none') {
+    out.decoration = deco || computed.textDecorationLine;
+    // Decoration color only when it deviates from text color.
+    if (decoColor && decoColor !== computed.color) {
+      out.decoration = `${out.decoration} ${decoColor}`;
+    }
+    // Thickness survives only if explicitly non-default (e.g. 2px underline).
+    const decoThickness = (computed as CSSStyleDeclaration & { textDecorationThickness?: string })
+      .textDecorationThickness;
+    if (
+      decoThickness &&
+      decoThickness !== 'auto' &&
+      decoThickness !== '1px' &&
+      decoThickness !== 'from-font'
+    ) {
+      out.decoration = `${out.decoration} ${decoThickness}`;
+    }
+  }
+  const tt = computed.textTransform;
+  if (tt && tt !== 'none') out.textTransform = tt;
+  const ts = computed.textShadow?.trim();
+  if (ts && ts !== 'none') out.textShadow = ts;
+  const overflow = computed.textOverflow?.trim();
+  if (overflow === 'ellipsis') out.overflow = 'ellipsis';
+  return out;
+}
+
 function extractCssUrl(bgImage: string): string | null {
   if (!bgImage || bgImage === 'none') return null;
   const match = bgImage.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
   return match && match[1] ? match[1] : null;
+}
+
+// data: URIs come in two flavors — `;base64,...` and URL-encoded (common for
+// inline SVG: `data:image/svg+xml,%3Csvg...`). Normalize both to base64.
+function dataUriToAsset(uri: string): { mimeType: string; base64: string } | null {
+  const m = uri.match(/^data:([^;,]+)(;base64)?,([\s\S]*)$/);
+  if (!m) return null;
+  const mimeType = m[1];
+  if (m[2]) return { mimeType, base64: m[3] };
+  try {
+    const decoded = decodeURIComponent(m[3]);
+    return { mimeType, base64: btoa(unescape(encodeURIComponent(decoded))) };
+  } catch {
+    return null;
+  }
 }
 function resolveHighestDpiSrc(img: HTMLImageElement): string {
   if (img.currentSrc) return img.currentSrc;
@@ -207,6 +260,372 @@ function parseCssGradients(bgImage: string): Fill[] {
 
   return fills;
 }
+// Pixel-fidelity fields: capture only non-default values so the model stays
+// small and pre-fidelity consumers (that ignore these keys) still work.
+function extractFidelityStyle(computed: CSSStyleDeclaration): {
+  transform?: string;
+  transformOrigin?: string;
+  filter?: string;
+  backdropFilter?: string;
+  mixBlendMode?: string;
+  backgroundSize?: string;
+  backgroundPosition?: string;
+  backgroundRepeat?: string;
+  backgroundClip?: string;
+} {
+  const out: ReturnType<typeof extractFidelityStyle> = {};
+  const transform = computed.transform?.trim();
+  if (transform && transform !== 'none') out.transform = transform;
+  const origin = computed.transformOrigin?.trim();
+  if (origin && origin !== '50% 50%') out.transformOrigin = origin;
+  const filter = computed.filter?.trim();
+  if (filter && filter !== 'none') out.filter = filter;
+  const backdrop = computed.backdropFilter?.trim() || (computed as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter?.trim();
+  if (backdrop && backdrop !== 'none') out.backdropFilter = backdrop;
+  const blend = computed.mixBlendMode?.trim();
+  if (blend && blend !== 'normal') out.mixBlendMode = blend;
+  const bgSize = computed.backgroundSize?.trim();
+  if (bgSize && bgSize !== 'auto') out.backgroundSize = bgSize;
+  const bgPos = computed.backgroundPosition?.trim();
+  if (bgPos && bgPos !== '0% 0%') out.backgroundPosition = bgPos;
+  const bgRepeat = computed.backgroundRepeat?.trim();
+  if (bgRepeat && bgRepeat !== 'repeat') out.backgroundRepeat = bgRepeat;
+  const bgClip = computed.backgroundClip?.trim() || (computed as CSSStyleDeclaration & { webkitBackgroundClip?: string }).webkitBackgroundClip?.trim();
+  if (bgClip && bgClip !== 'border-box') out.backgroundClip = bgClip;
+  return out;
+}
+
+// ---- transform hoisting ----------------------------------------------------
+// getBoundingClientRect() includes transforms: storing those boxes AND
+// re-applying the transform in the renderer double-applied rotation and left
+// children with upright glyphs. Instead, transforms are frozen (inline
+// transform:none, saved) right before measurement so every box we capture is
+// pure layout space; then each node emits ONE composed matrix — its own plus
+// every ancestor's — rebased so the renderer can keep transform-origin 0,0.
+
+interface Affine {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+}
+
+interface FrozenTransform {
+  transform: string;
+  translate: string;
+  rotate: string;
+  scale: string;
+  origin: string;
+  prev: Array<{ prop: string; value: string; priority: string }>;
+}
+
+const IDENTITY: Affine = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+
+function parseTransformMatrix(value: string | undefined): Affine | null {
+  if (!value || value === 'none') return null;
+  const m3 = value.match(/matrix3d\(([^)]+)\)/);
+  if (m3 && m3[1]) {
+    const v = m3[1].split(',').map((s) => parseFloat(s.trim()));
+    if (v.length === 16 && !v.some((n) => Number.isNaN(n))) {
+      // Identity in Z (e.g. translateZ(0)) → safe to treat as its 2D part;
+      // a real 3D transform cannot be expressed in our 2D emit → null.
+      const identity3d =
+        Math.abs(v[2]) < 1e-6 && Math.abs(v[3]) < 1e-6 &&
+        Math.abs(v[6]) < 1e-6 && Math.abs(v[7]) < 1e-6 &&
+        Math.abs(v[8]) < 1e-6 && Math.abs(v[9]) < 1e-6 &&
+        Math.abs(v[10] - 1) < 1e-6 && Math.abs(v[11]) < 1e-6 &&
+        Math.abs(v[12]) < 1e-6 && Math.abs(v[13]) < 1e-6 &&
+        Math.abs(v[14]) < 1e-6 && Math.abs(v[15] - 1) < 1e-6;
+      if (!identity3d) return null; // real 3D — caller falls back to raw emit
+      return { a: v[0], b: v[1], c: v[4], d: v[5], e: v[12], f: v[13] };
+    }
+    return null;
+  }
+  const m = value.match(/matrix\(([^)]+)\)/);
+  if (!m || !m[1]) return null;
+  const parts = m[1].split(',').map((s) => parseFloat(s.trim()));
+  if (parts.length !== 6 || parts.some((n) => Number.isNaN(n))) return null;
+  return { a: parts[0], b: parts[1], c: parts[2], d: parts[3], e: parts[4], f: parts[5] };
+}
+
+function affineCompose(outer: Affine, inner: Affine): Affine {
+  return {
+    a: outer.a * inner.a + outer.c * inner.b,
+    b: outer.b * inner.a + outer.d * inner.b,
+    c: outer.a * inner.c + outer.c * inner.d,
+    d: outer.b * inner.c + outer.d * inner.d,
+    e: outer.a * inner.e + outer.c * inner.f + outer.e,
+    f: outer.b * inner.e + outer.d * inner.f + outer.f,
+  };
+}
+
+// transform about a point: translate(o) ∘ m ∘ translate(-o)
+function affineAbout(m: Affine, ox: number, oy: number): Affine {
+  return {
+    a: m.a,
+    b: m.b,
+    c: m.c,
+    d: m.d,
+    e: m.e + ox - (m.a * ox + m.c * oy),
+    f: m.f + oy - (m.b * ox + m.d * oy),
+  };
+}
+
+function affineToCss(m: Affine): string {
+  // 6 decimals: at a 250px lever arm even 3-decimal rounding (0.0436 → 0.044)
+  // drifts the far end ~0.1px — visible as red tail glyphs in the harness.
+  const r = (n: number): string => (Math.round(n * 1e6) / 1e6).toString();
+  return `matrix(${r(m.a)}, ${r(m.b)}, ${r(m.c)}, ${r(m.d)}, ${r(m.e)}, ${r(m.f)})`;
+}
+
+function resolveOrigin(value: string | undefined, w: number, h: number): { x: number; y: number } {
+  const out = { x: w / 2, y: h / 2 };
+  if (!value) return out;
+  const tokens = value.split(/\s+/);
+  const axis = (tok: string | undefined, base: number): number => {
+    if (!tok) return base;
+    if (tok.endsWith('%')) return ((parseFloat(tok) || 0) / 100) * base;
+    if (tok === 'left' || tok === 'top') return 0;
+    if (tok === 'right' || tok === 'bottom') return base;
+    if (tok === 'center') return base / 2;
+    const px = parseFloat(tok);
+    return Number.isNaN(px) ? base : px;
+  };
+  out.x = axis(tokens[0], w);
+  out.y = axis(tokens[1] ?? tokens[0], h);
+  return out;
+}
+
+function isIdentity(m: Affine): boolean {
+  return m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.e === 0 && m.f === 0;
+}
+
+// Rebase a composed doc→doc matrix onto the node's stored doc-space box so
+// CSS transform-origin can stay 0,0.
+function emitMatrix(m: Affine, boxDocX: number, boxDocY: number): string {
+  const tx = m.a * boxDocX + m.c * boxDocY + m.e - boxDocX;
+  const ty = m.b * boxDocX + m.d * boxDocY + m.f - boxDocY;
+  return affineToCss({ a: m.a, b: m.b, c: m.c, d: m.d, e: tx, f: ty });
+}
+
+// Freeze one element's transform (both the shorthand and the individual
+// translate/rotate/scale properties, which Chrome supports and Tailwind v4
+// emits) so measurement sees layout space. Returns the saved state for
+// restoration, or null when there was nothing to freeze.
+function freezeTransform(el: Element, defaultView: Window & typeof globalThis): FrozenTransform | null {
+  const style = (el as Element & { style?: CSSStyleDeclaration }).style;
+  if (!style || typeof style.setProperty !== 'function') return null;
+  let cs: CSSStyleDeclaration;
+  try {
+    cs = defaultView.getComputedStyle(el);
+  } catch {
+    return null;
+  }
+  const individual = cs as CSSStyleDeclaration & {
+    translate?: string;
+    rotate?: string;
+    scale?: string;
+  };
+  const values = {
+    transform: cs.transform ?? 'none',
+    translate: individual.translate ?? 'none',
+    rotate: individual.rotate ?? 'none',
+    scale: individual.scale ?? 'none',
+  };
+  const active =
+    (values.transform && values.transform !== 'none') ||
+    (values.translate && values.translate !== 'none' && values.translate !== '0px') ||
+    (values.rotate && values.rotate !== 'none' && values.rotate !== '0deg') ||
+    (values.scale && values.scale !== 'none' && values.scale !== '1');
+  if (!active) return null;
+
+  const origin = cs.transformOrigin ?? '50% 50%';
+  const props = ['transform', 'translate', 'rotate', 'scale'];
+  const prev = props.map((prop) => ({
+    prop,
+    value: style.getPropertyValue(prop),
+    priority: style.getPropertyPriority(prop),
+  }));
+  for (const prop of props) {
+    // translate(0px) for the shorthand, not `none`: a transformed element is
+    // the containing block for abs/fixed descendants, and switching to `none`
+    // would relocate them mid-measurement. translate(0px) is a visual
+    // identity but keeps the containing block intact.
+    style.setProperty(prop, prop === 'transform' ? 'translate(0px)' : 'none', 'important');
+  }
+  return { ...values, origin, prev };
+}
+
+function thawTransform(el: Element, frozen: FrozenTransform): void {
+  const style = (el as Element & { style?: CSSStyleDeclaration }).style;
+  if (!style) return;
+  for (const p of frozen.prev) {
+    if (p.value) style.setProperty(p.prop, p.value, p.priority);
+    else style.removeProperty(p.prop);
+  }
+}
+
+// Build a single affine from an element's saved transform state. Per spec the
+// individual properties compose as translate ∘ rotate ∘ scale ∘ transform.
+// Returns null when a real 3D transform makes it inexpressible in 2D.
+function affineFromFrozen(f: FrozenTransform): Affine | null {
+  const base = parseTransformMatrix(f.transform);
+  if (f.transform !== 'none' && !base) return null;
+  let m: Affine = base ?? IDENTITY;
+
+  const applyScale = (raw: string): boolean => {
+    if (!raw || raw === 'none' || raw === '1') return true;
+    const nums = raw.split(/[\s,]+/).filter(Boolean).map(Number);
+    if (nums.some((n) => Number.isNaN(n))) return false;
+    m = affineCompose({ a: nums[0] ?? 1, b: 0, c: 0, d: nums[1] ?? nums[0] ?? 1, e: 0, f: 0 }, m);
+    return true;
+  };
+  const applyRotate = (raw: string): boolean => {
+    if (!raw || raw === 'none' || raw === '0deg') return true;
+    const deg = parseFloat(raw);
+    if (Number.isNaN(deg)) return false;
+    const rad = (deg * Math.PI) / 180;
+    m = affineCompose({ a: Math.cos(rad), b: Math.sin(rad), c: -Math.sin(rad), d: Math.cos(rad), e: 0, f: 0 }, m);
+    return true;
+  };
+  const applyTranslate = (raw: string): boolean => {
+    if (!raw || raw === 'none' || raw === '0px') return true;
+    const nums = raw.split(/[\s,]+/).filter(Boolean).map(parseFloat);
+    if (nums.length === 0 || nums.some((n) => Number.isNaN(n))) return false;
+    m = affineCompose({ a: 1, b: 0, c: 0, d: 1, e: nums[0] ?? 0, f: nums[1] ?? 0 }, m);
+    return true;
+  };
+  if (!applyScale(f.scale) || !applyRotate(f.rotate) || !applyTranslate(f.translate)) return null;
+  return m;
+}
+
+// Raw CSS fallback for a node whose own transform cannot be folded (real 3D):
+// reconstruct the equivalent transform function list for the renderer.
+function rawTransformCss(f: FrozenTransform): string | null {
+  const wrap = (v: string, fn: string, unitless = false): string | null => {
+    if (!v || v === 'none') return null;
+    if (v.includes('(')) return v;
+    if (fn === 'translate' && v === '0px') return null;
+    if (fn === 'rotate' && v === '0deg') return null;
+    if (fn === 'scale' && v === '1') return null;
+    void unitless;
+    return `${fn}(${v})`;
+  };
+  const parts = [
+    wrap(f.translate, 'translate'),
+    wrap(f.rotate, 'rotate'),
+    wrap(f.scale, 'scale'),
+    f.transform && f.transform !== 'none' ? f.transform : null,
+  ].filter((s): s is string => Boolean(s));
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
+interface MeasureState {
+  transformed: Set<Element>;
+  frozen: Map<Element, FrozenTransform>;
+  boxes: Map<Element, { x: number; y: number; w: number; h: number }>;
+}
+
+// Fold `start`'s own transform (when present) with every transformed
+// ancestor's, inner→outer. Boxes were captured in layout space (transforms
+// frozen) and are in document coordinates; the preorder walk guarantees
+// ancestors were already measured before descendants ask for them.
+function chainMatrix(
+  start: Element,
+  state: MeasureState,
+  scrollX: number,
+  scrollY: number
+): { matrix: Affine | null; failed: boolean } {
+  if (state.transformed.size === 0) return { matrix: null, failed: false };
+  let composed: Affine | null = null;
+  let failed = false;
+
+  const fold = (node: Element): boolean => {
+    if (!state.transformed.has(node)) return true;
+    const f = state.frozen.get(node);
+    if (!f) return true;
+    const m = affineFromFrozen(f);
+    if (!m) {
+      failed = true;
+      return false;
+    }
+    // Measure on demand — layout space while transforms are frozen.
+    let b = state.boxes.get(node);
+    if (!b) {
+      const r = node.getBoundingClientRect();
+      b = { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+      state.boxes.set(node, b);
+    }
+    const origin = resolveOrigin(f.origin, b.w, b.h);
+    const about = affineAbout(m, b.x + origin.x, b.y + origin.y);
+    composed = composed ? affineCompose(about, composed) : about;
+    return true;
+  };
+
+  let node: Element | null = start;
+  let guard = 0;
+  while (node && guard++ < 200) {
+    if (!fold(node)) break;
+    const next: Element | null = node.parentElement;
+    if (next) {
+      node = next;
+    } else {
+      const rootNode = node.getRootNode?.() as ShadowRoot | null;
+      node = rootNode && rootNode.host ? rootNode.host : null;
+    }
+  }
+  return { matrix: composed, failed };
+}
+
+function hasTransformedAncestor(el: Element, transformed: Set<Element>): boolean {
+  if (transformed.size === 0) return false;
+  let node: Element | null = el.parentElement;
+  let guard = 0;
+  while (node && guard++ < 200) {
+    if (transformed.has(node)) return true;
+    const next: Element | null = node.parentElement;
+    if (next) {
+      node = next;
+    } else {
+      const rootNode = node.getRootNode?.() as ShadowRoot | null;
+      node = rootNode && rootNode.host ? rootNode.host : null;
+    }
+  }
+  return false;
+}
+
+type ChainFn = (e: Element) => { matrix: Affine | null; failed: boolean };
+
+// Fold the host element's chain onto a derived node (text child or pseudo):
+// the node's own transform is innermost, the host chain wraps it. Nodes with
+// an inexpressible 3D own-transform keep their raw form untouched.
+function foldNodeChain(
+  node: {
+    box: { x: number; y: number; w: number; h: number };
+    style: { transform?: string; transformOrigin?: string } & Record<string, unknown>;
+  },
+  host: Element,
+  frameOrigin: { originX: number; originY: number },
+  chainFor: ChainFn
+): void {
+  const { matrix } = chainFor(host);
+  if (!matrix || isIdentity(matrix)) return;
+  const docX = node.box.x + frameOrigin.originX;
+  const docY = node.box.y + frameOrigin.originY;
+  const ownRaw = node.style.transform;
+  let composed = matrix;
+  if (ownRaw && ownRaw !== 'none') {
+    const own = parseTransformMatrix(ownRaw);
+    if (!own) return; // 3D own-transform — keep raw, skip folding
+    const origin = resolveOrigin(node.style.transformOrigin, node.box.w, node.box.h);
+    composed = affineCompose(matrix, affineAbout(own, docX + origin.x, docY + origin.y));
+  }
+  node.style.transform = emitMatrix(composed, docX, docY);
+  node.style.transformOrigin = '0 0';
+}
+
 function parseLayout(computed: CSSStyleDeclaration): Layout | undefined {
   const display = computed.display;
   const isFlex = display === 'flex' || display === 'inline-flex';
@@ -366,8 +785,10 @@ function extractPseudoElement(
   parentBox: { x: number; y: number; w: number; h: number },
   defaultView: Window & typeof globalThis,
   parentId: string,
-  nextNodeId: () => string
-): Node | null {
+  nextNodeId: () => string,
+  hostChain: Affine | null = null,
+  frameOrigin = { originX: 0, originY: 0 }
+): Node[] | null {
   try {
     const computed = defaultView.getComputedStyle(el, pseudo);
     if (!computed || computed.display === 'none' || computed.visibility === 'hidden') {
@@ -387,46 +808,131 @@ function extractPseudoElement(
     const radius = parseCornerRadius(computed);
     const shadows = parseBoxShadow(computed.boxShadow);
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
+    const fidelity = extractFidelityStyle(computed);
 
-    const widthVal = parseFloat(computed.width) || 0;
-    const heightVal = parseFloat(computed.height) || 0;
-    const isVisibleShape = (hasBg || strokes.length > 0) && widthVal > 0 && heightVal > 0;
+    // getComputedStyle on a pseudo reports the CONTENT box for `width`, and
+    // `*` does not match pseudos — so box-sizing is typically content-box.
+    // Convert to the painted border box via padding + border either way.
+    const num = (v: string | undefined): number => Math.max(0, parseFloat(v ?? "") || 0);
+    const padL = num(computed.paddingLeft);
+    const padT = num(computed.paddingTop);
+    const padR = num(computed.paddingRight);
+    const padB = num(computed.paddingBottom);
+    const bdL = num(computed.borderLeftWidth);
+    const bdT = num(computed.borderTopWidth);
+    const bdR = num(computed.borderRightWidth);
+    const bdB = num(computed.borderBottomWidth);
+    const contentW = num(computed.width) || Math.max(1, parentBox.w);
+    const contentH = num(computed.height) || Math.max(1, parentBox.h);
+    const widthUnderBox = computed.boxSizing === 'border-box';
+    // content-box: border box = content + padding + border; border-box: already included.
+    const borderW = widthUnderBox ? contentW : contentW + padL + padR + bdL + bdR;
+    const borderH = widthUnderBox ? contentH : contentH + padT + padB + bdT + bdB;
 
+    const isVisibleShape = (hasBg || strokes.length > 0) && borderW > 0 && borderH > 0;
     if (!cleanContent && !isVisibleShape) {
       return null;
     }
 
-    const fills: Fill[] = hasBg ? [{ type: 'solid', color: bg, opacity: 1 }] : [];
-    const style = { fills, strokes, opacity, radius, shadows, clip: false };
+    // Parent metrics: abs pseudos position against the containing block's
+    // PADDING box (border box + border); static ones start at the content box.
+    const pc = defaultView.getComputedStyle(el);
+    const pBdL = num(pc.borderLeftWidth);
+    const pBdT = num(pc.borderTopWidth);
+    const pBdB = num(pc.borderBottomWidth);
+    const pPadL = num(pc.paddingLeft);
+    const pPadT = num(pc.paddingTop);
+    const pPadB = num(pc.paddingBottom);
+    const pContentW = Math.max(1, parentBox.w - pBdL - num(pc.borderRightWidth) - pPadL - num(pc.paddingRight));
 
-    const topVal = parseFloat(computed.top) || 0;
-    const leftVal = parseFloat(computed.left) || 0;
+    const topVal = parseFloat(computed.top);
+    const leftVal = parseFloat(computed.left);
+    const rightVal = parseFloat(computed.right);
     const isAbsolute = computed.position === 'absolute' || computed.position === 'fixed';
 
-    const w = widthVal > 0 ? widthVal : Math.max(1, parentBox.w);
-    const h = heightVal > 0 ? heightVal : Math.max(1, parentBox.h);
-    const x = isAbsolute ? parentBox.x + leftVal : parentBox.x;
-    const y = isAbsolute
-      ? parentBox.y + topVal
-      : pseudo === '::after'
-      ? parentBox.y + parentBox.h - h
-      : parentBox.y;
+    let x: number;
+    let y: number;
+    if (isAbsolute) {
+      // Used values come back as px for positioned pseudos; `auto` needs the
+      // opposite inset (right/bottom) resolved against the containing block.
+      x = Number.isNaN(leftVal)
+        ? parentBox.x + pBdL + pContentW - (Number.isNaN(rightVal) ? 0 : rightVal) - borderW
+        : parentBox.x + pBdL + leftVal;
+      y = Number.isNaN(topVal) ? parentBox.y + pBdT : parentBox.y + pBdT + topVal;
+    } else {
+      x = parentBox.x + pBdL + pPadL;
+      y =
+        pseudo === '::after'
+          ? parentBox.y + pBdT + pPadT + (parentBox.h - pBdT - pBdB - pPadT - pPadB) - borderH
+          : parentBox.y + pBdT + pPadT;
+    }
 
-    const box = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+    const box = { x, y, w: borderW, h: borderH };
+    // Text sits inside the padding; compose host chain with the pseudo's own
+    // transform once, rebase per node box (renderer is a flat canvas).
+    const textBox = {
+      x: x + bdL + padL,
+      y: y + bdT + padT,
+      w: Math.max(1, contentW),
+      h: Math.max(1, contentH),
+    };
+    const own = parseTransformMatrix(fidelity.transform);
+    const docX = x + frameOrigin.originX;
+    const docY = y + frameOrigin.originY;
+    let composed: Affine | null = null;
+    if (own && hostChain) {
+      const origin = resolveOrigin(fidelity.transformOrigin, borderW, borderH);
+      composed = affineCompose(hostChain, affineAbout(own, docX + origin.x, docY + origin.y));
+    } else if (hostChain) {
+      composed = hostChain;
+    } else if (own) {
+      const origin = resolveOrigin(fidelity.transformOrigin, borderW, borderH);
+      composed = affineAbout(own, docX + origin.x, docY + origin.y);
+    }
+    const applyFold = (
+      nodeStyle: { transform?: string; transformOrigin?: string },
+      b: { x: number; y: number }
+    ): void => {
+      if (composed && !isIdentity(composed)) {
+        nodeStyle.transform = emitMatrix(composed, b.x + frameOrigin.originX, b.y + frameOrigin.originY);
+        nodeStyle.transformOrigin = '0 0';
+      }
+    };
+
+    const out: Node[] = [];
+    const fills: Fill[] = hasBg ? [{ type: 'solid', color: bg, opacity: 1 }] : [];
+    let pillId = parentId;
+
+    if (isVisibleShape) {
+      const pillStyle = { fills, strokes, opacity, radius, shadows, clip: false, ...fidelity };
+      applyFold(pillStyle, box);
+      pillId = nextNodeId();
+      out.push({ id: pillId, parentId, type: 'rect', box, style: pillStyle });
+    }
 
     if (cleanContent.length > 0) {
       const fontSize = parseFloat(computed.fontSize) || 14;
       const lineHeightValue = parseFloat(computed.lineHeight);
-      const lineHeight = Number.isNaN(lineHeightValue) ? fontSize * 1.2 : lineHeightValue;
+      // 'normal' is legal in TextProps — pass it through; faking fontSize*1.2
+      // shifts the baseline ~1px vs Chrome's real normal metric.
+      const lineHeight: number | string = Number.isNaN(lineHeightValue) ? 'normal' : lineHeightValue;
       const letterSpacingValue = parseFloat(computed.letterSpacing);
       const letterSpacing = Number.isNaN(letterSpacingValue) ? 0 : letterSpacingValue;
-
-      return {
+      const textStyle = {
+        fills: [],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+        shadows: [],
+        clip: false,
+      } as { fills: never[]; strokes: never[]; opacity: number; radius: { topLeft: number; topRight: number; bottomRight: number; bottomLeft: number }; shadows: never[]; clip: boolean; transform?: string; transformOrigin?: string };
+      applyFold(textStyle, textBox);
+      out.push({
         id: nextNodeId(),
-        parentId,
+        parentId: pillId,
         type: 'text',
-        box,
-        style,
+        box: textBox,
+        style: textStyle,
         text: {
           content: cleanContent,
           fontFamily: computed.fontFamily || 'system-ui, sans-serif',
@@ -436,17 +942,12 @@ function extractPseudoElement(
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
           color: computed.color || 'rgba(0, 0, 0, 1)',
+          ...extractTextFidelity(computed),
         },
-      };
+      });
     }
 
-    return {
-      id: nextNodeId(),
-      parentId,
-      type: 'rect',
-      box,
-      style,
-    };
+    return out.length > 0 ? out : null;
   } catch {
     return null;
   }
@@ -600,27 +1101,78 @@ async function serializeSubtree(
   const urlToAssetKeyCache = new Map<string, string>();
   const pendingAssetFetches: Array<{ url: string; assetKey: string }> = [];
   const hiddenAncestors = new Set<Element>();
-  // TODO(phase-4): Support auto-scroll and full-page stitching
-  // TODO(phase-4): Support iframes traversal
-  // TODO(phase-4): Support ::before and ::after pseudo-elements
-  // TODO(phase-4): Support custom web font extraction and embedding
 
   const elements: Element[] = [];
   const showElementFilter = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT : 1;
-  const walker = doc.createTreeWalker(root, showElementFilter);
 
-  let currentNode: globalThis.Node | null = walker.currentNode;
-  while (currentNode) {
-    if (currentNode.nodeType === 1) {
-      const el = currentNode as Element;
-      const tag = el.tagName.toLowerCase();
-      if (!IGNORED_TAGS[tag]) {
-        elements.push(el);
+  // Walk light DOM first; the loop then grows as shadow subtrees are appended,
+  // so nested shadow roots are picked up by the same pass.
+  const walkInto = (root: Element | ShadowRoot): void => {
+    const walker = doc.createTreeWalker(root, showElementFilter);
+    let n: globalThis.Node | null = walker.currentNode;
+    while (n) {
+      if (n.nodeType === 1) {
+        const el = n as Element;
+        if (!IGNORED_TAGS[el.tagName.toLowerCase()]) elements.push(el);
       }
+      n = walker.nextNode();
     }
-    currentNode = walker.nextNode();
+  };
+  walkInto(root);
+  for (let i = 0; i < elements.length; i++) {
+    const sr = (elements[i] as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+    if (sr) walkInto(sr);
   }
 
+  // Freeze every active transform so all measurement below (element rects,
+  // range rects, pseudo boxes) happens in pure layout space. Frozen values
+  // are folded back per node as one composed matrix after the walk.
+  const measure: MeasureState = {
+    transformed: new Set(),
+    frozen: new Map(),
+    boxes: new Map(),
+  };
+  for (const el of elements) {
+    const frozen = freezeTransform(el, defaultView);
+    if (frozen) {
+      measure.transformed.add(el);
+      measure.frozen.set(el, frozen);
+    }
+  }
+  const chainCache = new Map<Element, { matrix: Affine | null; failed: boolean }>();
+  const chainFor = (e: Element): { matrix: Affine | null; failed: boolean } => {
+    if (measure.transformed.size === 0) return { matrix: null, failed: false };
+    let cached = chainCache.get(e);
+    if (!cached) {
+      cached = chainMatrix(e, measure, scrollX, scrollY);
+      chainCache.set(e, cached);
+    }
+    return cached;
+  };
+  // Compose the chain onto a node's stored box → style fragment. When the
+  // chain contains a real 3D transform we cannot fold, fall back to the raw
+  // CSS transform of the node itself (descendants of 3D containers render at
+  // layout position — 2D emit cannot express the ancestor; ponytail: revisit
+  // with DOMMatrix if a real target needs it).
+  const chainStyle = (
+    e: Element,
+    docX: number,
+    docY: number
+  ): { transform?: string; transformOrigin?: string } => {
+    if (measure.transformed.size === 0) return {};
+    const { matrix, failed } = chainFor(e);
+    if (matrix && !isIdentity(matrix)) {
+      return { transform: emitMatrix(matrix, docX, docY), transformOrigin: '0 0' };
+    }
+    if (failed) {
+      const f = measure.frozen.get(e);
+      const raw = f ? rawTransformCss(f) : null;
+      return raw ? { transform: raw } : {};
+    }
+    return {};
+  };
+
+  try {
   for (const el of elements) {
     if (el.parentElement && hiddenAncestors.has(el.parentElement)) {
       hiddenAncestors.add(el);
@@ -634,10 +1186,16 @@ async function serializeSubtree(
     }
 
     const rect = el.getBoundingClientRect();
-    const x = Math.round(rect.left + scrollX - frameRect.originX);
-    const y = Math.round(rect.top + scrollY - frameRect.originY);
-    const w = Math.round(rect.width);
-    const h = Math.round(rect.height);
+    const docX = rect.left + scrollX;
+    const docY = rect.top + scrollY;
+    // Subpixel-precise boxes: rounding to integers shifted text a full pixel
+    // off the original whenever a flex/line position was fractional (the
+    // fidelity harness caught this as whole-text mismatches).
+    const x = docX - frameRect.originX;
+    const y = docY - frameRect.originY;
+    const w = rect.width;
+    const h = rect.height;
+    measure.boxes.set(el, { x: docX, y: docY, w: rect.width, h: rect.height });
 
     if (w <= 0 && h <= 0) {
       continue;
@@ -646,15 +1204,27 @@ async function serializeSubtree(
     const nodeId = `node-${nextNodeId++}`;
     elementToIdMap.set(el, nodeId);
 
-    // Parent ID from nearest mapped ancestor
+    // Parent ID from nearest mapped ancestor. parentElement chains stop at
+    // shadow boundaries, so hop through ShadowRoot.host when exhausted.
     let parentId: string | undefined;
-    let parent = el.parentElement;
-    while (parent) {
-      if (elementToIdMap.has(parent)) {
-        parentId = elementToIdMap.get(parent);
-        break;
+    let parent: Element | null = el.parentElement;
+    let rootNode: globalThis.Node | null = el.getRootNode ? el.getRootNode() : null;
+    while (!parentId) {
+      while (parent) {
+        if (elementToIdMap.has(parent)) {
+          parentId = elementToIdMap.get(parent);
+          break;
+        }
+        parent = parent.parentElement;
       }
-      parent = parent.parentElement;
+      if (parentId) break;
+      const shadowRoot = rootNode as ShadowRoot | null;
+      if (shadowRoot && typeof shadowRoot.host === 'object') {
+        parent = shadowRoot.host;
+        rootNode = typeof parent.getRootNode === 'function' ? parent.getRootNode() : null;
+        continue;
+      }
+      break;
     }
 
     const fills: Fill[] = [];
@@ -671,13 +1241,13 @@ async function serializeSubtree(
     const bgImageUrl = extractCssUrl(computed.backgroundImage);
     if (bgImageUrl) {
       if (bgImageUrl.startsWith('data:')) {
-        const match = bgImageUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) {
+        const parsed = dataUriToAsset(bgImageUrl);
+        if (parsed) {
           const assetKey = `asset-${nextAssetId++}`;
           assets[assetKey] = {
             kind: 'image',
-            mimeType: match[1],
-            base64: match[2],
+            mimeType: parsed.mimeType,
+            base64: parsed.base64,
           };
           fills.push({
             type: 'image',
@@ -733,6 +1303,8 @@ async function serializeSubtree(
       clip: isClipped,
       clipPath,
       layout: parseLayout(computed),
+      ...extractFidelityStyle(computed),
+      ...chainStyle(el, docX, docY),
     };
 
     const tagName = el.tagName.toLowerCase();
@@ -819,13 +1391,13 @@ async function serializeSubtree(
       const src = resolveHighestDpiSrc(img);
       if (src) {
         if (src.startsWith('data:')) {
-          const match = src.match(/^data:([^;]+);base64,(.+)$/);
-          if (match) {
+          const parsed = dataUriToAsset(src);
+          if (parsed) {
             const assetKey = `asset-${nextAssetId++}`;
             assets[assetKey] = {
               kind: 'image',
-              mimeType: match[1],
-              base64: match[2],
+              mimeType: parsed.mimeType,
+              base64: parsed.base64,
             };
             assetRef = assetKey;
           }
@@ -904,6 +1476,50 @@ async function serializeSubtree(
       continue;
     }
 
+    // 2b. Video elements: rasterize the current frame so the replica shows
+    // exactly what the user saw instead of a dead black box.
+    if (tagName === 'video') {
+      const videoEl = el as HTMLVideoElement;
+      let assetRef: string | undefined;
+      try {
+        if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+          const canvas = doc.createElement('canvas');
+          canvas.width = videoEl.videoWidth;
+          canvas.height = videoEl.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(videoEl, 0, 0);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const match = dataUrl.match(/^data:image\/jpeg;base64,(.+)$/);
+          if (match) {
+            const assetKey = `asset-${nextAssetId++}`;
+            assets[assetKey] = { kind: 'image', mimeType: 'image/jpeg', base64: match[1] };
+            assetRef = assetKey;
+          }
+        }
+      } catch {
+        // Tainted/cross-origin video: fall back to poster attribute below.
+        const poster = videoEl.getAttribute('poster');
+        if (poster?.startsWith('data:image/')) {
+          const m = poster.match(/^data:([^;]+);base64,(.+)$/);
+          if (m) {
+            const assetKey = `asset-${nextAssetId++}`;
+            assets[assetKey] = { kind: 'image', mimeType: m[1], base64: m[2] };
+            assetRef = assetKey;
+          }
+        }
+      }
+
+      nodes.push({
+        id: nodeId,
+        parentId,
+        type: 'image',
+        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+        style,
+        assetRef,
+      });
+      continue;
+    }
+
     // 4. Form controls
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
       let controlText = '';
@@ -930,15 +1546,15 @@ async function serializeSubtree(
       if (controlText.trim().length > 0) {
         const fontSize = parseFloat(computed.fontSize) || 14;
         const textNodeId = `node-${nextNodeId++}`;
-        nodes.push({
+        const controlTextNode = {
           id: textNodeId,
           parentId: nodeId,
-          type: 'text',
+          type: 'text' as const,
           box: {
             x: x + 8,
-            y: y + Math.max(0, Math.round((h - fontSize) / 2)),
+            y: y + Math.max(0, (h - fontSize) / 2),
             w: Math.max(0, w - 16),
-            h: Math.min(h, Math.round(fontSize * 1.4)),
+            h: Math.min(h, fontSize * 1.4),
           },
           style: {
             fills: [],
@@ -953,12 +1569,15 @@ async function serializeSubtree(
             fontFamily: computed.fontFamily || 'system-ui, sans-serif',
             fontSize,
             fontWeight: computed.fontWeight || 400,
-            lineHeight: fontSize * 1.2,
+            lineHeight: (() => { const v = parseFloat(computed.lineHeight); return Number.isNaN(v) ? 'normal' : v; })(),
             letterSpacing: parseFloat(computed.letterSpacing) || 0,
             align: parseTextAlign(computed.textAlign),
             color: computed.color || 'rgba(0, 0, 0, 1)',
+            ...extractTextFidelity(computed),
           },
-        });
+        };
+        foldNodeChain(controlTextNode, el, frameRect, chainFor);
+        nodes.push(controlTextNode);
       }
       continue;
     }
@@ -990,19 +1609,32 @@ async function serializeSubtree(
 
       const fontSize = parseFloat(computed.fontSize) || 16;
       const lineHeightValue = parseFloat(computed.lineHeight);
-      const lineHeight = Number.isNaN(lineHeightValue)
-        ? fontSize * 1.2
+      const lineHeight: number | string = Number.isNaN(lineHeightValue)
+        ? 'normal'
         : lineHeightValue;
       const letterSpacingValue = parseFloat(computed.letterSpacing);
       const letterSpacing = Number.isNaN(letterSpacingValue)
         ? 0
         : letterSpacingValue;
 
+      // Content box, not border box: text never starts under the padding.
+      const num2 = (v: string | undefined): number => Math.max(0, parseFloat(v ?? "") || 0);
+      const cbX = x + num2(computed.borderLeftWidth) + num2(computed.paddingLeft);
+      const cbY = y + num2(computed.borderTopWidth) + num2(computed.paddingTop);
+      const cbW = Math.max(
+        1,
+        w - num2(computed.borderLeftWidth) - num2(computed.borderRightWidth) - num2(computed.paddingLeft) - num2(computed.paddingRight)
+      );
+      const cbH = Math.max(
+        1,
+        h - num2(computed.borderTopWidth) - num2(computed.borderBottomWidth) - num2(computed.paddingTop) - num2(computed.paddingBottom)
+      );
+
       nodes.push({
         id: nodeId,
         parentId,
         type: 'text',
-        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+        box: { x: cbX, y: cbY, w: cbW, h: cbH },
         style,
         text: {
           content: combinedText,
@@ -1013,6 +1645,7 @@ async function serializeSubtree(
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
           color: computed.color || 'rgba(0, 0, 0, 1)',
+          ...extractTextFidelity(computed),
         },
       });
       continue;
@@ -1026,16 +1659,18 @@ async function serializeSubtree(
       style,
     });
     // ::before pseudo-element
-    const beforeNode = extractPseudoElement(
+    const beforeNodes = extractPseudoElement(
       el,
       '::before',
       { x, y, w, h },
       defaultView,
       nodeId,
-      () => `node-${nextNodeId++}`
+      () => `node-${nextNodeId++}`,
+      (chainFor(el).matrix) ?? null,
+      frameRect
     );
-    if (beforeNode) {
-      nodes.push(beforeNode);
+    if (beforeNodes) {
+      for (const n of beforeNodes) nodes.push(n);
     }
 
     for (const textNode of childTextNodes) {
@@ -1047,27 +1682,54 @@ async function serializeSubtree(
       let textW = w;
       let textH = h;
 
+      const num = (v: string | undefined): number => Math.max(0, parseFloat(v ?? "") || 0);
+      // Content box: where the line box actually starts. For a lone text leaf
+      // this is exact — our renderer re-wraps with the same width/font/
+      // line-height, so glyphs land identically. Range rects here would omit
+      // half-leading and shift the text down by (line-height − font)/2.
+      const contentBox = {
+        x: x + num(computed.borderLeftWidth) + num(computed.paddingLeft),
+        y: y + num(computed.borderTopWidth) + num(computed.paddingTop),
+        w: Math.max(1, w - num(computed.borderLeftWidth) - num(computed.borderRightWidth) - num(computed.paddingLeft) - num(computed.paddingRight)),
+        h: Math.max(1, h - num(computed.borderTopWidth) - num(computed.borderBottomWidth) - num(computed.paddingTop) - num(computed.paddingBottom)),
+      };
+
       const isSingleTextLeaf = childTextNodes.length === 1 && !hasChildren;
-      if (!isSingleTextLeaf && typeof doc.createRange === 'function') {
+      if (isSingleTextLeaf) {
+        textX = contentBox.x;
+        textY = contentBox.y;
+        textW = contentBox.w;
+        textH = contentBox.h;
+      } else if (typeof doc.createRange === 'function') {
+        // Mixed content: text fragments interleaved with children — only the
+        // Range knows where each run sits.
         try {
           const range = doc.createRange();
           range.selectNodeContents(textNode);
           const rangeRect = range.getBoundingClientRect();
           if (rangeRect.width > 0 && rangeRect.height > 0) {
-            textX = Math.round(rangeRect.left + scrollX - frameRect.originX);
-            textY = Math.round(rangeRect.top + scrollY - frameRect.originY);
-            textW = Math.round(rangeRect.width);
-            textH = Math.round(rangeRect.height);
+            textX = rangeRect.left + scrollX - frameRect.originX;
+            textY = rangeRect.top + scrollY - frameRect.originY;
+            textW = rangeRect.width;
+            textH = rangeRect.height;
+          } else {
+            textX = contentBox.x;
+            textY = contentBox.y;
+            textW = contentBox.w;
+            textH = contentBox.h;
           }
         } catch {
-          // Range fallback
+          textX = contentBox.x;
+          textY = contentBox.y;
+          textW = contentBox.w;
+          textH = contentBox.h;
         }
       }
 
       const fontSize = parseFloat(computed.fontSize) || 16;
       const lineHeightValue = parseFloat(computed.lineHeight);
-      const lineHeight = Number.isNaN(lineHeightValue)
-        ? fontSize * 1.2
+      const lineHeight: number | string = Number.isNaN(lineHeightValue)
+        ? 'normal'
         : lineHeightValue;
       const letterSpacingValue = parseFloat(computed.letterSpacing);
       const letterSpacing = Number.isNaN(letterSpacingValue)
@@ -1075,10 +1737,10 @@ async function serializeSubtree(
         : letterSpacingValue;
 
       const textNodeId = `node-${nextNodeId++}`;
-      nodes.push({
+      const childTextNode = {
         id: textNodeId,
         parentId: nodeId,
-        type: 'text',
+        type: 'text' as const,
         box: {
           x: textX,
           y: textY,
@@ -1102,21 +1764,31 @@ async function serializeSubtree(
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
           color: computed.color || 'rgba(0, 0, 0, 1)',
+          ...extractTextFidelity(computed),
         },
-      });
+      };
+      foldNodeChain(childTextNode, el, frameRect, chainFor);
+      nodes.push(childTextNode);
     }
     // ::after pseudo-element
-    const afterNode = extractPseudoElement(
+    const afterNodes = extractPseudoElement(
       el,
       '::after',
       { x, y, w, h },
       defaultView,
       nodeId,
-      () => `node-${nextNodeId++}`
+      () => `node-${nextNodeId++}`,
+      (chainFor(el).matrix) ?? null,
+      frameRect
     );
-    if (afterNode) {
-      nodes.push(afterNode);
+    if (afterNodes) {
+      for (const n of afterNodes) nodes.push(n);
     }
+  }
+  } finally {
+    // Transforms must come back even if serialization throws mid-walk —
+    // frozen inline styles are visible to the user's live page.
+    for (const [el, frozen] of measure.frozen) thawTransform(el, frozen);
   }
   // Concurrent parallel asset resolution
   if (pendingAssetFetches.length > 0) {
@@ -1205,10 +1877,10 @@ export async function serializeElement(
   const scrollY = defaultView.scrollY ?? 0;
 
   const rect = el.getBoundingClientRect();
-  const originX = Math.round(rect.left + scrollX);
-  const originY = Math.round(rect.top + scrollY);
-  const width = Math.max(1, Math.round(rect.width));
-  const height = Math.max(1, Math.round(rect.height));
+  const originX = rect.left + scrollX;
+  const originY = rect.top + scrollY;
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
 
   return serializeSubtree(
     el,
