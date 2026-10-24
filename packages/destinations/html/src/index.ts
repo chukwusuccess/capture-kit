@@ -58,20 +58,6 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.backgroundClip) {
     styles.push(`background-clip: ${style.backgroundClip}`, `-webkit-background-clip: ${style.backgroundClip}`);
   }
-  // Layout
-  if (style.layout && style.layout.mode !== 'none') {
-    if (style.layout.mode === 'grid') {
-      styles.push('display: grid');
-    } else {
-      styles.push(
-        'display: flex',
-        `flex-direction: ${style.layout.mode === 'vertical' ? 'column' : 'row'}`
-      );
-    }
-    if (style.layout.gap) styles.push(`gap: ${style.layout.gap}px`);
-  }
-
-
 
   // Radius
   const r = style.radius;
@@ -186,6 +172,14 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
     return canvasHtml;
   }
 
+  const fontFaceRules = capture.fonts
+    .map((f) => {
+      if (!f.assetRef || !capture.assets[f.assetRef]) return '';
+      const asset = capture.assets[f.assetRef];
+      return `    @font-face { font-family: '${escapeHtml(f.family)}'; font-weight: ${f.weight || '400'}; font-style: ${f.style || 'normal'}; src: url('data:${asset.mimeType};base64,${asset.base64}'); }`;
+    })
+    .filter(Boolean);
+
   return [
     '<!DOCTYPE html>',
     '<html lang="en">',
@@ -194,6 +188,7 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
     '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
     `  <title>${escapeHtml(title)}</title>`,
     '  <style>',
+    ...fontFaceRules,
     '    body { margin: 0; padding: 0; background-color: #f1f5f9; display: flex; justify-content: center; }',
     '    .capture-canvas { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin: 24px auto; }',
     '  </style>',

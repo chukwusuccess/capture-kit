@@ -59,24 +59,19 @@ function buildNodeClasses(
 ): string[] {
   const cls: string[] = [];
 
+  const rx = isRoot ? 'relative' : 'absolute';
+  const relX = parentBox ? Math.round((node.box.x - parentBox.x) * 100) / 100 : Math.round(node.box.x * 100) / 100;
+  const relY = parentBox ? Math.round((node.box.y - parentBox.y) * 100) / 100 : Math.round(node.box.y * 100) / 100;
+  const w = Math.round(node.box.w * 100) / 100;
+  const h = Math.round(node.box.h * 100) / 100;
+
   if (isRoot) {
-    cls.push('relative', `w-[${node.box.w}px]`, `h-[${node.box.h}px]`, 'overflow-hidden');
+    cls.push(rx, `w-[${w}px]`, `h-[${h}px]`, 'overflow-hidden');
   } else {
-    cls.push('absolute');
-    const relX = parentBox ? node.box.x - parentBox.x : node.box.x;
-    const relY = parentBox ? node.box.y - parentBox.y : node.box.y;
-    cls.push(`left-[${relX}px]`, `top-[${relY}px]`, `w-[${node.box.w}px]`, `h-[${node.box.h}px]`);
+    cls.push(rx, `left-[${relX}px]`, `top-[${relY}px]`, `w-[${w}px]`, `h-[${h}px]`);
   }
-  if (node.style.layout && node.style.layout.mode !== 'none') {
-    if (node.style.layout.mode === 'grid') {
-      cls.push('grid');
-    } else {
-      cls.push('flex', node.style.layout.mode === 'vertical' ? 'flex-col' : 'flex-row');
-    }
-    if (node.style.layout.gap) cls.push(`gap-[${node.style.layout.gap}px]`);
-    if (node.style.layout.alignItems === 'center') cls.push('items-center');
-    if (node.style.layout.justifyContent === 'between') cls.push('justify-between');
-    if (node.style.layout.justifyContent === 'center') cls.push('justify-center');
+  if (node.style.clip) {
+    cls.push('overflow-hidden');
   }
 
 
@@ -132,6 +127,13 @@ function buildNodeClasses(
     if (node.text.align === 'center') cls.push('text-center');
     else if (node.text.align === 'right') cls.push('text-right');
     else cls.push('text-left');
+    if (node.text.italic) cls.push('italic');
+    if (node.text.textTransform === 'uppercase') cls.push('uppercase');
+    if (node.text.letterSpacing) {
+      const ls = typeof node.text.letterSpacing === 'number' ? `${node.text.letterSpacing}px` : node.text.letterSpacing;
+      cls.push(`tracking-[${ls}]`);
+    }
+    cls.push('m-0');
   }
 
   return cls;
@@ -184,11 +186,26 @@ export function modelToReact(
     const indent = '  '.repeat(depth);
     const classes = buildNodeClasses(node, isRoot, parentBox).join(' ');
     const children = childrenMap.get(node.id) ?? [];
+    const styleObj: string[] = [];
+    if (node.style.transform) {
+      styleObj.push(`transform: '${node.style.transform}'`);
+      if (node.style.transformOrigin) {
+        styleObj.push(`transformOrigin: '${node.style.transformOrigin}'`);
+      }
+    }
+    if (node.style.backdropFilter) {
+      styleObj.push(`backdropFilter: '${node.style.backdropFilter}'`);
+    }
+    if (node.type === 'text' && node.text?.fontFamily) {
+      styleObj.push(`fontFamily: '${node.text.fontFamily.replace(/'/g, "\\'")}'`);
+    }
+    const styleAttr = styleObj.length > 0 ? ` style={{ ${styleObj.join(', ')} }}` : '';
+
 
     if (node.type === 'text' && node.text) {
       const content = escapeJsxText(node.text.content);
       const tag = node.text.fontSize >= 24 ? 'h2' : node.text.fontSize >= 18 ? 'h3' : 'p';
-      return `${indent}<${tag} className="${classes}">${content}</${tag}>`;
+      return `${indent}<${tag} className="${classes}"${styleAttr}>${content}</${tag}>`;
     }
     if (node.type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
       const paths = node.vectorPaths
@@ -208,18 +225,18 @@ export function modelToReact(
         node.assetRef && capture.assets[node.assetRef]
           ? `data:${capture.assets[node.assetRef].mimeType};base64,${capture.assets[node.assetRef].base64}`
           : 'https://placehold.co/400x300';
-      return `${indent}<img src="${src}" alt="${node.id}" className="${classes} object-cover" />`;
+      return `${indent}<img src="${src}" alt="${node.id}" className="${classes} object-cover"${styleAttr} />`;
     }
 
     if (children.length === 0) {
-      return `${indent}<div className="${classes}" />`;
+      return `${indent}<div className="${classes}"${styleAttr} />`;
     }
 
     const childrenJsx = children
       .map((c) => renderJsxNode(c, depth + 1, false, { x: node.box.x, y: node.box.y }))
       .join('\n');
 
-    return `${indent}<div className="${classes}">\n${childrenJsx}\n${indent}</div>`;
+    return `${indent}<div className="${classes}"${styleAttr}>\n${childrenJsx}\n${indent}</div>`;
   }
 
   let bodyJsx = '';
