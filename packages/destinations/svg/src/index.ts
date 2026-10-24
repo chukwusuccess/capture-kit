@@ -185,21 +185,6 @@ function buildSvgDefs(capture: Capture): string {
       `    <clipPath id="imgclip-${escapeXml(node.id)}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"${rxA} />\n    </clipPath>`
     );
   }
-  const fontFaces: string[] = [];
-  for (const f of capture.fonts) {
-    if (f.assetRef && capture.assets[f.assetRef]) {
-      const asset = capture.assets[f.assetRef];
-      fontFaces.push(`    @font-face {
-      font-family: '${escapeXml(f.family)}';
-      font-weight: ${f.weight || '400'};
-      font-style: ${f.style || 'normal'};
-      src: url('data:${asset.mimeType};base64,${asset.base64}');
-    }`);
-    }
-  }
-  if (fontFaces.length > 0) {
-    defs.push(`    <style>\n${fontFaces.join('\n')}\n    </style>`);
-  }
 
   if (defs.length === 0) return '';
   return `  <defs>\n${defs.join('\n')}\n  </defs>`;
