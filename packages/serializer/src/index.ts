@@ -1103,6 +1103,19 @@ async function serializeSubtree(
 
   const baseURI = opts?.baseURI || doc.baseURI || defaultView.location?.href || 'about:blank';
 
+  let rootBackground: string | undefined;
+  try {
+    const rootEl = doc.documentElement;
+    if (rootEl) {
+      const rootBg = defaultView.getComputedStyle(rootEl).backgroundColor;
+      if (rootBg && rootBg !== 'transparent' && rootBg !== 'rgba(0, 0, 0, 0)') {
+        rootBackground = rootBg;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   const capture = emptyCapture({
     url: defaultView.location?.href || baseURI,
     version: '0.1.0',
@@ -1110,6 +1123,7 @@ async function serializeSubtree(
       width: Math.max(1, Math.round(frameRect.width)),
       height: Math.max(1, Math.round(frameRect.height)),
       baseURI,
+      ...(rootBackground ? { background: rootBackground } : {}),
     },
   });
 

@@ -131,6 +131,7 @@ export const FrameSchema = z.object({
   width: z.number().gte(0),
   height: z.number().gte(0),
   baseURI: z.string(),
+  background: z.string().optional(),
 });
 
 export const VectorPathSchema = z.object({
