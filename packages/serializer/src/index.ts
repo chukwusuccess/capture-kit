@@ -813,7 +813,19 @@ function extractSvgPaths(
     }
 
     if (d) {
-      const fill = child.getAttribute('fill') || undefined;
+      let fill = child.getAttribute('fill') || undefined;
+      // No presentation attribute: the shape inherits (usually white from a
+      // light-on-dark svg). Computed fill resolves currentColor AND
+      // inheritance exactly as painted.
+      if (!fill || fill === 'currentColor' || fill === 'inherit') {
+        try {
+          const host = svgEl.tagName?.toLowerCase() === 'symbol' ? svgEl.closest('svg') ?? svgEl : svgEl;
+          const cs = (svgEl.ownerDocument?.defaultView ?? window).getComputedStyle(host as Element);
+          if (cs?.color) fill = cs.color;
+        } catch {
+          // keep currentColor
+        }
+      }
       const stroke = child.getAttribute('stroke') || undefined;
       const sw = child.getAttribute('stroke-width');
       const strokeWidth = sw ? parseFloat(sw) : undefined;
@@ -1634,18 +1646,71 @@ async function serializeSubtree(
         // Fallback placeholder rect
       }
 
-      const vectorPaths = extractSvgPaths(el);
-
-      nodes.push({
-        id: nodeId,
-        parentId,
-        type: 'image',
-        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
-        style,
-        assetRef,
-        vectorPaths: vectorPaths.length > 0 ? vectorPaths : undefined,
-      });
-      continue;
+       // Sprite <use> refs keep their shapes in a <symbol> elsewhere: query
+       // the resolved target so vector-first fires for sprite icons too.
+       const spriteTarget = (() => {
+         try {
+           const u = typeof el.querySelector === 'function' ? el.querySelector('use') : null;
+           const href = u?.getAttribute?.('href') ?? u?.getAttribute?.('xlink:href');
+           if (!u || !href) return null;
+           const fragId = decodeURIComponent(href.split('#').pop() || '');
+           return fragId ? doc.getElementById(fragId) : null;
+         } catch {
+           return null;
+         }
+       })();
+       // Clip-region rules: the symbol's own <clipPath> shapes are region
+      // geometry, not artwork — keeping them paints a solid box behind the
+      // real shapes (netlify's white rect). Match by path data.
+      const clipDs = (() => {
+        try {
+          const scope = spriteTarget ?? el;
+          if (typeof scope.querySelectorAll !== 'function') return new Set<string>();
+          const out = new Set<string>();
+          for (const cp of scope.querySelectorAll('clipPath')) {
+            for (const s of (cp as Element).querySelectorAll('path, rect, circle, polygon')) {
+              const dd = (s as Element).getAttribute?.('d');
+              if (dd) out.add(dd);
+            }
+          }
+          return out;
+        } catch {
+          return new Set<string>();
+        }
+      })();
+      const vectorPaths = extractSvgPaths(spriteTarget ?? el).filter((p) => !clipDs.has(p.d));
+      // Vector-first: path-bearing svgs travel as real vector data, which
+      // every importer honors. The base64 asset stays as fallback for
+      // shape types paths can't express.
+      const vectorFirst = vectorPaths.length > 0;
+       // Intrinsic viewBox size: destinations scale path units into the box.
+       const vectorViewBox = (() => {
+         try {
+           // Sprite symbols rarely carry their own viewBox: fall back to the
+          // host svg's (astro puts 0 0 512 209 on the svg, not the symbol).
+          const vb = (spriteTarget ?? el).getAttribute?.('viewBox') || el.getAttribute?.('viewBox');
+           const parts = (vb || '').trim().split(/[\s,]+/);
+           if (parts.length === 4) {
+             const w = parseFloat(parts[2]);
+             const h = parseFloat(parts[3]);
+             if (w > 0 && h > 0) return { width: w, height: h };
+           }
+           return undefined;
+         } catch {
+           return undefined;
+         }
+       })();
+       nodes.push({
+         id: nodeId,
+         parentId,
+         type: vectorFirst ? 'vector' : 'image',
+         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+         style,
+         ...(vectorFirst ? {} : { assetRef }),
+         vectorPaths: vectorPaths.length > 0 ? vectorPaths : undefined,
+        ...(vectorFirst && vectorViewBox ? { vectorViewBox } : {}),
+       });
+       continue;
     }
 
     // 2. Image elements

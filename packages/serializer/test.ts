@@ -361,11 +361,9 @@ async function runSerializerAccuracyTests() {
   // Verify inline SVG
   const svgNode = validated.nodes.find((n) => n.box.x === 40 && n.box.y === 40);
   assert.ok(svgNode, 'SVG node not found');
-  assert.strictEqual(svgNode.type, 'image');
-  assert.ok(svgNode.assetRef, 'SVG node missing assetRef');
-  const svgAsset = validated.assets[svgNode.assetRef];
-  assert.ok(svgAsset, 'SVG asset not registered');
-  assert.strictEqual(svgAsset.mimeType, 'image/svg+xml');
+  assert.strictEqual(svgNode.type, 'vector');
+  assert.ok(svgNode.vectorPaths && svgNode.vectorPaths.length > 0, 'SVG node missing vectorPaths');
+  assert.strictEqual(svgNode.vectorPaths[0].d, 'M0 0h24v24H0z');
 
   // Verify Canvas snapshotting
   const canvasNode = validated.nodes.find((n) => n.box.x === 400 && n.box.y === 40);
