@@ -130,12 +130,25 @@ class MockElement extends MockNode {
     return child;
   }
 
+  querySelectorAll(_sel: string): MockElement[] {
+    return [];
+  }
+
+  classList = { add(_cls: string): void {}, contains(_cls: string): boolean { return false; } };
   contains(_el: unknown): boolean {
     return false;
   }
-
+  dAttr = '';
+  pointsAttr = '';
   getAttribute(attr: string): string | null {
     if (attr === 'src') return this.src;
+    if (attr === 'd') return this.dAttr || null;
+    if (attr === 'points') return this.pointsAttr || null;
+    if (attr === 'x' || attr === 'y') return '0';
+    if (attr === 'width') return String(this.rect.width);
+    if (attr === 'height') return String(this.rect.height);
+    if (attr === 'cx' || attr === 'cy') return '12';
+    if (attr === 'r') return '10';
     return null;
   }
 
@@ -245,7 +258,14 @@ function createMockDocument() {
 }
 
 async function runSerializerAccuracyTests() {
+  // Node test env has no XMLSerializer: serialize mocks from outerHTML.
+  (globalThis as Record<string, unknown>).XMLSerializer = class {
+    serializeToString(el: { outerHTML?: string }): string {
+      return el.outerHTML ?? '<svg/>';
+    }
+  };
   const { doc, body, scrolledPositions } = createMockDocument();
+
 
   // 1. Container with background + text
   const card = new MockElement('div', { left: 20, top: 20, width: 300, height: 150 });
@@ -269,6 +289,9 @@ async function runSerializerAccuracyTests() {
 
   // 2. Inline SVG element
   const svgEl = new MockElement('svg', { left: 40, top: 40, width: 24, height: 24 });
+  const svgPath = new MockElement('path');
+  svgPath.dAttr = 'M0 0h24v24H0z';
+  svgEl.querySelectorAll = () => [svgPath];
   svgEl.outerHTML = '<svg viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>';
   body.appendChild(svgEl);
   // Canvas element (WebGL/2D)

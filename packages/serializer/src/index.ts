@@ -201,6 +201,9 @@ function resolveHighestDpiSrc(img: HTMLImageElement): string {
   }
   return img.src || img.getAttribute('src') || '';
 }
+// Deterministic subpixel boxes: 1341.333px renders identically to 1341.33px
+// at any real zoom, but long float tails make exports non-repeatable.
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 function parseCssGradients(bgImage: string): Fill[] {
   if (!bgImage || bgImage === 'none') return [];
@@ -1125,21 +1128,39 @@ async function serializeSubtree(
 
   // Walk light DOM first; the loop then grows as shadow subtrees are appended,
   // so nested shadow roots are picked up by the same pass.
-  const walkInto = (root: Element | ShadowRoot): void => {
-    const walker = doc.createTreeWalker(root, showElementFilter);
-    let n: globalThis.Node | null = walker.currentNode;
-    while (n) {
-      if (n.nodeType === 1) {
-        const el = n as Element;
-        const tag = el.tagName.toLowerCase();
-        if (
-          !IGNORED_TAGS[tag] &&
-          (!el.closest || !el.closest('svg') || tag === 'svg')
-        ) {
-          elements.push(el);
-        }
+  const getEffectiveZIndex = (el: Element): number => {
+    try {
+      const cs = defaultView.getComputedStyle(el);
+      if (!cs) return 0;
+      const z = parseInt(cs.zIndex, 10);
+      return Number.isNaN(z) ? 0 : z;
+    } catch {
+      return 0;
+    }
+  };
+
+  const walkInto = (currRoot: Element | ShadowRoot): void => {
+    const visit = (el: Element): void => {
+      const tag = el.tagName.toLowerCase();
+      if (IGNORED_TAGS[tag]) return;
+      elements.push(el);
+      if (tag === 'svg') return;
+
+      const children = Array.from(el.children);
+      if (children.length > 1) {
+        const withZ = children.map((c, idx) => ({ c, idx, z: getEffectiveZIndex(c) }));
+        withZ.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.idx - b.idx));
+        for (const item of withZ) visit(item.c);
+      } else if (children.length === 1) {
+        visit(children[0]);
       }
-      n = walker.nextNode();
+    };
+
+    if ('tagName' in currRoot) {
+      visit(currRoot as Element);
+    } else {
+      const children = Array.from(currRoot.children);
+      for (const child of children) visit(child);
     }
   };
   walkInto(root);
@@ -1227,6 +1248,17 @@ async function serializeSubtree(
     measure.boxes.set(el, { x: docX, y: docY, w: rect.width, h: rect.height });
 
     if (w <= 0 && h <= 0) {
+      continue;
+    }
+
+    const isSrOnly =
+      w <= 2 &&
+      h <= 2 &&
+      (computed.overflow === 'hidden' ||
+        computed.clip !== 'auto' ||
+        (computed.clipPath && computed.clipPath !== 'none'));
+    if (isSrOnly) {
+      hiddenAncestors.add(el);
       continue;
     }
 
@@ -1388,6 +1420,25 @@ async function serializeSubtree(
           svgString = svgString.replace(/currentColor/gi, currentColor);
           if (!svgString.includes('xmlns=')) {
             svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+          }
+          const childStyles: string[] = [];
+          let styleIdx = 0;
+          el.querySelectorAll('path, circle, rect, polygon, g').forEach((child) => {
+            const cs = defaultView.getComputedStyle(child);
+            const fill = cs.fill;
+            const stroke = cs.stroke;
+            const cls = `ck-s-${styleIdx++}`;
+            child.classList.add(cls);
+            const rules: string[] = [];
+            if (fill && fill !== 'none') rules.push(`fill:${fill}`);
+            if (stroke && stroke !== 'none') rules.push(`stroke:${stroke}`);
+            if (rules.length > 0) childStyles.push(`.${cls}{${rules.join(';')}}`);
+          });
+          if (childStyles.length > 0) {
+            svgString = new XMLSerializer()
+              .serializeToString(el)
+              .replace(/currentColor/gi, currentColor)
+              .replace('>', `><style>${childStyles.join('')}</style>`);
           }
           const base64 = btoa(unescape(encodeURIComponent(svgString)));
           const assetKey = `asset-${nextAssetId++}`;
@@ -1731,12 +1782,15 @@ async function serializeSubtree(
       continue;
     }
 
+    const isBgClipText = style.backgroundClip === 'text';
+    const containerStyle = isBgClipText ? { ...style, fills: [] } : style;
+
     nodes.push({
       id: nodeId,
       parentId,
       type: hasChildren ? 'frame' : 'rect',
       box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
-      style,
+      style: containerStyle,
     });
     // ::before pseudo-element
     const beforeNodes = extractPseudoElement(
@@ -1825,12 +1879,13 @@ async function serializeSubtree(
           h: Math.max(0, textH),
         },
         style: {
-          fills: [],
+          fills: isBgClipText ? style.fills : [],
           strokes: [],
           opacity: 1,
           radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
           shadows: [],
           clip: false,
+          ...(isBgClipText ? { backgroundClip: 'text' } : {}),
         },
         text: {
           content: textVal,
@@ -1840,7 +1895,10 @@ async function serializeSubtree(
           lineHeight,
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
-          color: computed.color || 'rgba(0, 0, 0, 1)',
+          color:
+            isBgClipText && style.fills[0]?.stops?.[0]?.color
+              ? style.fills[0].stops[0].color
+              : computed.color || 'rgba(0, 0, 0, 1)',
           ...extractTextFidelity(computed),
         },
       };
@@ -1890,6 +1948,12 @@ async function serializeSubtree(
     );
   }
 
+  for (const n of nodes) {
+    n.box.x = round2(n.box.x);
+    n.box.y = round2(n.box.y);
+    n.box.w = round2(n.box.w);
+    n.box.h = round2(n.box.h);
+  }
   capture.nodes = nodes;
   capture.assets = assets;
   capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`);
@@ -1910,9 +1974,7 @@ export async function serializeDocument(
   const body = doc.body;
 
   const frameWidth = Math.max(
-    docEl?.scrollWidth ?? 0,
     docEl?.clientWidth ?? 0,
-    body?.scrollWidth ?? 0,
     defaultView.innerWidth ?? 1200
   );
 
