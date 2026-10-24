@@ -624,6 +624,8 @@ captureBtn?.addEventListener('click', async () => {
       urls,
       widths,
       scrollStitch: optScrollStitch?.checked ?? false,
+      tabId: currentTabId,
+      origin: siteOrigin,
     })) as CaptureMessageResponse | undefined;
     await finish(response);
   } catch (err: unknown) {

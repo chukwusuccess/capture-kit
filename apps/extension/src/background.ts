@@ -17,16 +17,20 @@ interface WindowWithCaptureKit {
 
 async function getActiveTabId(): Promise<number> {
   const [lastFocused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (lastFocused?.id) return lastFocused.id;
+  if (lastFocused?.id && lastFocused?.url && !lastFocused.url.startsWith('chrome-extension://')) {
+    return lastFocused.id;
+  }
 
   const [current] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (current?.id) return current.id;
+  if (current?.id && current?.url && !current.url.startsWith('chrome-extension://')) {
+    return current.id;
+  }
 
   const all = await chrome.tabs.query({ active: true });
   const candidate = all.find((t) => t.id && t.url && !t.url.startsWith('chrome-extension://'));
   if (candidate?.id) return candidate.id;
 
-  throw new Error('No active tab found');
+  throw new Error('No active web tab found');
 }
 
 // ponytail: hard cap — the popup must stay open for the whole crawl
@@ -327,17 +331,24 @@ async function measure(tabId: number): Promise<{ inner: number; frame: number }>
 
 // Size the capture window so the page's CSS viewport is exactly `width`.
 async function fitViewport(windowId: number, tabId: number, width: number): Promise<void> {
-  await chrome.tabs.setZoomSettings(tabId, { scope: 'per-tab' });
-  await chrome.tabs.setZoom(tabId, 1);
-  await waitForLayout(tabId);
-  const { frame } = await measure(tabId);
-  await chrome.windows.update(windowId, { width: Math.max(1, width + frame) });
-  await waitForLayout(tabId);
-  const { inner } = await measure(tabId);
-  if (Math.abs(inner - width) > 1) {
-    // The OS clamps narrow windows (~500px); zoom in so the CSS viewport still lands on `width`.
-    await chrome.tabs.setZoom(tabId, inner / width);
+  try {
+    await chrome.tabs.setZoomSettings(tabId, { scope: 'per-tab' });
+    await chrome.tabs.setZoom(tabId, 1);
     await waitForLayout(tabId);
+    const { frame } = await measure(tabId);
+    try {
+      await chrome.windows.update(windowId, { width: Math.max(1, width + frame) });
+    } catch {
+      // OS window clamped to screen resolution; zoom fallback below scales viewport
+    }
+    await waitForLayout(tabId);
+    const { inner } = await measure(tabId);
+    if (inner > 0 && Math.abs(inner - width) > 1) {
+      await chrome.tabs.setZoom(tabId, inner / width);
+      await waitForLayout(tabId);
+    }
+  } catch {
+    // fallback
   }
 }
 
@@ -408,23 +419,47 @@ let cancelRunRequested = false;
 async function handleCaptureRun(
   rawUrls: unknown,
   rawWidths: unknown,
-  scrollStitch: boolean
+  scrollStitch: boolean,
+  passedTabId?: number,
+  passedOrigin?: string
 ): Promise<{ captures: Capture[]; skipped: string[] }> {
-  const activeId = await getActiveTabId();
-  const active = await chrome.tabs.get(activeId);
-  if (!active.url) throw new Error('Cannot read the current tab');
-  const urls = sameOriginUrls(rawUrls, new URL(active.url).origin).slice(0, MAX_SITE_PAGES);
+  let targetOrigin = passedOrigin || '';
+  let activeTabUrl = '';
+  let activeTabWidth = 1280;
+
+  if (passedTabId) {
+    const tab = await chrome.tabs.get(passedTabId).catch(() => null);
+    if (tab?.url) {
+      activeTabUrl = tab.url;
+      try {
+        targetOrigin = targetOrigin || new URL(tab.url).origin;
+      } catch {
+        // ignore
+      }
+    }
+    if (typeof tab?.width === 'number') activeTabWidth = tab.width;
+  }
+
+  if (!targetOrigin) {
+    const activeId = await getActiveTabId();
+    const active = await chrome.tabs.get(activeId);
+    if (!active.url) throw new Error('Cannot read the current tab');
+    activeTabUrl = active.url;
+    targetOrigin = new URL(active.url).origin;
+    if (typeof active.width === 'number') activeTabWidth = active.width;
+  }
+
+  const urls = sameOriginUrls(rawUrls, targetOrigin).slice(0, MAX_SITE_PAGES);
   if (urls.length === 0) throw new Error('No pages selected');
   const widths = Array.isArray(rawWidths)
     ? [...new Set(rawWidths.filter((w): w is number => Number.isInteger(w) && w >= 240 && w <= 7680))]
     : [];
-  const sizes = (widths.length ? widths : [active.width ?? 1280]).slice(0, MAX_SIZES);
+  const sizes = (widths.length ? widths : [activeTabWidth]).slice(0, MAX_SIZES);
 
   // Just this tab at its own width: capture in place, keeping its live state.
-  if (urls.length === 1 && samePage(urls[0], active.url) && sizes.length === 1 && sizes[0] === active.width) {
+  if (urls.length === 1 && activeTabUrl && samePage(urls[0], activeTabUrl) && sizes.length === 1 && sizes[0] === activeTabWidth) {
     return { captures: [await handleFullCapture(scrollStitch)], skipped: [] };
   }
-
   // Everything else runs in one unfocused window, so the user's window never resizes.
   const win = await chrome.windows.create({
     url: 'about:blank',
@@ -496,7 +531,9 @@ chrome.runtime.onMessage.addListener(
         const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
         const urls = 'urls' in message ? message.urls : undefined;
         const widths = 'widths' in message ? message.widths : undefined;
-        handleCaptureRun(urls, widths, scrollStitch).then(
+        const tabId = 'tabId' in message && typeof message.tabId === 'number' ? message.tabId : undefined;
+        const origin = 'origin' in message && typeof message.origin === 'string' ? message.origin : undefined;
+        handleCaptureRun(urls, widths, scrollStitch, tabId, origin).then(
           ({ captures, skipped }) => sendResponse({ success: true, captures, skipped }),
           fail
         );
