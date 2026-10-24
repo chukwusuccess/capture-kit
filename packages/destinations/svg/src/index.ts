@@ -18,6 +18,8 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
     : '';
   const filterAttr = style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+  // Masked glow washes: point at the mask built in defs from maskImage.
+  const maskAttr = style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
@@ -87,13 +89,13 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   // Frame or rect
   const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   if (gradFill) {
-    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr}${transformStyle}${filterAttr}${maskAttr} />`;
   }
 
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
 
-  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
+  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformStyle}${filterAttr}${maskAttr} />`;
 }
 /** Map a CSS filter chain to SVG filter primitives. */
 function buildFilterPrimitives(filter: string | undefined): string[] {
@@ -134,13 +136,11 @@ function buildSvgDefs(capture: Capture): string {
   const defs: string[] = [];
 
   for (const node of capture.nodes) {
-  for (const node of capture.nodes) {
     const prims = buildFilterPrimitives(node.style.filter);
     if (prims.length === 0) continue;
     defs.push(
       `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n${prims.join("\n")}\n    </filter>`
     );
-  }
   }
   for (const node of capture.nodes) {
     const gradFill = node.style.fills.find(
@@ -183,6 +183,28 @@ function buildSvgDefs(capture: Capture): string {
     const rxA = rxV > 0 ? ` rx="${rxV}" ry="${rxV}"` : '';
     defs.push(
       `    <clipPath id="imgclip-${escapeXml(node.id)}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"${rxA} />\n    </clipPath>`
+    );
+  }
+  // CSS mask-image fades (radial/linear-gradient(...)): convert the alpha
+  // channel into a luminance mask. Only gradient masks supported; anything
+  // else falls back to no mask (node paints unmasked).
+  for (const node of capture.nodes) {
+    const mask = node.style.maskImage;
+    if (!mask || mask === 'none') continue;
+    const stops = [...mask.matchAll(/(rgba?\([^)]+\))\s+([\d.]+)%/gi)].map((m) => ({
+      color: m[1],
+      position: Math.max(0, Math.min(1, parseFloat(m[2]) / 100)),
+    }));
+    if (stops.length < 2) continue;
+    const stopXml = stops
+      .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
+      .join('\n');
+    const isRadial = mask.trimStart().toLowerCase().startsWith('radial-gradient');
+    const { box } = node;
+    defs.push(
+      isRadial
+         ? `    <mask id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <radialGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" r="${Math.max(box.w, box.h) / 2}">\n${stopXml}\n    </radialGradient>`
+         : `    <mask id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <linearGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" x1="${box.x}" y1="${box.y}" x2="${box.x + box.w}" y2="${box.y + box.h}">\n${stopXml}\n    </linearGradient>`
     );
   }
 
