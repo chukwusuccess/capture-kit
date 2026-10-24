@@ -131,7 +131,7 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
       `font-size: ${text.fontSize}px`,
       `font-weight: ${text.fontWeight}`,
       `line-height: ${typeof text.lineHeight === 'number' ? `${text.lineHeight}px` : text.lineHeight}`,
-      `color: ${text.color}`,
+      `color: ${style.backgroundClip === 'text' ? 'transparent' : text.color}`,
       `text-align: ${text.align}`,
       'white-space: pre-wrap',
       'word-break: break-word',

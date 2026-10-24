@@ -119,7 +119,11 @@ function buildNodeClasses(
   if (node.type === 'text' && node.text) {
     cls.push(`text-[${node.text.fontSize}px]`);
     cls.push(mapFontWeightToTailwind(node.text.fontWeight));
-    cls.push(`text-[${node.text.color.replace(/\s+/g, '')}]`);
+    if (node.style.backgroundClip === 'text') {
+      cls.push('bg-clip-text', 'text-transparent');
+    } else {
+      cls.push(`text-[${node.text.color.replace(/\s+/g, '')}]`);
+    }
     if (node.text.lineHeight) {
       const lh = typeof node.text.lineHeight === 'number' ? `${node.text.lineHeight}px` : node.text.lineHeight;
       cls.push(`leading-[${lh}]`);

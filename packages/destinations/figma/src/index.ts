@@ -80,12 +80,12 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
             .join('')
         : content;
 
+    const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+    const textFillAttr = textGradFill ? `url(#grad-${escapeXml(node.id)})` : escapeXml(text.color);
     const textY = box.y;
     return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${escapeXml(
-      text.color
-    )}" text-anchor="${anchor}"${opacityAttr}${transformStyle}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
@@ -191,7 +191,10 @@ function buildFigmaLayers(capture: Capture): string {
 
 function buildFigmaDefs(captures: Capture[]): string {
   const defs: string[] = [];
-  for (const capture of captures) {
+  for (const [cIdx, capture] of captures.entries()) {
+    defs.push(
+      `    <clipPath id="frame-clip-${cIdx}">\n      <rect x="0" y="0" width="${capture.frame.width}" height="${capture.frame.height}" />\n    </clipPath>`
+    );
     for (const node of capture.nodes) {
       const gradFill = node.style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
       if (gradFill && gradFill.stops) {
@@ -260,7 +263,9 @@ function buildFigmaSvg(captures: Capture[]): string {
     return [
       `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
       defs,
+      `  <g id="Frame" clip-path="url(#frame-clip-0)" data-clips-content="true">`,
       buildFigmaLayers(captures[0]),
+      '  </g>',
       '</svg>',
     ].filter(Boolean).join('\n');
   }
@@ -272,12 +277,13 @@ function buildFigmaSvg(captures: Capture[]): string {
   const groups: string[] = [];
   let y = 0;
   let width = 0;
+  let cIdx = 0;
   for (const row of rows.values()) {
     let x = 0;
     for (const capture of row) {
       groups.push(
         [
-          `<g id="${escapeXml(captureLabel(capture))}" transform="translate(${x} ${y})">`,
+          `<g id="${escapeXml(captureLabel(capture))}" transform="translate(${x} ${y})" clip-path="url(#frame-clip-${cIdx++})" data-clips-content="true">`,
           buildFigmaLayers(capture),
           '</g>',
         ].join('\n')
