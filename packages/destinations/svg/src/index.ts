@@ -17,6 +17,8 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const transformStyle = style.transform
     ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
     : '';
+  const blurMatch = style.filter?.match(/blur\(\s*([\d.]+)px\s*\)/);
+  const filterAttr = blurMatch ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
@@ -54,7 +56,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     const textY = box.y;
     return `  <text x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
@@ -65,7 +67,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
         return `    <path d="${escapeXml(p.d)}"${fill}${stroke}${sw} />`;
       })
       .join('\n');
-    return `  <g id="${escapeXml(node.id)}" transform="translate(${box.x} ${box.y})"${opacityAttr}>\n${paths}\n  </g>`;
+    return `  <g id="${escapeXml(node.id)}" transform="translate(${box.x} ${box.y})"${opacityAttr}${filterAttr}>\n${paths}\n  </g>`;
   }
 
 
@@ -76,27 +78,36 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
       const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
       const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
       if (fit === 'cover') {
-        return `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}>\n    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}" />\n  </g>`;
+        return `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}${filterAttr}>\n    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}" />\n  </g>`;
       }
-      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${transformStyle} />`;
+      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${transformStyle}${filterAttr} />`;
     }
-    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="#cccccc"${rx}${opacityAttr}${transformStyle} />`;
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="#cccccc"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
   }
 
   // Frame or rect
   const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   if (gradFill) {
-    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr}${transformStyle} />`;
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
   }
 
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
 
-  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformStyle} />`;
+  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
 }
 function buildSvgDefs(capture: Capture): string {
   const defs: string[] = [];
 
+  for (const node of capture.nodes) {
+    const bm = node.style.filter?.match(/blur\(\s*([\d.]+)px\s*\)/);
+    if (bm) {
+      const std = parseFloat(bm[1]);
+      defs.push(
+        `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n      <feGaussianBlur stdDeviation="${std}" />\n    </filter>`
+      );
+    }
+  }
   for (const node of capture.nodes) {
     const gradFill = node.style.fills.find(
       (f) => f.type === 'gradient' && f.stops && f.stops.length > 0

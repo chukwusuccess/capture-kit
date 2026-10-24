@@ -31,6 +31,8 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
   const transformStyle = style.transform
     ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
     : '';
+  const blurMatch = style.filter?.match(/blur\(\s*([\d.]+)px\s*\)/);
+  const filterAttr = blurMatch ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
   // Stroke attributes
   let strokeAttrs = '';
   if (style.strokes && style.strokes.length > 0) {
@@ -85,7 +87,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     const textY = box.y;
     return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
@@ -108,11 +110,11 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
       return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
         box.w
-      }" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformStyle} />`;
+      }" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformStyle}${filterAttr} />`;
     }
     return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" fill="#cccccc"${rx}${strokeAttrs}${opacityAttr}${transformStyle} />`;
+    }" height="${box.h}" fill="#cccccc"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr} />`;
   }
 
   // Handle rect or frame
@@ -123,7 +125,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
   if (gradFill) {
     return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformStyle} />`;
+    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr} />`;
   }
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
@@ -131,14 +133,14 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
     return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"${opacityAttr}${rx}${transformStyle} />`;
+    }" height="${box.h}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"${opacityAttr}${rx}${transformStyle}${filterAttr} />`;
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
 
   return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
     box.w
-  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformStyle} />`;
+  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr} />`;
 }
 
 function buildFigmaLayers(capture: Capture): string {
@@ -194,6 +196,14 @@ function buildFigmaLayers(capture: Capture): string {
 function buildFigmaDefs(captures: Capture[]): string {
   const defs: string[] = [];
   for (const [cIdx, capture] of captures.entries()) {
+    for (const node of capture.nodes) {
+      const bm = node.style.filter?.match(/blur\(\s*([\d.]+)px\s*\)/);
+      if (bm) {
+        defs.push(
+          `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n      <feGaussianBlur stdDeviation="${parseFloat(bm[1])}" />\n    </filter>`
+        );
+      }
+    }
     defs.push(
       `    <clipPath id="frame-clip-${cIdx}">\n      <rect x="0" y="0" width="${capture.frame.width}" height="${capture.frame.height}" />\n    </clipPath>`
     );
