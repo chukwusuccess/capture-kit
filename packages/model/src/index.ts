@@ -150,6 +150,8 @@ export const NodeSchema = z.object({
   text: TextPropsSchema.optional(),
   assetRef: z.string().optional(),
   vectorPaths: z.array(VectorPathSchema).optional(),
+  objectFit: z.enum(['fill', 'contain', 'cover', 'none', 'scale-down']).optional(),
+  objectPosition: z.string().optional(),
 });
 
 export const CaptureSchema = z.object({

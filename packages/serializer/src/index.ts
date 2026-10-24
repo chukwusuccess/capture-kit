@@ -1565,6 +1565,9 @@ async function serializeSubtree(
         }
       }
 
+      const fit = computed.objectFit as Node['objectFit'] | undefined;
+      const pos = computed.objectPosition || undefined;
+
       nodes.push({
         id: nodeId,
         parentId,
@@ -1572,6 +1575,8 @@ async function serializeSubtree(
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
         style,
         assetRef,
+        ...(fit && fit !== 'fill' ? { objectFit: fit } : {}),
+        ...(pos && pos !== '50% 50%' ? { objectPosition: pos } : {}),
       });
       continue;
     }
