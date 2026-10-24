@@ -620,6 +620,15 @@ function buildSketchLayerTree(
       groupLayers.push(processNode(child, node.box.x, node.box.y));
     }
 
+    const groupLayout =
+      node.style.layout && node.style.layout.mode !== 'none'
+        ? {
+            _class: 'MSImmutableInferredGroupLayout',
+            axis: node.style.layout.mode === 'vertical' ? 1 : 0,
+            layoutAnchor: 0,
+          }
+        : { _class: 'MSImmutableFreeformGroupLayout' };
+
     return {
       _class: 'group',
       do_objectID: node.id,
@@ -648,6 +657,7 @@ function buildSketchLayerTree(
         windingRule: 1,
       },
       hasClickThrough: false,
+      groupLayout,
       layers: groupLayers,
     };
   }

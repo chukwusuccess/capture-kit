@@ -67,6 +67,18 @@ function buildNodeClasses(
     const relY = parentBox ? node.box.y - parentBox.y : node.box.y;
     cls.push(`left-[${relX}px]`, `top-[${relY}px]`, `w-[${node.box.w}px]`, `h-[${node.box.h}px]`);
   }
+  if (node.style.layout && node.style.layout.mode !== 'none') {
+    if (node.style.layout.mode === 'grid') {
+      cls.push('grid');
+    } else {
+      cls.push('flex', node.style.layout.mode === 'vertical' ? 'flex-col' : 'flex-row');
+    }
+    if (node.style.layout.gap) cls.push(`gap-[${node.style.layout.gap}px]`);
+    if (node.style.layout.alignItems === 'center') cls.push('items-center');
+    if (node.style.layout.justifyContent === 'between') cls.push('justify-between');
+    if (node.style.layout.justifyContent === 'center') cls.push('justify-center');
+  }
+
 
   // Fills
   const solidFill = node.style.fills.find((f) => f.type === 'solid' && f.color);

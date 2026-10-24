@@ -46,6 +46,19 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.clipPath) {
     styles.push(`clip-path: ${style.clipPath}`);
   }
+  // Layout
+  if (style.layout && style.layout.mode !== 'none') {
+    if (style.layout.mode === 'grid') {
+      styles.push('display: grid');
+    } else {
+      styles.push(
+        'display: flex',
+        `flex-direction: ${style.layout.mode === 'vertical' ? 'column' : 'row'}`
+      );
+    }
+    if (style.layout.gap) styles.push(`gap: ${style.layout.gap}px`);
+  }
+
 
 
   // Radius
