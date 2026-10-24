@@ -609,8 +609,12 @@ async function finishRun(skipped: string[], error?: string): Promise<void> {
   }
   latestCaptures = captures;
   try {
+    // Provenance first: the serializer stamps its version into every
+    // capture, so a stale content script shows up here before pasting.
+    const versions = [...new Set(captures.map((c) => c.version))];
     const done = await exportCaptures(captures);
-    setStatus(error ? `${done}${skipNote} — run stopped: ${error}` : `${done}${skipNote}`, 'ok');
+    const stamp = `capture-kit v${versions.join(', v')}`;
+    setStatus(error ? `${done}${skipNote} · ${stamp} — run stopped: ${error}` : `${done}${skipNote} · ${stamp}`, 'ok');
     if (figmaBtn) figmaBtn.hidden = getFormat() !== 'figma';
   } catch (err: unknown) {
     setStatus(err instanceof Error ? err.message : String(err), 'error');
