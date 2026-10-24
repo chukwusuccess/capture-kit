@@ -19,11 +19,12 @@ interface CaptureMessageResponse {
 }
 
 interface ProgressMessage {
-  type: 'progress' | 'capture' | 'run-done' | 'run-error';
+  type: 'progress' | 'capture' | 'capture-ready' | 'run-done' | 'run-error';
   done?: number;
   total?: number;
   url?: string;
   capture?: Capture;
+  key?: string;
   count?: number;
   skipped?: string[];
   error?: string;
@@ -634,8 +635,27 @@ chrome.runtime?.onMessage?.addListener((message: unknown) => {
     streamedCaptures.push(p.capture);
     return;
   }
+  if (p?.type === 'capture-ready' && p.key) {
+    const key = p.key;
+    chrome.storage?.local?.get([key]).then((data) => {
+      const cap = data[key] as Capture | undefined;
+      if (cap) {
+        streamedCaptures.push(cap);
+        void chrome.storage?.local?.remove([key]);
+      }
+    });
+    return;
+  }
   if (p?.type === 'run-done') {
-    void finishRun(p.skipped ?? []);
+    const expected = p.count ?? 0;
+    const waitAndFinish = async () => {
+      for (let attempt = 0; attempt < 25; attempt++) {
+        if (streamedCaptures.length >= expected || (expected === 0 && attempt > 0)) break;
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      void finishRun(p.skipped ?? []);
+    };
+    void waitAndFinish();
     return;
   }
   if (p?.type === 'run-error') {

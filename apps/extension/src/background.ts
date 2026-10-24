@@ -50,6 +50,16 @@ function sendToPopup(message: unknown): void {
 function reportProgress(done: number, total: number, url: string): void {
   sendToPopup({ type: 'progress', done, total, url });
 }
+async function deliverCaptureToPopup(capture: Capture, index: number): Promise<void> {
+  const key = `run-capture:${Date.now()}:${index}`;
+  try {
+    await chrome.storage.local.set({ [key]: capture });
+    sendToPopup({ type: 'capture-ready', key });
+  } catch {
+    sendToPopup({ type: 'capture', capture });
+  }
+}
+
 
 
 function extractSitemapLocs(xmlText: string): string[] {
@@ -468,7 +478,7 @@ async function handleCaptureRun(
 
   // Just this tab at its own width: capture in place, keeping its live state.
   if (urls.length === 1 && activeTabUrl && samePage(urls[0], activeTabUrl) && sizes.length === 1 && sizes[0] === activeTabWidth) {
-    sendToPopup({ type: 'capture', capture: await handleFullCapture(scrollStitch) });
+    await deliverCaptureToPopup(await handleFullCapture(scrollStitch), 0);
     return { count: 1, skipped: [] };
   }
   // Everything else runs in one unfocused window, so the user's window never resizes.
@@ -509,7 +519,8 @@ async function handleCaptureRun(
           if (cancelRunRequested) break;
           reportProgress(i * sizes.length + j, total, url);
           await fitViewport(win.id, tabId, width);
-          sendToPopup({ type: 'capture', capture: await runSerializer(tabId, scrollStitch) });
+          const cap = await runSerializer(tabId, scrollStitch);
+          await deliverCaptureToPopup(cap, count);
           count += 1;
         }
       } catch (err: unknown) {
