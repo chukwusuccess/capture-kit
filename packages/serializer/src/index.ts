@@ -2068,8 +2068,10 @@ export async function serializeDocument(
 
   if (opts?.scrollStitch && defaultView) {
     await triggerPageScroll(defaultView, opts.scrollOptions);
-    await waitForImages(doc);
   }
+  // Lazy images never decode on their own: wait briefly so above-fold and
+  // scroll-revealed images have bytes before assets are inlined.
+  await waitForImages(doc);
 
   const docEl = doc.documentElement;
   const body = doc.body;
