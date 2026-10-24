@@ -95,8 +95,10 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     const dy = box.y + (box.h - (vb ? vb.height : box.h) * s) / 2;
     const scale = s === 1 ? '' : ` scale(${s})`;
     const paths = node.vectorPaths
+      .filter((p, idx) => !(idx > 0 && /^M 0 0 H [\d.]+ V [\d.]+ H 0 Z$/.test(p.d) && (p.fill === '#fff' || p.fill === '#ffffff')))
       .map((p) => {
-        const fill = p.fill ? ` fill="${escapeXml(p.fill)}"` : ' fill="currentColor"';
+        const rawFill = p.stroke && /^M 0\.5 0\.5 H /.test(p.d) ? 'none' : p.fill?.startsWith('url(') ? 'rgba(133, 139, 152, 0.25)' : p.fill;
+        const fill = rawFill ? ` fill="${escapeXml(rawFill)}"` : ' fill="currentColor"';
         const stroke = p.stroke ? ` stroke="${escapeXml(p.stroke)}"` : '';
         const sw = p.strokeWidth ? ` stroke-width="${p.strokeWidth}"` : '';
         return `    <path d="${escapeXml(p.d)}"${fill}${stroke}${sw} />`;
