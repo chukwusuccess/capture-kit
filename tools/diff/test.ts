@@ -20,7 +20,7 @@ function runDiffHarnessTests() {
   // 2. Identical capture comparison
   const baseCapture: Capture = emptyCapture({
     url: 'https://test.diff.local',
-    version: '0.1.0',
+    version: '0.1.1',
     frame: { width: 1200, height: 800, baseURI: 'https://test.diff.local/' },
     nodes: [
       {
