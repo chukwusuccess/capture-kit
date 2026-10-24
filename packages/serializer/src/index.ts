@@ -71,6 +71,7 @@ export async function waitForImages(
 ): Promise<number> {
   const timeoutMs = opts?.timeoutMs ?? 2500;
   const maxImages = opts?.maxImages ?? 60;
+  if (typeof doc.querySelectorAll !== 'function') return 0;
   const imgs = Array.from(doc.querySelectorAll('img')).slice(0, maxImages);
   if (imgs.length === 0) return 0;
 
