@@ -2,6 +2,7 @@ import { CaptureSchema, type Capture } from '@capture-kit/model';
 
 interface CaptureResponse {
   success: boolean;
+  accepted?: boolean;
   capture?: Capture;
   captures?: Capture[];
   urls?: string[];
@@ -35,10 +36,19 @@ async function getActiveTabId(): Promise<number> {
 
 // ponytail: hard cap — the popup must stay open for the whole crawl
 const MAX_SITE_PAGES = 50;
-function reportProgress(done: number, total: number, url: string): void {
-  void chrome.runtime.sendMessage({ type: 'progress', done, total, url }).catch(() => {
+
+// Stream to the popup instead of replying on the message channel: a whole
+// run's captures in one sendResponse exceeds Chrome's message size limit,
+// and holding the channel open across a multi-minute crawl lets the
+// service worker get terminated mid-run (both silently dropped the reply).
+function sendToPopup(message: unknown): void {
+  void chrome.runtime.sendMessage(message).catch(() => {
     /* popup closed */
   });
+}
+
+function reportProgress(done: number, total: number, url: string): void {
+  sendToPopup({ type: 'progress', done, total, url });
 }
 
 
@@ -422,7 +432,7 @@ async function handleCaptureRun(
   scrollStitch: boolean,
   passedTabId?: number,
   passedOrigin?: string
-): Promise<{ captures: Capture[]; skipped: string[] }> {
+): Promise<{ count: number; skipped: string[] }> {
   let targetOrigin = passedOrigin || '';
   let activeTabUrl = '';
   let activeTabWidth = 1280;
@@ -458,7 +468,8 @@ async function handleCaptureRun(
 
   // Just this tab at its own width: capture in place, keeping its live state.
   if (urls.length === 1 && activeTabUrl && samePage(urls[0], activeTabUrl) && sizes.length === 1 && sizes[0] === activeTabWidth) {
-    return { captures: [await handleFullCapture(scrollStitch)], skipped: [] };
+    sendToPopup({ type: 'capture', capture: await handleFullCapture(scrollStitch) });
+    return { count: 1, skipped: [] };
   }
   // Everything else runs in one unfocused window, so the user's window never resizes.
   const win = await chrome.windows.create({
@@ -477,9 +488,9 @@ async function handleCaptureRun(
     throw new Error('Could not open a capture window');
   }
 
-  const captures: Capture[] = [];
   const skipped: string[] = [];
   const total = urls.length * sizes.length;
+  let count = 0;
   cancelRunRequested = false;
   try {
     for (const [i, url] of urls.entries()) {
@@ -498,7 +509,8 @@ async function handleCaptureRun(
           if (cancelRunRequested) break;
           reportProgress(i * sizes.length + j, total, url);
           await fitViewport(win.id, tabId, width);
-          captures.push(await runSerializer(tabId, scrollStitch));
+          sendToPopup({ type: 'capture', capture: await runSerializer(tabId, scrollStitch) });
+          count += 1;
         }
       } catch (err: unknown) {
         // Keep going — one broken page shouldn't kill the whole run.
@@ -510,8 +522,8 @@ async function handleCaptureRun(
   }
 
   reportProgress(total, total, '');
-  if (captures.length === 0) throw new Error(`Captured 0 pages — ${skipped[0] ?? 'the site may block scripts'}`);
-  return { captures, skipped };
+  if (count === 0) throw new Error(`Captured 0 pages — ${skipped[0] ?? 'the site may block scripts'}`);
+  return { count, skipped };
 }
 
 chrome.runtime.onMessage.addListener(
@@ -533,11 +545,19 @@ chrome.runtime.onMessage.addListener(
         const widths = 'widths' in message ? message.widths : undefined;
         const tabId = 'tabId' in message && typeof message.tabId === 'number' ? message.tabId : undefined;
         const origin = 'origin' in message && typeof message.origin === 'string' ? message.origin : undefined;
+        // Ack right away: captures stream to the popup as they complete. Awaiting
+        // the whole run on this channel broke in MV3 — the worker could be killed
+        // mid-crawl and one giant response exceeded the message size limit.
+        sendResponse({ success: true, accepted: true });
         handleCaptureRun(urls, widths, scrollStitch, tabId, origin).then(
-          ({ captures, skipped }) => sendResponse({ success: true, captures, skipped }),
-          fail
+          ({ count, skipped }) => sendToPopup({ type: 'run-done', count, skipped }),
+          (error: unknown) =>
+            sendToPopup({
+              type: 'run-error',
+              error: error instanceof Error ? error.message : String(error),
+            })
         );
-        return true;
+        return false;
       }
 
       if (action === 'discover-site') {

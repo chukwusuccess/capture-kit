@@ -10,6 +10,7 @@ import { groupPages, pagePath } from './pages';
 
 interface CaptureMessageResponse {
   success: boolean;
+  accepted?: boolean;
   capture?: Capture;
   captures?: Capture[];
   urls?: string[];
@@ -18,10 +19,14 @@ interface CaptureMessageResponse {
 }
 
 interface ProgressMessage {
-  type: 'progress';
-  done: number;
-  total: number;
-  url: string;
+  type: 'progress' | 'capture' | 'run-done' | 'run-error';
+  done?: number;
+  total?: number;
+  url?: string;
+  capture?: Capture;
+  count?: number;
+  skipped?: string[];
+  error?: string;
 }
 
 // Mirror the caps in background.ts — the popup has to stay open for the run.
@@ -37,6 +42,10 @@ let currentTabId = 0;
 let browserWidth = 0;
 let discovered = false;
 let latestCaptures: Capture[] = [];
+// Captures stream in from the background one message at a time — one giant
+// response exceeded Chrome's message size limit and silently vanished.
+let streamedCaptures: Capture[] = [];
+let runBusy = false;
 const selected = new Set<string>();
 const collapsed = new Set<string>();
 
@@ -230,7 +239,7 @@ function updateCaptureButton(): void {
   else sub = `${plural(frames, 'file')} downloaded as ${getFormat().toUpperCase()}`;
 
   captureSub.textContent = sub;
-  captureBtn.disabled = frames === 0 || pages > MAX_PAGES || sizes > MAX_SIZES;
+  captureBtn.disabled = runBusy || frames === 0 || pages > MAX_PAGES || sizes > MAX_SIZES;
 }
 
 function setSelected(urls: string[], on: boolean): void {
@@ -584,18 +593,53 @@ async function finish(response: CaptureMessageResponse | undefined): Promise<voi
   if (figmaBtn) figmaBtn.hidden = getFormat() !== 'figma';
 }
 
+// Finalize a streamed multi-page run.
+async function finishRun(skipped: string[], error?: string): Promise<void> {
+  runBusy = false;
+  if (progressWrap) progressWrap.hidden = true;
+  updateCaptureButton();
+  const captures = streamedCaptures;
+  if (statusText && skipped.length) statusText.title = skipped.join('\n');
+  const skipNote = skipped.length ? ` · ${skipped.length} skipped` : '';
+
+  if (captures.length === 0) {
+    setStatus(error ?? skipped[0] ?? 'Nothing was captured', 'error');
+    return;
+  }
+  latestCaptures = captures;
+  try {
+    const done = await exportCaptures(captures);
+    setStatus(error ? `${done}${skipNote} — run stopped: ${error}` : `${done}${skipNote}`, 'ok');
+    if (figmaBtn) figmaBtn.hidden = getFormat() !== 'figma';
+  } catch (err: unknown) {
+    setStatus(err instanceof Error ? err.message : String(err), 'error');
+  }
+}
+
 // ---- actions ----
 
 chrome.runtime?.onMessage?.addListener((message: unknown) => {
   const p = message as ProgressMessage;
-  if (p?.type === 'progress' && p.total > 0) {
+  if (p?.type === 'progress' && p.total && p.total > 0) {
     if (progressWrap) progressWrap.hidden = false;
-    const pct = Math.min(100, Math.round((p.done / p.total) * 100));
+    const pct = Math.min(100, Math.round(((p.done ?? 0) / p.total) * 100));
     if (progressFill) progressFill.style.width = `${pct}%`;
     if (progressPct) progressPct.textContent = `${p.done}/${p.total} (${pct}%)`;
     if (p.url) {
-      setStatus(`Capturing ${p.done + 1} of ${p.total} — ${pagePath(p.url)}`, 'busy');
+      setStatus(`Capturing ${(p.done ?? 0) + 1} of ${p.total} — ${pagePath(p.url)}`, 'busy');
     }
+    return;
+  }
+  if (p?.type === 'capture' && p.capture) {
+    streamedCaptures.push(p.capture);
+    return;
+  }
+  if (p?.type === 'run-done') {
+    void finishRun(p.skipped ?? []);
+    return;
+  }
+  if (p?.type === 'run-error') {
+    void finishRun([], p.error);
   }
 });
 
@@ -609,11 +653,13 @@ cancelBtn?.addEventListener('click', async () => {
 });
 
 captureBtn?.addEventListener('click', async () => {
-  if (!captureBtn) return;
-  captureBtn.disabled = true;
-  if (figmaBtn) figmaBtn.hidden = true;
+  if (!captureBtn || runBusy) return;
   const urls = pickedUrls();
   const widths = pickedWidths();
+  streamedCaptures = [];
+  runBusy = true;
+  captureBtn.disabled = true;
+  if (figmaBtn) figmaBtn.hidden = true;
   setStatus(
     urls.length * widths.length > 1 ? 'Opening a capture window — keep this popup open' : 'Capturing…',
     'busy'
@@ -627,12 +673,17 @@ captureBtn?.addEventListener('click', async () => {
       tabId: currentTabId,
       origin: siteOrigin,
     })) as CaptureMessageResponse | undefined;
-    await finish(response);
+    // The background acks immediately; captures stream back and run-done finalizes.
+    if (!response?.success) {
+      runBusy = false;
+      setStatus(response?.error ?? 'Could not start the capture run', 'error');
+    }
   } catch (err: unknown) {
+    runBusy = false;
     setStatus(err instanceof Error ? err.message : String(err), 'error');
   } finally {
     updateCaptureButton();
-    if (progressWrap) progressWrap.hidden = true;
+    if (!runBusy && progressWrap) progressWrap.hidden = true;
   }
 });
 
