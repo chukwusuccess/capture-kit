@@ -285,10 +285,15 @@ function buildFigmaDefs(captures: Capture[]): string {
       // CSS mask-image gradient fades: luminance mask so glows fade out.
       const mask = node.style.maskImage;
       if (mask && mask !== 'none') {
-        const stops = [...mask.matchAll(/(rgba?\([^)]+\))\s+([\d.]+)%/gi)].map((m) => ({
-           color: m[1],
-           position: Math.max(0, Math.min(1, parseFloat(m[2]) / 100)),
+        const stops = [...mask.matchAll(/((?:rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}|[a-z]+(?:\s+[a-z]+)?))\s+([\d.]+)(%|px)?/gi)].map((m) => ({
+           color: m[1].trim(),
+           position: m[3] === 'px' ? (parseFloat(m[2]) > 0 ? 0.02 : 0) : Math.max(0, Math.min(1, parseFloat(m[2]) / 100)),
         }));
+        // Collapse adjacent stops closer than 2%: dot-pattern masks repeat
+        // the same color and would band in the importer.
+        for (let k = stops.length - 1; k > 0; k--) {
+          if (Math.abs(stops[k].position - stops[k - 1].position) < 0.02) stops.splice(k, 1);
+        }
         if (stops.length >= 2) {
            const stopXml = stops
              .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
@@ -297,8 +302,8 @@ function buildFigmaDefs(captures: Capture[]): string {
            const { box } = node;
            defs.push(
              isRadial
-               ? `    <mask id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <radialGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" r="${Math.max(box.w, box.h) / 2}">\n${stopXml}\n    </radialGradient>`
-               : `    <mask id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <linearGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" x1="${box.x}" y1="${box.y}" x2="${box.x + box.w}" y2="${box.y + box.h}">\n${stopXml}\n    </linearGradient>`
+               ? `    <mask mask-type="luminance" id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <radialGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" r="${Math.max(box.w, box.h) / 2}">\n${stopXml}\n    </radialGradient>`
+               : `    <mask mask-type="luminance" id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <linearGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" x1="${box.x}" y1="${box.y}" x2="${box.x + box.w}" y2="${box.y + box.h}">\n${stopXml}\n    </linearGradient>`
            );
         }
       }
