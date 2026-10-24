@@ -37,20 +37,20 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
         : box.x;
 
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
+    const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+    const textFillAttr = textGradFill ? `url(#grad-${escapeXml(node.id)})` : escapeXml(text.color);
     const innerContent =
       text.runs && text.runs.length > 0
         ? text.runs
             .map((r, idx) => {
               const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
-              const rColor = r.color ? ` fill="${escapeXml(r.color)}"` : '';
+              const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
               const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : '';
               return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
             })
             .join('')
         : content;
 
-    const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
-    const textFillAttr = textGradFill ? `url(#grad-${escapeXml(node.id)})` : escapeXml(text.color);
     const textY = box.y;
     return `  <text x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily

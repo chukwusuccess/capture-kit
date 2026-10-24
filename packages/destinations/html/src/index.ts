@@ -160,6 +160,7 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string {
   const standalone = opts?.standalone ?? true;
   const title = opts?.title ?? 'Captured Document';
+  const { width, height } = capture.frame;
   const frameBg = capture.frame.background || '#ffffff';
 
   const renderedNodes = capture.nodes
