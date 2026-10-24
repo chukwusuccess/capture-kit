@@ -16,6 +16,7 @@ declare const chrome: {
       active?: boolean;
       currentWindow?: boolean;
       lastFocusedWindow?: boolean;
+      windowId?: number;
     }): Promise<Array<{ id?: number; windowId?: number; width?: number; url?: string }>>;
     get(tabId: number): Promise<{ id?: number; windowId?: number; url?: string; width?: number }>;
     update(tabId: number, props: { url?: string; active?: boolean }): Promise<unknown>;

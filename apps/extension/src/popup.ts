@@ -567,7 +567,13 @@ async function finish(response: CaptureMessageResponse | undefined): Promise<voi
   if (progressWrap) progressWrap.hidden = true;
   const captures = response?.captures ?? (response?.capture ? [response.capture] : []);
   if (!response?.success || captures.length === 0) {
-    setStatus(response?.error ?? 'Nothing was captured', 'error');
+    const errorText =
+      response?.error ||
+      (response?.skipped?.length ? response.skipped[0] : 'Nothing was captured');
+    setStatus(errorText, 'error');
+    if (statusText && response?.skipped?.length) {
+      statusText.title = response.skipped.join('\n');
+    }
     return;
   }
   latestCaptures = captures;

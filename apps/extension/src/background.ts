@@ -223,9 +223,12 @@ function waitForTabReady(tabId: number, maxWaitMs = 5000): Promise<void> {
 // Keep only http(s) URLs on the active tab's origin — the popup sends these.
 function sameOriginUrls(raw: unknown, origin: string): string[] {
   if (!Array.isArray(raw)) return [];
+  const originClean = origin.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
   return raw.filter((u): u is string => {
     try {
-      return typeof u === 'string' && new URL(u).origin === origin;
+      if (typeof u !== 'string') return false;
+      const uOrigin = new URL(u).origin.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
+      return uOrigin === originClean;
     } catch {
       return false;
     }
@@ -240,6 +243,7 @@ async function injectSerializer(tabId: number): Promise<void> {
 }
 
 async function runSerializer(tabId: number, scrollStitch: boolean): Promise<Capture> {
+  await injectSerializer(tabId);
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
     args: [scrollStitch],
@@ -337,10 +341,62 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
   }
 }
 
-async function loadInTab(tabId: number, url: string): Promise<void> {
-  const loaded = waitForTabReady(tabId);
-  await chrome.tabs.update(tabId, { url });
-  await loaded;
+async function loadInTab(tabId: number, targetUrl: string, maxWaitMs = 12000): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  let settled = false;
+  const targetClean = targetUrl.replace(/#.*$/, '').replace(/\/+$/, '');
+
+  const finish = (): void => {
+    if (settled) return;
+    settled = true;
+    chrome.tabs.onUpdated.removeListener(onUpdate);
+    clearTimeout(timeoutTimer);
+    clearInterval(pollTimer);
+    resolve();
+  };
+
+  const onUpdate = (_id: number, info: { status?: string }, tab?: { url?: string }): void => {
+    if (_id !== tabId) return;
+    if (info.status === 'complete') {
+      const cur = (tab?.url || '').replace(/#.*$/, '').replace(/\/+$/, '');
+      if (cur && (cur === targetClean || cur.startsWith(targetClean))) {
+        finish();
+      }
+    }
+  };
+
+  chrome.tabs.onUpdated.addListener(onUpdate);
+  const timeoutTimer = setTimeout(finish, maxWaitMs);
+
+  await chrome.tabs.update(tabId, { url: targetUrl });
+
+  const pollTimer = setInterval(async () => {
+    try {
+      const [res] = await chrome.scripting.executeScript<{ ready: boolean; href: string }>({
+        target: { tabId },
+        func: () => ({
+          ready:
+            document.readyState === 'interactive' ||
+            document.readyState === 'complete',
+          href: location.href,
+        }),
+      });
+      const currentLoc = (res?.result?.href || '').replace(/#.*$/, '').replace(/\/+$/, '');
+      if (
+        res?.result?.ready &&
+        currentLoc &&
+        currentLoc !== 'about:blank' &&
+        (currentLoc === targetClean || currentLoc.startsWith(targetClean))
+      ) {
+        finish();
+      }
+    } catch {
+      // navigation pending
+    }
+  }, 250);
+
+  await promise;
+  await new Promise((r) => setTimeout(r, 250));
 }
 
 function samePage(a: string, b: string): boolean {
@@ -370,9 +426,21 @@ async function handleCaptureRun(
   }
 
   // Everything else runs in one unfocused window, so the user's window never resizes.
-  const win = await chrome.windows.create({ url: 'about:blank', focused: false, type: 'popup', width: 1280, height: 900 });
-  const tabId = win.tabs?.[0]?.id;
-  if (typeof win.id !== 'number' || typeof tabId !== 'number') throw new Error('Could not open a capture window');
+  const win = await chrome.windows.create({
+    url: 'about:blank',
+    focused: false,
+    type: 'popup',
+    width: 1280,
+    height: 900,
+  });
+  let tabId = win.tabs?.[0]?.id;
+  if (typeof tabId !== 'number' && typeof win.id === 'number') {
+    const tabs = await chrome.tabs.query({ windowId: win.id });
+    tabId = tabs[0]?.id;
+  }
+  if (typeof win.id !== 'number' || typeof tabId !== 'number') {
+    throw new Error('Could not open a capture window');
+  }
 
   const captures: Capture[] = [];
   const skipped: string[] = [];
