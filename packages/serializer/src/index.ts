@@ -1553,26 +1553,75 @@ async function serializeSubtree(
           if (!svgString.includes('xmlns=')) {
             svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
           }
-          const childStyles: string[] = [];
-          let styleIdx = 0;
-          el.querySelectorAll('path, circle, rect, polygon, g').forEach((child) => {
-            const cs = defaultView.getComputedStyle(child);
-            const fill = cs.fill;
-            const stroke = cs.stroke;
-            const cls = `ck-s-${styleIdx++}`;
-            child.classList.add(cls);
-            const rules: string[] = [];
-            if (fill && fill !== 'none') rules.push(`fill:${fill}`);
-            if (stroke && stroke !== 'none') rules.push(`stroke:${stroke}`);
-            if (rules.length > 0) childStyles.push(`.${cls}{${rules.join(';')}}`);
-          });
-          if (childStyles.length > 0) {
-            svgString = new XMLSerializer()
-              .serializeToString(el)
-              .replace(/currentColor/gi, currentColor)
-              .replace('>', `><style>${childStyles.join('')}</style>`);
-          }
-          const base64 = btoa(unescape(encodeURIComponent(svgString)));
+// Sprite icons (<use href="#id">): the serialized svg carries only a
+           // dangling <use>, so the asset renders empty everywhere. Inline the
+           const useEl = typeof el.querySelector === 'function' ? el.querySelector('use') : null;
+           const useHref = useEl?.getAttribute?.('href') ?? useEl?.getAttribute?.('xlink:href');
+           if (useEl && useHref) {
+             try {
+               const fragId = decodeURIComponent(useHref.split('#').pop() || '');
+               const target = fragId ? doc.getElementById(fragId) : null;
+               if (target) {
+                 const vb = el.getAttribute('viewBox') || target.getAttribute('viewBox') || target.closest('svg')?.getAttribute('viewBox');
+                 const inner = target.innerHTML;
+                 const wAttr = el.getAttribute('width');
+                 const hAttr = el.getAttribute('height');
+                 const sizeAttrs = `${wAttr ? ` width="${wAttr}"` : ''}${hAttr ? ` height="${hAttr}"` : ''}${vb ? ` viewBox="${vb}"` : ''}`;
+                 svgString = `<svg xmlns="http://www.w3.org/2000/svg"${sizeAttrs}>${inner}</svg>`;
+                 svgString = svgString.replace(/currentColor/gi, currentColor);
+               }
+             } catch {
+               // Unresolvable sprite ref: keep the raw serialization.
+             }
+           }
+           // Computed fill/stroke per shape: apply to the serialized string,
+           // not the live DOM (mutating live classes then re-serializing the
+           // live svg discards the sprite inlining above).
+           const inlineDoc = typeof DOMParser !== 'undefined' ? new DOMParser().parseFromString(svgString, 'image/svg+xml') : null;
+           const inlineRoot = inlineDoc?.documentElement ?? null;
+           if (inlineRoot && inlineDoc && typeof XMLSerializer !== 'undefined') {
+             const childStyles: string[] = [];
+             let styleIdx = 0;
+             const liveShapes = el.querySelectorAll('path, circle, rect, polygon, g');
+             const inlineShapes = inlineRoot.querySelectorAll('path, circle, rect, polygon, g');
+             liveShapes.forEach((child, idx) => {
+               const inline = inlineShapes[idx] as Element | undefined;
+               if (!inline) return;
+               const cs = defaultView.getComputedStyle(child);
+               const cls = `ck-s-${styleIdx++}`;
+               inline.setAttribute('class', `${inline.getAttribute('class') || ''} ${cls}`.trim());
+               const rules: string[] = [];
+               if (cs.fill && cs.fill !== 'none') rules.push(`fill:${cs.fill}`);
+               if (cs.stroke && cs.stroke !== 'none') rules.push(`stroke:${cs.stroke}`);
+               if (rules.length > 0) childStyles.push(`.${cls}{${rules.join(';')}}`);
+             });
+             if (childStyles.length > 0) {
+               const styleEl = inlineDoc.createElementNS('http://www.w3.org/2000/svg', 'style');
+               styleEl.textContent = childStyles.join('');
+               inlineRoot.insertBefore(styleEl, inlineRoot.firstChild);
+               svgString = new XMLSerializer().serializeToString(inlineRoot);
+             }
+           } else if (typeof XMLSerializer !== 'undefined') {
+             // Mock/test DOMs without DOMParser: style the live svg and
+             // re-serialize it (no sprite inlining needed there).
+             const childStyles: string[] = [];
+             let styleIdx = 0;
+             el.querySelectorAll('path, circle, rect, polygon, g').forEach((child) => {
+               const cs = defaultView.getComputedStyle(child);
+               const cls = `ck-s-${styleIdx++}`;
+               (child as Element).classList.add(cls);
+               const rules: string[] = [];
+               if (cs.fill && cs.fill !== 'none') rules.push(`fill:${cs.fill}`);
+               if (cs.stroke && cs.stroke !== 'none') rules.push(`stroke:${cs.stroke}`);
+               if (rules.length > 0) childStyles.push(`.${cls}{${rules.join(';')}}`);
+             });
+             if (childStyles.length > 0) {
+               svgString = new XMLSerializer()
+                 .serializeToString(el)
+                 .replace('>', `><style>${childStyles.join('')}</style>`);
+             }
+           }
+           const base64 = btoa(unescape(encodeURIComponent(svgString)));
           const assetKey = `asset-${nextAssetId++}`;
           assets[assetKey] = {
             kind: 'image',
