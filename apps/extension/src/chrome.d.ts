@@ -1,4 +1,7 @@
 declare const chrome: {
+  dom?: {
+    openOrClosedShadowRoot(element: Element): ShadowRoot | null;
+  };
   runtime: {
     sendMessage(message: unknown): Promise<unknown>;
     onMessage: {

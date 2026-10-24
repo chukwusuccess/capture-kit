@@ -142,6 +142,8 @@ export const CaptureSchema = z.object({
   assets: z.record(z.string(), AssetSchema),
   fonts: z.array(FontSchema),
   alternatives: z.array(FrameSchema).optional(),
+  /** Self-contained HTML that renders identically to the page (replica mode). */
+  replica: z.string().optional(),
 });
 
 export const SitePageCaptureSchema = z.object({
