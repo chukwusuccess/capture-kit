@@ -297,7 +297,7 @@ function extractPseudoElement(
     }
 
     const fills: Fill[] = hasBg ? [{ type: 'solid', color: bg, opacity: 1 }] : [];
-    const style = { fills, strokes, opacity, radius, shadows };
+    const style = { fills, strokes, opacity, radius, shadows, clip: false };
 
     const topVal = parseFloat(computed.top) || 0;
     const leftVal = parseFloat(computed.left) || 0;
@@ -614,6 +614,15 @@ async function serializeSubtree(
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
     const radius = parseCornerRadius(computed);
     const shadows = parseBoxShadow(computed.boxShadow);
+    const isClipped =
+      computed.overflow === 'hidden' ||
+      computed.overflow === 'clip' ||
+      computed.overflowX === 'hidden' ||
+      computed.overflowY === 'hidden';
+    const clipPath =
+      computed.clipPath && computed.clipPath !== 'none'
+        ? computed.clipPath
+        : undefined;
 
     const style = {
       fills,
@@ -621,6 +630,8 @@ async function serializeSubtree(
       opacity,
       radius,
       shadows,
+      clip: isClipped,
+      clipPath,
     };
 
     const tagName = el.tagName.toLowerCase();
@@ -830,6 +841,7 @@ async function serializeSubtree(
             opacity: 1,
             radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
             shadows: [],
+            clip: false,
           },
           text: {
             content: controlText.trim(),
@@ -974,6 +986,7 @@ async function serializeSubtree(
           opacity: 1,
           radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
           shadows: [],
+          clip: false,
         },
         text: {
           content: textVal,

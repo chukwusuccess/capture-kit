@@ -55,6 +55,8 @@ export const StyleSchema = z.object({
     bottomLeft: 0,
   }),
   shadows: z.array(ShadowSchema).default([]),
+  clip: z.boolean().optional().default(false),
+  clipPath: z.string().optional(),
 });
 
 export const TextPropsSchema = z.object({
