@@ -77,9 +77,9 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
       const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
       const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
       if (fit === 'cover') {
-        return `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}${filterAttr}>\n    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}" />\n  </g>`;
+        return `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}${filterAttr}>\n    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}" />\n  </g>`;
       }
-      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${transformStyle}${filterAttr} />`;
+      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${transformStyle}${filterAttr} />`;
     }
     return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="#cccccc"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
   }
@@ -218,7 +218,7 @@ export function modelToSvg(capture: Capture): string {
     ? `  <rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXml(capture.frame.background)}" />`
     : '';
   return [
-    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`,
+    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
     buildSvgDefs(capture),
     frameBg,
     elements,
