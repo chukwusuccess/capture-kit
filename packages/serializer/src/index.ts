@@ -782,6 +782,7 @@ function extractSvgPaths(
 
   if (typeof svgEl.querySelectorAll !== 'function') return paths;
   for (const child of svgEl.querySelectorAll('path, rect, circle, polygon, line')) {
+    if (typeof child.closest === 'function' && child.closest('defs, clipPath, mask, pattern, marker')) continue;
     const tag = child.tagName.toLowerCase();
     let d = '';
 
@@ -813,20 +814,25 @@ function extractSvgPaths(
     }
 
     if (d) {
-      let fill = child.getAttribute('fill') || undefined;
-      // No presentation attribute: the shape inherits (usually white from a
-      // light-on-dark svg). Computed fill resolves currentColor AND
-      // inheritance exactly as painted.
-      if (!fill || fill === 'currentColor' || fill === 'inherit') {
+      let fill = child.getAttribute('fill') || (typeof child.closest === 'function' ? child.closest('[fill]')?.getAttribute('fill') : null) || undefined;
+      let stroke = child.getAttribute('stroke') || (typeof child.closest === 'function' ? child.closest('[stroke]')?.getAttribute('stroke') : null) || undefined;
+      if (fill && fill.startsWith('url(')) {
+        const gId = fill.match(/#([^)\s"']+)/)?.[1];
+        const stop = gId ? svgEl.ownerDocument?.getElementById(gId)?.querySelector?.('stop') : null;
+        fill = stop?.getAttribute?.('stop-color') || undefined;
+      }
+      if (!fill || fill === 'currentColor' || fill === 'inherit' || stroke === 'currentColor' || stroke === 'inherit') {
         try {
           const host = svgEl.tagName?.toLowerCase() === 'symbol' ? svgEl.closest('svg') ?? svgEl : svgEl;
           const cs = (svgEl.ownerDocument?.defaultView ?? window).getComputedStyle(host as Element);
-          if (cs?.color) fill = cs.color;
+          if (cs?.color) {
+            if (!fill || fill === 'currentColor' || fill === 'inherit') fill = cs.color;
+            if (stroke === 'currentColor' || stroke === 'inherit') stroke = cs.color;
+          }
         } catch {
           // keep currentColor
         }
       }
-      const stroke = child.getAttribute('stroke') || undefined;
       const sw = child.getAttribute('stroke-width');
       const strokeWidth = sw ? parseFloat(sw) : undefined;
       paths.push({ d, fill, stroke, strokeWidth });
