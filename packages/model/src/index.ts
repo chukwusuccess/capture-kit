@@ -74,6 +74,17 @@ export const StyleSchema = z.object({
   clip: z.boolean().optional().default(false),
   clipPath: z.string().optional(),
   layout: LayoutSchema.optional(),
+  // Pixel-fidelity fields: only present when they differ from the CSS default,
+  // so captures stay small and older consumers ignore them.
+  transform: z.string().optional(),
+  transformOrigin: z.string().optional(),
+  filter: z.string().optional(),
+  backdropFilter: z.string().optional(),
+  mixBlendMode: z.string().optional(),
+  backgroundSize: z.string().optional(),
+  backgroundPosition: z.string().optional(),
+  backgroundRepeat: z.string().optional(),
+  backgroundClip: z.string().optional(),
 });
 
 export const TextRunSchema = z.object({
@@ -95,6 +106,11 @@ export const TextPropsSchema = z.object({
   letterSpacing: z.union([z.string(), z.number()]),
   align: z.enum(['left', 'center', 'right', 'justify']),
   color: z.string(),
+  italic: z.boolean().optional(),
+  decoration: z.string().optional(),
+  textTransform: z.string().optional(),
+  textShadow: z.string().optional(),
+  overflow: z.string().optional(),
   runs: z.array(TextRunSchema).optional(),
 });
 
