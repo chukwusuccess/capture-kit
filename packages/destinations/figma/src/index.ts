@@ -56,19 +56,13 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     if (!text) return '';
 
     const content = escapeXml(text.content);
-    const anchor =
-      text.align === 'center'
-        ? 'middle'
-        : text.align === 'right'
-        ? 'end'
-        : 'start';
-
-    const textX =
-      anchor === 'middle'
-        ? box.x + box.w / 2
-        : anchor === 'end'
-        ? box.x + box.w
-        : box.x;
+    // Baked geometry: emit everything start-anchored at the measured left
+    // edge. Importers that ignore text-anchor (Figma flattens center/right
+    // to start) then render exactly where capture measured; importers that
+    // honor it see start + x = left edge = same place. Centering comes from
+    // the measured box itself, not the anchor.
+    const anchor = 'start';
+    const textX = box.x;
 
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
     const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
