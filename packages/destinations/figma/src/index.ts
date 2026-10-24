@@ -187,12 +187,11 @@ function buildFigmaLayers(capture: Capture): string {
     const clipAttr = node.style.clip
       ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"`
       : '';
-    const layout = node.style.layout;
-    let layoutAttrs = '';
-    if (layout && (layout.mode === 'vertical' || layout.mode === 'horizontal')) {
-      const mode = layout.mode === 'vertical' ? 'VERTICAL' : 'HORIZONTAL';
-      layoutAttrs = ` data-layout-mode="${mode}" data-item-spacing="${layout.gap || 0}" data-padding-top="${layout.paddingTop || 0}" data-padding-right="${layout.paddingRight || 0}" data-padding-bottom="${layout.paddingBottom || 0}" data-padding-left="${layout.paddingLeft || 0}"`;
-    }
+    // No auto-layout hints: Figma reflows children with its own font and
+    // box metrics on import, shifting pills, labels, and hero text. Absolute
+    // boxes already place every child exactly — groups stay untyped.
+    void node.style.layout;
+    const layoutAttrs = '';
 
     return [
       `  <g id="group-${escapeXml(node.id)}"${clipAttr}${layoutAttrs}>`,
