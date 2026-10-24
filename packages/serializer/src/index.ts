@@ -1173,6 +1173,41 @@ async function extractWebFonts(
 }
 
 
+/**
+ * Transcode rasters that vector importers reject (webp/avif/bmp) to PNG via
+ * an offscreen canvas. Returns null when no transcode is needed or possible,
+ * in which case the caller keeps the original bytes.
+ */
+async function transcodeToPng(blob: Blob): Promise<Blob | null> {
+  const t = (blob.type || '').toLowerCase();
+  if (t === 'image/png' || t === 'image/jpeg' || t === 'image/gif' || t === 'image/svg+xml') {
+    return null;
+  }
+  try {
+    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
+    const bmp = await Promise.race([
+      createImageBitmap(blob),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+    ]);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, bmp.width);
+    canvas.height = Math.max(1, bmp.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      if (typeof bmp.close === 'function') bmp.close();
+      return null;
+    }
+    ctx.drawImage(bmp, 0, 0);
+    if (typeof bmp.close === 'function') bmp.close();
+    const out: Blob | null = await new Promise((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/png');
+    });
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 async function serializeSubtree(
   root: Element,
   doc: Document,
@@ -2032,16 +2067,17 @@ async function serializeSubtree(
       pendingAssetFetches.map(async ({ url, assetKey }) => {
         try {
           const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
-          if (res.ok) {
-            const blob = await res.blob();
-            const buffer = await blob.arrayBuffer();
-            const base64 = await arrayBufferToBase64(buffer);
-            assets[assetKey] = {
-              kind: 'image',
-              mimeType: blob.type || 'image/png',
-              base64,
-            };
-          }
+          if (!res.ok) return;
+          const blob = await res.blob();
+          const transcoded = await transcodeToPng(blob);
+          const finalBlob = transcoded ?? blob;
+          const buffer = await finalBlob.arrayBuffer();
+          const base64 = await arrayBufferToBase64(buffer);
+          assets[assetKey] = {
+            kind: 'image',
+            mimeType: finalBlob.type || 'image/png',
+            base64,
+          };
         } catch {
           // fetch failure ignored
         }
