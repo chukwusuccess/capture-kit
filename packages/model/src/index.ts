@@ -144,6 +144,11 @@ export const VectorPathSchema = z.object({
   strokeWidth: z.number().optional(),
 });
 
+export const VectorViewBoxSchema = z.object({
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
 export const NodeSchema = z.object({
   id: z.string(),
   parentId: z.string().optional(),
@@ -153,6 +158,8 @@ export const NodeSchema = z.object({
   text: TextPropsSchema.optional(),
   assetRef: z.string().optional(),
   vectorPaths: z.array(VectorPathSchema).optional(),
+  // Intrinsic svg viewBox size: lets destinations scale paths into box.
+  vectorViewBox: VectorViewBoxSchema.optional(),
   objectFit: z.enum(['fill', 'contain', 'cover', 'none', 'scale-down']).optional(),
   objectPosition: z.string().optional(),
 });
@@ -194,6 +201,7 @@ export type Asset = z.infer<typeof AssetSchema>;
 export type Font = z.infer<typeof FontSchema>;
 export type Frame = z.infer<typeof FrameSchema>;
 export type VectorPath = z.infer<typeof VectorPathSchema>;
+export type VectorViewBox = z.infer<typeof VectorViewBoxSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type Capture = z.infer<typeof CaptureSchema>;
 export type SitePageCapture = z.infer<typeof SitePageCaptureSchema>;
