@@ -346,44 +346,45 @@ function parseCssGradients(bgImage: string): Fill[] {
   return fills;
 }
 // Pixel-fidelity fields: capture only non-default values so the model stays
-// small and pre-fidelity consumers (that ignore these keys) still work.
-function extractFidelityStyle(computed: CSSStyleDeclaration): {
-  transform?: string;
-  transformOrigin?: string;
-  filter?: string;
-  backdropFilter?: string;
-  mixBlendMode?: string;
-  backgroundSize?: string;
-  backgroundPosition?: string;
-  backgroundRepeat?: string;
-  backgroundClip?: string;
-} {
-  const out: ReturnType<typeof extractFidelityStyle> = {};
-  const transform = computed.transform?.trim();
-  if (transform && transform !== 'none') out.transform = transform;
-  const origin = computed.transformOrigin?.trim();
-  if (origin && origin !== '50% 50%') out.transformOrigin = origin;
-  const filter = computed.filter?.trim();
-  if (filter && filter !== 'none') out.filter = filter;
-  const backdrop = computed.backdropFilter?.trim() || (computed as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter?.trim();
-  if (backdrop && backdrop !== 'none') out.backdropFilter = backdrop;
-  const blend = computed.mixBlendMode?.trim();
-  if (blend && blend !== 'normal') out.mixBlendMode = blend;
-  const bgSize = computed.backgroundSize?.trim();
-  if (bgSize && bgSize !== 'auto') out.backgroundSize = bgSize;
-  const bgPos = computed.backgroundPosition?.trim();
-  if (bgPos && bgPos !== '0% 0%') out.backgroundPosition = bgPos;
-  const bgRepeat = computed.backgroundRepeat?.trim();
-  if (bgRepeat && bgRepeat !== 'repeat') out.backgroundRepeat = bgRepeat;
-  const bgClip = computed.backgroundClip?.trim() || (computed as CSSStyleDeclaration & { webkitBackgroundClip?: string }).webkitBackgroundClip?.trim();
-  if (bgClip && bgClip !== 'border-box') out.backgroundClip = bgClip;
-  return out;
-}
-
-// ---- transform hoisting ----------------------------------------------------
-// getBoundingClientRect() includes transforms: storing those boxes AND
-// re-applying the transform in the renderer double-applied rotation and left
-// children with upright glyphs. Instead, transforms are frozen (inline
+ // small and pre-fidelity consumers (that ignore these keys) still work.
+ interface FidelityStyle {
+   transform?: string;
+   transformOrigin?: string;
+   filter?: string;
+   backdropFilter?: string;
+   mixBlendMode?: string;
+   backgroundSize?: string;
+   backgroundPosition?: string;
+   backgroundRepeat?: string;
+   backgroundClip?: string;
+   maskImage?: string;
+ }
+ function extractFidelityStyle(computed: CSSStyleDeclaration): FidelityStyle {
+   const out: FidelityStyle = {};
+   const transform = computed.transform?.trim();
+   if (transform && transform !== 'none') out.transform = transform;
+   const origin = computed.transformOrigin?.trim();
+   if (origin && origin !== '50% 50%') out.transformOrigin = origin;
+   const filter = computed.filter?.trim();
+   if (filter && filter !== 'none') out.filter = filter;
+   const backdrop = computed.backdropFilter?.trim() || (computed as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter?.trim();
+   if (backdrop && backdrop !== 'none') out.backdropFilter = backdrop;
+   const blend = computed.mixBlendMode?.trim();
+   if (blend && blend !== 'normal') out.mixBlendMode = blend;
+   const bgSize = computed.backgroundSize?.trim();
+   if (bgSize && bgSize !== 'auto') out.backgroundSize = bgSize;
+   const bgPos = computed.backgroundPosition?.trim();
+   if (bgPos && bgPos !== '0% 0%') out.backgroundPosition = bgPos;
+   const bgRepeat = computed.backgroundRepeat?.trim();
+   if (bgRepeat && bgRepeat !== 'repeat') out.backgroundRepeat = bgRepeat;
+   const bgClip = computed.backgroundClip?.trim() || (computed as CSSStyleDeclaration & { webkitBackgroundClip?: string }).webkitBackgroundClip?.trim();
+   if (bgClip && bgClip !== 'border-box') out.backgroundClip = bgClip;
+   // Radial/linear fade masks on glow washes: without this the divider paints
+   // as a solid pill in every renderer.
+   const mask = computed.maskImage?.trim() || (computed as CSSStyleDeclaration & { webkitMaskImage?: string }).webkitMaskImage?.trim();
+   if (mask && mask !== 'none') out.maskImage = mask;
+   return out;
+ }
 // transform:none, saved) right before measurement so every box we capture is
 // pure layout space; then each node emits ONE composed matrix — its own plus
 // every ancestor's — rebased so the renderer can keep transform-origin 0,0.
