@@ -17,8 +17,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const transformStyle = style.transform
     ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
     : '';
-  const blurMatch = style.filter?.match(/blur\(\s*([\d.]+)px\s*\)/);
-  const filterAttr = blurMatch ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+  const filterAttr = style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
@@ -96,17 +95,52 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
 
   return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformStyle}${filterAttr} />`;
 }
+/** Map a CSS filter chain to SVG filter primitives. */
+function buildFilterPrimitives(filter: string | undefined): string[] {
+  if (!filter || filter === 'none') return [];
+  const prims: string[] = [];
+  for (const m of filter.matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
+    const fn = m[1].toLowerCase();
+    const arg = m[2].trim();
+    const num = parseFloat(arg);
+    if (fn === 'blur' && !Number.isNaN(num)) {
+      prims.push('      <feGaussianBlur stdDeviation="' + num + '" />');
+    } else if ((fn === 'brightness' || fn === 'contrast') && !Number.isNaN(num)) {
+      const v = arg.endsWith('%') ? num / 100 : num;
+      const ic = fn === 'contrast' ? (1 - v) / 2 : 0;
+      prims.push('      <feComponentTransfer><feFuncR type="linear" slope="' + v + '" intercept="' + ic + '"/><feFuncG type="linear" slope="' + v + '" intercept="' + ic + '"/><feFuncB type="linear" slope="' + v + '" intercept="' + ic + '"/></feComponentTransfer>');
+    } else if ((fn === 'saturate' || fn === 'grayscale' || fn === 'sepia' || fn === 'invert' || fn === 'opacity') && !Number.isNaN(num)) {
+      const v = arg.endsWith('%') ? num / 100 : num;
+      if (fn === 'saturate') prims.push('      <feColorMatrix type="saturate" values="' + v + '" />');
+      else if (fn === 'grayscale') prims.push('      <feColorMatrix type="saturate" values="' + (1 - v) + '" />');
+      else if (fn === 'sepia') prims.push('      <feColorMatrix type="matrix" values="0.393 0.769 0.189 0 0 0.349 0.686 0.168 0 0 0.272 0.534 0.131 0 0 0 0 0 1 0"/>');
+      else if (fn === 'invert') prims.push('      <feComponentTransfer><feFuncR type="table" tableValues="1 0"/><feFuncG type="table" tableValues="1 0"/><feFuncB type="table" tableValues="1 0"/></feComponentTransfer>');
+      else prims.push('      <feComponentTransfer><feFuncA type="linear" slope="' + v + '" intercept="0"/></feComponentTransfer>');
+    } else if (fn === 'hue-rotate') {
+      prims.push('      <feColorMatrix type="hueRotate" values="' + (num || 0) + '" />');
+    } else if (fn === 'drop-shadow') {
+      const colMatch = arg.match(/(rgba?\([^)]*\)|#[0-9a-fA-F]+|[a-z]+)/i);
+      const col = colMatch ? colMatch[0] : 'rgba(0,0,0,0.5)';
+      const nums = (arg.replace(col, '').match(/-?[\d.]+/g) || []).map(Number);
+      const dx = nums[0] ?? 0; const dy = nums[1] ?? 4; const std = nums[2] ?? 4;
+      prims.push('      <feDropShadow dx="' + dx + '" dy="' + dy + '" stdDeviation="' + std + '" flood-color="' + col + '" />');
+    }
+  }
+  return prims;
+}
+
+
 function buildSvgDefs(capture: Capture): string {
   const defs: string[] = [];
 
   for (const node of capture.nodes) {
-    const bm = node.style.filter?.match(/blur\(\s*([\d.]+)px\s*\)/);
-    if (bm) {
-      const std = parseFloat(bm[1]);
-      defs.push(
-        `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n      <feGaussianBlur stdDeviation="${std}" />\n    </filter>`
-      );
-    }
+  for (const node of capture.nodes) {
+    const prims = buildFilterPrimitives(node.style.filter);
+    if (prims.length === 0) continue;
+    defs.push(
+      `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n${prims.join("\n")}\n    </filter>`
+    );
+  }
   }
   for (const node of capture.nodes) {
     const gradFill = node.style.fills.find(
