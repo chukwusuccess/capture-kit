@@ -12,23 +12,16 @@ function escapeXml(unsafe: string): string {
 function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const { box, style, type } = node;
   const opacityAttr = style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
-  const rx = style.radius?.topLeft ? ` rx="${style.radius.topLeft}"` : '';
-
+  const rxVal = style.radius?.topLeft ? Math.min(style.radius.topLeft, box.w / 2, box.h / 2) : 0;
+  const rx = rxVal > 0 ? ` rx="${rxVal}" ry="${rxVal}"` : '';
+  const transformStyle = style.transform
+    ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
+    : '';
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
 
     const content = escapeXml(text.content);
-    const innerContent =
-      text.runs && text.runs.length > 0
-        ? text.runs
-            .map((r) => {
-              const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
-              const rColor = r.color ? ` fill="${escapeXml(r.color)}"` : '';
-              return `<tspan${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
-            })
-            .join('')
-        : content;
     const anchor =
       text.align === 'center'
         ? 'middle'
@@ -43,14 +36,25 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
         ? box.x + box.w
         : box.x;
 
-    // Approximating baseline offset for SVG text
-    const textY = box.y + text.fontSize;
+    const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
+    const innerContent =
+      text.runs && text.runs.length > 0
+        ? text.runs
+            .map((r, idx) => {
+              const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
+              const rColor = r.color ? ` fill="${escapeXml(r.color)}"` : '';
+              const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : '';
+              return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
+            })
+            .join('')
+        : content;
 
-    return `  <text x="${textX}" y="${textY}" font-family="${escapeXml(
+    const textY = box.y;
+    return `  <text x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${escapeXml(
       text.color
-    )}" text-anchor="${anchor}"${opacityAttr}>${innerContent}</text>`;
+    )}" text-anchor="${anchor}"${opacityAttr}${transformStyle}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
@@ -69,21 +73,21 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     if (node.assetRef && assets[node.assetRef]) {
       const asset = assets[node.assetRef];
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
-      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="none"${opacityAttr} />`;
+      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="none"${opacityAttr}${transformStyle} />`;
     }
-    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="#cccccc"${rx}${opacityAttr} />`;
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="#cccccc"${rx}${opacityAttr}${transformStyle} />`;
   }
 
   // Frame or rect
   const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   if (gradFill) {
-    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr} />`;
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr}${transformStyle} />`;
   }
 
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
 
-  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr} />`;
+  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformStyle} />`;
 }
 function buildSvgDefs(capture: Capture): string {
   const defs: string[] = [];
@@ -115,14 +119,13 @@ function buildSvgDefs(capture: Capture): string {
   }
 
   const fontFaces: string[] = [];
-  for (const [key, asset] of Object.entries(capture.assets)) {
-    if (asset.kind === 'font') {
-      const matchingFont =
-        capture.fonts.find((f) => asset.mimeType.includes(f.family.toLowerCase())) ||
-        capture.fonts[0];
-      const familyName = matchingFont?.family || key;
+  for (const f of capture.fonts) {
+    if (f.assetRef && capture.assets[f.assetRef]) {
+      const asset = capture.assets[f.assetRef];
       fontFaces.push(`    @font-face {
-      font-family: '${escapeXml(familyName)}';
+      font-family: '${escapeXml(f.family)}';
+      font-weight: ${f.weight || '400'};
+      font-style: ${f.style || 'normal'};
       src: url('data:${asset.mimeType};base64,${asset.base64}');
     }`);
     }

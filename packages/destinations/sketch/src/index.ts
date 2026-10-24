@@ -506,7 +506,8 @@ function convertNodeToSketchLayer(
   // Handle frame and rect
   const fillList = convertFills(node.style.fills ?? [], assets);
 
-  const radius = node.style.radius?.topLeft ?? 0;
+  const rawRadius = node.style.radius?.topLeft ?? 0;
+  const radius = Math.min(rawRadius, node.box.w / 2, node.box.h / 2);
 
   return {
     _class: 'rectangle',
