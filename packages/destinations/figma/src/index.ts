@@ -32,6 +32,8 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     ? ` style="transform: ${escapeXml(style.transform)}; transform-origin: ${escapeXml(style.transformOrigin || '50% 50%')}; transform-box: fill-box;"`
     : '';
   const filterAttr = style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+  // Masked glow washes: point at the mask built in defs from maskImage.
+  const maskAttr = style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
   // Stroke attributes
   let strokeAttrs = '';
   if (style.strokes && style.strokes.length > 0) {
@@ -70,23 +72,25 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
 
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
     const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
-    const textFillAttr = textGradFill ? `url(#grad-${escapeXml(node.id)})` : escapeXml(text.color);
+    // bg-clip:text nodes carry the gradient in fills with a transparent text
+    // color: emit the gradient on the <text> so the fill survives the paste.
+    const textFillAttr = textGradFill ? ` fill="url(#grad-${escapeXml(node.id)})"` : ` fill="${escapeXml(text.color)}"`;
     const innerContent =
       text.runs && text.runs.length > 0
         ? text.runs
-            .map((r, idx) => {
-              const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
-              const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
-              const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : '';
-              return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
-            })
-            .join('')
+          .map((r, idx) => {
+            const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
+            const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
+            const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : '';
+            return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
+          })
+          .join('')
         : content;
 
     const textY = box.y;
     return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr} text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
@@ -124,7 +128,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
   if (gradFill) {
     return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr} />`;
+    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr}${maskAttr} />`;
   }
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
@@ -139,7 +143,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
 
   return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
     box.w
-  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr} />`;
+  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformStyle}${filterAttr}${maskAttr} />`;
 }
 
 function buildFigmaLayers(capture: Capture): string {
@@ -176,7 +180,7 @@ function buildFigmaLayers(capture: Capture): string {
       : '';
     const layout = node.style.layout;
     let layoutAttrs = '';
-    if (layout && layout.mode !== 'none') {
+    if (layout && (layout.mode === 'vertical' || layout.mode === 'horizontal')) {
       const mode = layout.mode === 'vertical' ? 'VERTICAL' : 'HORIZONTAL';
       layoutAttrs = ` data-layout-mode="${mode}" data-item-spacing="${layout.gap || 0}" data-padding-top="${layout.paddingTop || 0}" data-padding-right="${layout.paddingRight || 0}" data-padding-bottom="${layout.paddingBottom || 0}" data-padding-left="${layout.paddingLeft || 0}"`;
     }
@@ -269,9 +273,28 @@ function buildFigmaDefs(captures: Capture[]): string {
           `    <clipPath id="clip-${escapeXml(node.id)}">\n      <rect x="${node.box.x}" y="${node.box.y}" width="${node.box.w}" height="${node.box.h}"${rx} />\n    </clipPath>`
         );
       }
+      // CSS mask-image gradient fades: luminance mask so glows fade out.
+      const mask = node.style.maskImage;
+      if (mask && mask !== 'none') {
+        const stops = [...mask.matchAll(/(rgba?\([^)]+\))\s+([\d.]+)%/gi)].map((m) => ({
+           color: m[1],
+           position: Math.max(0, Math.min(1, parseFloat(m[2]) / 100)),
+        }));
+        if (stops.length >= 2) {
+           const stopXml = stops
+             .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
+             .join('\n');
+           const isRadial = mask.trimStart().toLowerCase().startsWith('radial-gradient');
+           const { box } = node;
+           defs.push(
+             isRadial
+               ? `    <mask id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <radialGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" r="${Math.max(box.w, box.h) / 2}">\n${stopXml}\n    </radialGradient>`
+               : `    <mask id="mask-${escapeXml(node.id)}" maskUnits="userSpaceOnUse" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#maskgrad-${escapeXml(node.id)})" />\n    </mask>\n    <linearGradient id="maskgrad-${escapeXml(node.id)}" gradientUnits="userSpaceOnUse" x1="${box.x}" y1="${box.y}" x2="${box.x + box.w}" y2="${box.y + box.h}">\n${stopXml}\n    </linearGradient>`
+           );
+        }
+      }
     }
   }
-
 
   if (defs.length === 0) return '';
   return `  <defs>\n${defs.join('\n')}\n  </defs>\n`;
