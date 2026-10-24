@@ -61,6 +61,44 @@ function runFigmaDestinationTests() {
         },
         assetRef: 'img-thumb',
       },
+      {
+        id: 'node-skip-offscreen',
+        type: 'text',
+        box: { x: 637, y: 24, w: 117, h: 18 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+          transform: 'matrix(1, 0, 0, 1, 0, -84)',
+          transformOrigin: '0 0',
+        },
+        text: {
+          content: 'Skip to content',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 16,
+          fontWeight: 400,
+          lineHeight: 24,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgba(255, 255, 255, 1)',
+        },
+      },
+      {
+        id: 'node-shifted-pill',
+        type: 'rect',
+        box: { x: 200, y: 100, w: 120, h: 40 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 8, topRight: 8, bottomRight: 8, bottomLeft: 8 },
+          shadows: [],
+          transform: 'matrix(1, 0, 0, 1, -60, 0)',
+          transformOrigin: '0 0',
+        },
+      },
     ],
     assets: {
       'img-thumb': {
@@ -125,6 +163,14 @@ function runFigmaDestinationTests() {
   assert.ok(
     payload.svg.includes('x="70" y="93"'),
     'Text baseline y should be placed inside the text box (70 + 32/2 + 20*0.35 = 93)'
+  );
+  assert.ok(
+    !payload.svg.includes('Skip to content'),
+    'Off-screen transformed nodes (y + ty < 0) should be omitted from Figma paste'
+  );
+  assert.ok(
+    payload.svg.includes('id="node-shifted-pill"') && payload.svg.includes('transform="matrix(1 0 0 1 -60 0)"'),
+    'Transforms must be emitted as native SVG transform attributes, not CSS inline styles'
   );
   // 6. Assert embedded image data URI
   assert.ok(
