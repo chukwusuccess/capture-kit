@@ -99,6 +99,9 @@ class MockElement extends MockNode {
   currentSrc = '';
   ownerDocument: Document = null as unknown as Document;
   contentDocument?: unknown;
+  toDataURL?: () => string;
+  width = 100;
+  height = 40;
 
   constructor(tagName: string, rect?: { left: number; top: number; width: number; height: number }) {
     super(1 /* ELEMENT_NODE */);
@@ -268,6 +271,14 @@ async function runSerializerAccuracyTests() {
   const svgEl = new MockElement('svg', { left: 40, top: 40, width: 24, height: 24 });
   svgEl.outerHTML = '<svg viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>';
   body.appendChild(svgEl);
+  // Canvas element (WebGL/2D)
+  const canvasEl = new MockElement('canvas', { left: 400, top: 40, width: 120, height: 80 });
+  canvasEl.width = 120;
+  canvasEl.height = 80;
+  canvasEl.toDataURL = () =>
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  body.appendChild(canvasEl);
+
 
   // 3. CSS background-image with data URI
   const banner = new MockElement('div', { left: 20, top: 200, width: 400, height: 100 });
@@ -332,6 +343,13 @@ async function runSerializerAccuracyTests() {
   const svgAsset = validated.assets[svgNode.assetRef];
   assert.ok(svgAsset, 'SVG asset not registered');
   assert.strictEqual(svgAsset.mimeType, 'image/svg+xml');
+
+  // Verify Canvas snapshotting
+  const canvasNode = validated.nodes.find((n) => n.box.x === 400 && n.box.y === 40);
+  assert.ok(canvasNode, 'Canvas node not found');
+  assert.strictEqual(canvasNode.type, 'image');
+  assert.ok(canvasNode.assetRef, 'Canvas node missing assetRef');
+  assert.ok(validated.assets[canvasNode.assetRef], 'Canvas snapshot asset not found');
 
   // Verify CSS background-image
   const bannerNode = validated.nodes.find((n) => n.box.x === 20 && n.box.y === 200);

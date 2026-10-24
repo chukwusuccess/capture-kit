@@ -123,6 +123,31 @@ function extractCssUrl(bgImage: string): string | null {
   const match = bgImage.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
   return match && match[1] ? match[1] : null;
 }
+function resolveHighestDpiSrc(img: HTMLImageElement): string {
+  if (img.currentSrc) return img.currentSrc;
+  const srcset = img.getAttribute('srcset');
+  if (srcset) {
+    const candidates = srcset.split(',').map((s) => s.trim().split(/\s+/));
+    let bestUrl = '';
+    let bestDensity = 0;
+    for (const [candUrl, descriptor] of candidates) {
+      if (!candUrl) continue;
+      let density = 1;
+      if (descriptor?.endsWith('x')) {
+        density = parseFloat(descriptor) || 1;
+      } else if (descriptor?.endsWith('w')) {
+        density = (parseFloat(descriptor) || 800) / 400;
+      }
+      if (density > bestDensity) {
+        bestDensity = density;
+        bestUrl = candUrl;
+      }
+    }
+    if (bestUrl) return bestUrl;
+  }
+  return img.src || img.getAttribute('src') || '';
+}
+
 function parseCssGradients(bgImage: string): Fill[] {
   if (!bgImage || bgImage === 'none') return [];
   const fills: Fill[] = [];
@@ -601,6 +626,40 @@ async function serializeSubtree(
     const tagName = el.tagName.toLowerCase();
 
     // 1. Inline SVG elements
+    // 1. Canvas elements (WebGL shaders, Three.js, charts, 2D canvas)
+    if (tagName === 'canvas') {
+      let assetRef: string | undefined;
+      try {
+        const canvasEl = el as HTMLCanvasElement;
+        if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
+          const dataUrl = canvasEl.toDataURL('image/png');
+          if (dataUrl && dataUrl.startsWith('data:image/png;base64,')) {
+            const base64 = dataUrl.slice('data:image/png;base64,'.length);
+            const assetKey = `asset-${nextAssetId++}`;
+            assets[assetKey] = {
+              kind: 'image',
+              mimeType: 'image/png',
+              base64,
+            };
+            assetRef = assetKey;
+          }
+        }
+      } catch {
+        // Tainted canvas fallback
+      }
+
+      nodes.push({
+        id: nodeId,
+        parentId,
+        type: 'image',
+        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+        style,
+        assetRef,
+      });
+      continue;
+    }
+
+    // 2. Inline SVG elements
     if (tagName === 'svg') {
       let assetRef: string | undefined;
       try {
@@ -641,7 +700,7 @@ async function serializeSubtree(
       const img = el as HTMLImageElement;
       let assetRef: string | undefined;
 
-      const src = img.currentSrc || img.src || img.getAttribute('src');
+      const src = resolveHighestDpiSrc(img);
       if (src) {
         if (src.startsWith('data:')) {
           const match = src.match(/^data:([^;]+);base64,(.+)$/);
