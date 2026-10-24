@@ -76,14 +76,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
       const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
       const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
       if (fit === 'cover') {
-        return [
-          `  <clipPath id="imgclip-${escapeXml(node.id)}">`,
-          `    <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"${rx} />`,
-          '  </clipPath>',
-          `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}>`,
-          `    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}" />`,
-          '  </g>',
-        ].join('\n');
+        return `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}>\n    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}" />\n  </g>`;
       }
       return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${transformStyle} />`;
     }
@@ -136,6 +129,17 @@ function buildSvgDefs(capture: Capture): string {
     }
   }
 
+  for (const node of capture.nodes) {
+    if (node.type !== 'image' || !node.assetRef || !capture.assets[node.assetRef]) continue;
+    const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
+    if (fit !== 'cover') continue;
+    const { box, style } = node;
+    const rxV = style.radius?.topLeft ? Math.min(style.radius.topLeft, box.w / 2, box.h / 2) : 0;
+    const rxA = rxV > 0 ? ` rx="${rxV}" ry="${rxV}"` : '';
+    defs.push(
+      `    <clipPath id="imgclip-${escapeXml(node.id)}">\n      <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"${rxA} />\n    </clipPath>`
+    );
+  }
   const fontFaces: string[] = [];
   for (const f of capture.fonts) {
     if (f.assetRef && capture.assets[f.assetRef]) {
