@@ -124,6 +124,7 @@ export const FontSchema = z.object({
   family: z.string(),
   weight: z.union([z.string(), z.number()]).optional(),
   style: z.string().optional(),
+  assetRef: z.string().optional(),
 });
 
 export const FrameSchema = z.object({
