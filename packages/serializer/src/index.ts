@@ -206,6 +206,55 @@ function parseCssGradients(bgImage: string): Fill[] {
 
   return fills;
 }
+function extractSvgPaths(
+  svgEl: Element
+): Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> {
+  const paths: Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> = [];
+
+  if (typeof svgEl.querySelectorAll !== 'function') return paths;
+  for (const child of svgEl.querySelectorAll('path, rect, circle, polygon, line')) {
+    const tag = child.tagName.toLowerCase();
+    let d = '';
+
+    if (tag === 'path') {
+      d = child.getAttribute('d') || '';
+    } else if (tag === 'rect') {
+      const rx = parseFloat(child.getAttribute('x') || '0');
+      const ry = parseFloat(child.getAttribute('y') || '0');
+      const rw = parseFloat(child.getAttribute('width') || '0');
+      const rh = parseFloat(child.getAttribute('height') || '0');
+      if (rw > 0 && rh > 0) {
+        d = `M ${rx} ${ry} H ${rx + rw} V ${ry + rh} H ${rx} Z`;
+      }
+    } else if (tag === 'circle') {
+      const cx = parseFloat(child.getAttribute('cx') || '0');
+      const cy = parseFloat(child.getAttribute('cy') || '0');
+      const r = parseFloat(child.getAttribute('r') || '0');
+      if (r > 0) {
+        d = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+      }
+    } else if (tag === 'polygon') {
+      const points = child.getAttribute('points');
+      if (points) {
+        const coords = points.trim().split(/[\s,]+/);
+        if (coords.length >= 4) {
+          d = `M ${coords[0]} ${coords[1]} ` + coords.slice(2).reduce((acc, val, idx) => (idx % 2 === 0 ? `${acc} L ${val}` : `${acc} ${val}`), '') + ' Z';
+        }
+      }
+    }
+
+    if (d) {
+      const fill = child.getAttribute('fill') || undefined;
+      const stroke = child.getAttribute('stroke') || undefined;
+      const sw = child.getAttribute('stroke-width');
+      const strokeWidth = sw ? parseFloat(sw) : undefined;
+      paths.push({ d, fill, stroke, strokeWidth });
+    }
+  }
+
+  return paths;
+}
+
 
 
 async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
@@ -695,13 +744,17 @@ async function serializeSubtree(
         // Fallback placeholder rect
       }
 
+      const vectorPaths = extractSvgPaths(el);
+      const isVector = vectorPaths.length > 0;
+
       nodes.push({
         id: nodeId,
         parentId,
-        type: 'image',
+        type: isVector ? 'vector' : 'image',
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
         style,
         assetRef,
+        vectorPaths: isVector ? vectorPaths : undefined,
       });
       continue;
     }

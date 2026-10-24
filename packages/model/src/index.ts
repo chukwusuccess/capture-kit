@@ -88,14 +88,22 @@ export const FrameSchema = z.object({
   baseURI: z.string(),
 });
 
+export const VectorPathSchema = z.object({
+  d: z.string(),
+  fill: z.string().optional(),
+  stroke: z.string().optional(),
+  strokeWidth: z.number().optional(),
+});
+
 export const NodeSchema = z.object({
   id: z.string(),
   parentId: z.string().optional(),
-  type: z.enum(['frame', 'text', 'rect', 'image']),
+  type: z.enum(['frame', 'text', 'rect', 'image', 'vector']),
   box: BoxSchema,
   style: StyleSchema,
   text: TextPropsSchema.optional(),
   assetRef: z.string().optional(),
+  vectorPaths: z.array(VectorPathSchema).optional(),
 });
 
 export const CaptureSchema = z.object({
@@ -132,6 +140,7 @@ export type TextProps = z.infer<typeof TextPropsSchema>;
 export type Asset = z.infer<typeof AssetSchema>;
 export type Font = z.infer<typeof FontSchema>;
 export type Frame = z.infer<typeof FrameSchema>;
+export type VectorPath = z.infer<typeof VectorPathSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type Capture = z.infer<typeof CaptureSchema>;
 export type SitePageCapture = z.infer<typeof SitePageCaptureSchema>;
