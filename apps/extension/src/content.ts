@@ -25,7 +25,13 @@ customWindow.__captureKitReplica = () =>
         (r) => (r as { data?: string | null } | undefined)?.data ?? null,
         () => null
       ),
-    shadowRootOf: (el) => chrome.dom?.openOrClosedShadowRoot(el) ?? null,
+    shadowRootOf: (el) => {
+      try {
+        return chrome.dom?.openOrClosedShadowRoot(el) ?? null;
+      } catch {
+        return el.shadowRoot; // throws on non-HTML (SVG) elements
+      }
+    },
   });
 
 customWindow.__captureKitPickElement = async (): Promise<unknown> => {
