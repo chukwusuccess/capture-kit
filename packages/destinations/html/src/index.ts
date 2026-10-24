@@ -92,6 +92,18 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   }
 
   const styleAttr = ` style="${styles.join('; ')}"`;
+  if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
+    const paths = node.vectorPaths
+      .map((p) => {
+        const fill = p.fill ? ` fill="${escapeHtml(p.fill)}"` : ' fill="currentColor"';
+        const stroke = p.stroke ? ` stroke="${escapeHtml(p.stroke)}"` : '';
+        const sw = p.strokeWidth ? ` stroke-width="${p.strokeWidth}"` : '';
+        return `      <path d="${escapeHtml(p.d)}"${fill}${stroke}${sw} />`;
+      })
+      .join('\n');
+    return `    <svg id="${escapeHtml(node.id)}"${styleAttr} viewBox="0 0 ${box.w} ${box.h}">\n${paths}\n    </svg>`;
+  }
+
 
   if (type === 'image') {
     if (assetRef && assets[assetRef]) {

@@ -72,6 +72,18 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
       text.color
     )}" text-anchor="${anchor}"${opacityAttr}>${content}</text>`;
   }
+  if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
+    const paths = node.vectorPaths
+      .map((p) => {
+        const fill = p.fill ? ` fill="${escapeXml(p.fill)}"` : ' fill="currentColor"';
+        const stroke = p.stroke ? ` stroke="${escapeXml(p.stroke)}"` : '';
+        const sw = p.strokeWidth ? ` stroke-width="${p.strokeWidth}"` : '';
+        return `      <path d="${escapeXml(p.d)}"${fill}${stroke}${sw} />`;
+      })
+      .join('\n');
+    return `    <g id="${escapeXml(node.id)}" transform="translate(${box.x} ${box.y})"${opacityAttr}>\n${paths}\n    </g>`;
+  }
+
 
   if (type === 'image') {
     if (node.assetRef && assets[node.assetRef]) {

@@ -377,8 +377,8 @@ function convertNodeToSketchLayer(
     };
   }
 
-  // Handle image type: native bitmap layer if asset is present
-  if (node.type === 'image') {
+  // Handle image and vector types: bitmap layer if asset is present
+  if (node.type === 'image' || node.type === 'vector') {
     if (node.assetRef && assets[node.assetRef]) {
       return {
         _class: 'bitmap',
@@ -390,7 +390,7 @@ function convertNodeToSketchLayer(
         isLocked: false,
         isVisible: true,
         layerListExpandedType: 0,
-        name: `Image ${node.id}`,
+        name: node.type === 'vector' ? `Vector ${node.id}` : `Image ${node.id}`,
         nameIsFixed: false,
         resizingConstraint: 63,
         resizingType: 0,

@@ -178,6 +178,18 @@ export function modelToReact(
       const tag = node.text.fontSize >= 24 ? 'h2' : node.text.fontSize >= 18 ? 'h3' : 'p';
       return `${indent}<${tag} className="${classes}">${content}</${tag}>`;
     }
+    if (node.type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
+      const paths = node.vectorPaths
+        .map((p) => {
+          const fill = p.fill || 'currentColor';
+          const stroke = p.stroke ? ` stroke="${p.stroke}"` : '';
+          const sw = p.strokeWidth ? ` strokeWidth="${p.strokeWidth}"` : '';
+          return `${indent}  <path d="${p.d}" fill="${fill}"${stroke}${sw} />`;
+        })
+        .join('\n');
+      return `${indent}<svg viewBox="0 0 ${node.box.w} ${node.box.h}" className="${classes}">\n${paths}\n${indent}</svg>`;
+    }
+
 
     if (node.type === 'image') {
       const src =
