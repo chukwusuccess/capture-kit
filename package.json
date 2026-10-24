@@ -12,6 +12,8 @@
     "test:figma": "tsx packages/destinations/figma/test.ts",
     "test:html": "tsx packages/destinations/html/test.ts",
     "test:diff": "tsx tools/diff/test.ts",
+    "fidelity": "tsx tools/fidelity/run.ts",
+    "test:fidelity": "tsx tools/fidelity/test.ts",
     "test:markdown": "tsx packages/destinations/markdown/test.ts",
     "test:react": "tsx packages/destinations/react/test.ts",
     "test:extension": "tsx apps/extension/test.ts"
