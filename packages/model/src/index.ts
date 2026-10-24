@@ -43,6 +43,22 @@ export const ShadowSchema = z.object({
   color: z.string(),
   inset: z.boolean().optional(),
 });
+export const LayoutSchema = z.object({
+  mode: z.enum(['none', 'horizontal', 'vertical', 'grid']).default('none'),
+  gap: z.number().optional(),
+  paddingTop: z.number().optional(),
+  paddingRight: z.number().optional(),
+  paddingBottom: z.number().optional(),
+  paddingLeft: z.number().optional(),
+  justifyContent: z
+    .enum(['start', 'center', 'end', 'between', 'around', 'evenly'])
+    .optional(),
+  alignItems: z
+    .enum(['start', 'center', 'end', 'stretch', 'baseline'])
+    .optional(),
+  wrap: z.boolean().optional(),
+});
+
 
 export const StyleSchema = z.object({
   fills: z.array(FillSchema).default([]),
@@ -57,6 +73,7 @@ export const StyleSchema = z.object({
   shadows: z.array(ShadowSchema).default([]),
   clip: z.boolean().optional().default(false),
   clipPath: z.string().optional(),
+  layout: LayoutSchema.optional(),
 });
 
 export const TextRunSchema = z.object({
@@ -148,6 +165,7 @@ export type CornerRadius = z.infer<typeof CornerRadiusSchema>;
 export type Shadow = z.infer<typeof ShadowSchema>;
 export type Style = z.infer<typeof StyleSchema>;
 export type TextRun = z.infer<typeof TextRunSchema>;
+export type Layout = z.infer<typeof LayoutSchema>;
 export type TextProps = z.infer<typeof TextPropsSchema>;
 export type Asset = z.infer<typeof AssetSchema>;
 export type Font = z.infer<typeof FontSchema>;

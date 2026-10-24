@@ -4,6 +4,7 @@ import {
   type CornerRadius,
   type Fill,
   type Font,
+  type Layout,
   type Node,
   type Stroke,
   type TextProps,
@@ -206,6 +207,56 @@ function parseCssGradients(bgImage: string): Fill[] {
 
   return fills;
 }
+function parseLayout(computed: CSSStyleDeclaration): Layout | undefined {
+  const display = computed.display;
+  const isFlex = display === 'flex' || display === 'inline-flex';
+  const isGrid = display === 'grid' || display === 'inline-grid';
+
+  if (!isFlex && !isGrid) return undefined;
+
+  const mode = isGrid
+    ? 'grid'
+    : computed.flexDirection === 'column' || computed.flexDirection === 'column-reverse'
+    ? 'vertical'
+    : 'horizontal';
+
+  const gap = parseFloat(computed.gap) || parseFloat(computed.rowGap) || 0;
+  const paddingTop = parseFloat(computed.paddingTop) || 0;
+  const paddingRight = parseFloat(computed.paddingRight) || 0;
+  const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+  const paddingLeft = parseFloat(computed.paddingLeft) || 0;
+  const wrap = computed.flexWrap === 'wrap';
+
+  let justifyContent: Layout['justifyContent'];
+  const jc = computed.justifyContent.toLowerCase();
+  if (jc.includes('space-between') || jc.includes('between')) justifyContent = 'between';
+  else if (jc.includes('space-around') || jc.includes('around')) justifyContent = 'around';
+  else if (jc.includes('space-evenly') || jc.includes('evenly')) justifyContent = 'evenly';
+  else if (jc.includes('center')) justifyContent = 'center';
+  else if (jc.includes('flex-end') || jc.includes('end')) justifyContent = 'end';
+  else if (jc.includes('flex-start') || jc.includes('start')) justifyContent = 'start';
+
+  let alignItems: Layout['alignItems'];
+  const ai = computed.alignItems.toLowerCase();
+  if (ai.includes('center')) alignItems = 'center';
+  else if (ai.includes('flex-end') || ai.includes('end')) alignItems = 'end';
+  else if (ai.includes('stretch')) alignItems = 'stretch';
+  else if (ai.includes('baseline')) alignItems = 'baseline';
+  else if (ai.includes('flex-start') || ai.includes('start')) alignItems = 'start';
+
+  return {
+    mode,
+    gap: gap > 0 ? gap : undefined,
+    paddingTop: paddingTop > 0 ? paddingTop : undefined,
+    paddingRight: paddingRight > 0 ? paddingRight : undefined,
+    paddingBottom: paddingBottom > 0 ? paddingBottom : undefined,
+    paddingLeft: paddingLeft > 0 ? paddingLeft : undefined,
+    justifyContent,
+    alignItems,
+    wrap: wrap ? true : undefined,
+  };
+}
+
 function extractSvgPaths(
   svgEl: Element
 ): Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> {
@@ -681,6 +732,7 @@ async function serializeSubtree(
       shadows,
       clip: isClipped,
       clipPath,
+      layout: parseLayout(computed),
     };
 
     const tagName = el.tagName.toLowerCase();
