@@ -44,6 +44,15 @@ capture-kit/
 - Phase 4 (Done): Accuracy diff harness in `tools/diff`, full-page scroll stitching and lazy-load trigger, same-origin iframe traversal, and pseudo-elements (::before & ::after).
 - Phase 5 (Done): Production packaging (`pnpm package:extension`), store zip generation, persistent user options in Chrome storage, and standalone HTML export destination.
 
+## Quality & Fidelity Engine
+
+- **Native Auto-Layout Reconstruction**: Serializer reads `display: flex/grid`, `gap`, `padding`, `justify-content`, and `align-items`. Emits native Auto-Layout frames in Figma and Smart Layout in Sketch so components reflow naturally on edit.
+- **Vector Decomposition**: Decomposes inline `<svg>` child shapes (`<path d="...">`, `<circle>`, `<polygon>`) into native vector layers rather than flattening to bitmaps.
+- **Canvas & WebGL Snapshotting**: Automatically captures `<canvas>` 3D shaders, WebGL scenes, and charts as lossless PNG image assets via `canvas.toDataURL()`.
+- **CSS Clipping Masks**: Converts `overflow: hidden` and `clip-path` into native clipping masks in Sketch, Figma, SVG, and HTML.
+- **Character-Level Text Runs**: Preserves bold keywords, inline links, and italic spans inside single flowing text layers using `MSAttributedString` and `<tspan>`.
+- **Retina Asset Extraction**: Resolves highest-DPI candidates from `img.currentSrc` and responsive `<picture>` / `srcset` attributes.
+
 ## Commands
 
 Install dependencies:
