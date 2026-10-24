@@ -61,6 +61,43 @@ export async function triggerPageScroll(
     await delay(delayMs);
   }
 }
+
+/**
+ * After scrolling (which triggers lazy loading), wait for in-viewport images
+ */
+export async function waitForImages(
+  doc: Document,
+  opts?: { timeoutMs?: number; maxImages?: number }
+): Promise<number> {
+  const timeoutMs = opts?.timeoutMs ?? 2500;
+  const maxImages = opts?.maxImages ?? 60;
+  const imgs = Array.from(doc.querySelectorAll('img')).slice(0, maxImages);
+  if (imgs.length === 0) return 0;
+
+  let decoded = 0;
+  await Promise.all(
+    imgs.map(async (img) => {
+      try {
+        const el = img as HTMLImageElement;
+        if (el.complete && el.naturalWidth > 0) {
+          decoded += 1;
+          return;
+        }
+        if (typeof el.decode === 'function') {
+          await Promise.race([
+            el.decode().then(() => {
+              decoded += 1;
+            }),
+            delay(timeoutMs),
+          ]);
+        }
+      } catch {
+        // broken image or decode rejection: keep placeholder
+      }
+    })
+  );
+  return decoded;
+}
 export interface ElementPickerOptions {
   onSelect: (el: Element) => void;
   onCancel?: () => void;
@@ -2031,6 +2068,7 @@ export async function serializeDocument(
 
   if (opts?.scrollStitch && defaultView) {
     await triggerPageScroll(defaultView, opts.scrollOptions);
+    await waitForImages(doc);
   }
 
   const docEl = doc.documentElement;
