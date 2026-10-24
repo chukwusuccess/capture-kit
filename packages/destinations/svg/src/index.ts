@@ -60,6 +60,13 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
+    const vb = node.vectorViewBox;
+    const sx = vb && vb.width > 0 ? box.w / vb.width : 1;
+    const sy = vb && vb.height > 0 ? box.h / vb.height : 1;
+    const s = Math.min(sx, sy);
+    const dx = box.x + (box.w - (vb ? vb.width : box.w) * s) / 2;
+    const dy = box.y + (box.h - (vb ? vb.height : box.h) * s) / 2;
+    const scale = s === 1 ? '' : ` scale(${s})`;
     const paths = node.vectorPaths
       .map((p) => {
         const fill = p.fill ? ` fill="${escapeXml(p.fill)}"` : ' fill="currentColor"';
@@ -68,7 +75,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
         return `    <path d="${escapeXml(p.d)}"${fill}${stroke}${sw} />`;
       })
       .join('\n');
-    return `  <g id="${escapeXml(node.id)}" transform="translate(${box.x} ${box.y})"${opacityAttr}${filterAttr}>\n${paths}\n  </g>`;
+    return `  <g id="${escapeXml(node.id)}" transform="translate(${dx} ${dy})${scale}"${opacityAttr}${filterAttr}>\n${paths}\n  </g>`;
   }
 
 

@@ -115,7 +115,9 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
         return `      <path d="${escapeHtml(p.d)}"${fill}${stroke}${sw} />`;
       })
       .join('\n');
-    return `    <svg id="${escapeHtml(node.id)}"${styleAttr} viewBox="0 0 ${box.w} ${box.h}">\n${paths}\n    </svg>`;
+    const vb2 = node.vectorViewBox;
+    const vbAttr = vb2 ? `0 0 ${vb2.width} ${vb2.height}` : `0 0 ${box.w} ${box.h}`;
+    return `    <svg id="${escapeHtml(node.id)}"${styleAttr} viewBox="${vbAttr}">\n${paths}\n    </svg>`;
   }
 
 
