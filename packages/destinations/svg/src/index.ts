@@ -25,9 +25,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     if (!text) return '';
 
     const content = escapeXml(text.content);
-    // Baked geometry: start-anchored at the measured left edge (see figma
-    // destination for rationale).
-    const anchor = 'start';
+    // Bare x/y: the measured left edge is the only positioning signal.
     const textX = box.x;
 
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
@@ -45,11 +43,10 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
             .join('')
         : content;
 
-    const textLenAttr = box.w > 0 ? ` textLength="${box.w}" lengthAdjust="spacingAndGlyphs"` : '';
     const textY = box.y;
     return `  <text x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${textLenAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const vb = node.vectorViewBox;

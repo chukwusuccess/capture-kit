@@ -56,12 +56,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     if (!text) return '';
 
     const content = escapeXml(text.content);
-    // Baked geometry: emit everything start-anchored at the measured left
-    // edge. Importers that ignore text-anchor (Figma flattens center/right
-    // to start) then render exactly where capture measured; importers that
-    // honor it see start + x = left edge = same place. Centering comes from
-    // the measured box itself, not the anchor.
-    const anchor = 'start';
+    // Bare x/y: the measured left edge is the only positioning signal.
     const textX = box.x;
 
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
@@ -81,16 +76,15 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
           .join('')
         : content;
 
-    // Position-exact text: textLength pins the advance width to the measured
-    // box so the glyphs land where capture put them even when the importer
-    // substitutes fonts with different metrics. spacingAndGlyphs allows
-    // condensing/expanding; without it only spacing adjusts and CJK-like
-    // wide substitutions still overflow.
-    const textLenAttr = box.w > 0 ? ` textLength="${box.w}" lengthAdjust="spacingAndGlyphs"` : '';
     const textY = box.y;
+    // Bare x/y, no anchor, no textLength: position comes ONLY from the
+    // measured left edge. Importers that reflow on text-anchor or drop
+    // textLength (Figma does both) then have nothing to reinterpret — the
+    // text starts exactly where capture measured it. Width drift from font
+    // substitution can only extend rightward, never displace left.
     return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr} text-anchor="${anchor}"${textLenAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     // Path data lives in viewBox units: scale into the laid-out box with a
