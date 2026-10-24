@@ -101,12 +101,14 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
 
 
   if (type === 'image') {
+    const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
+    const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
     if (node.assetRef && assets[node.assetRef]) {
       const asset = assets[node.assetRef];
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
       return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
         box.w
-      }" height="${box.h}" href="${dataUri}" preserveAspectRatio="none"${opacityAttr}${rx}${transformStyle} />`;
+      }" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformStyle} />`;
     }
     return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
@@ -129,7 +131,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
     return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" href="${dataUri}" preserveAspectRatio="none"${opacityAttr}${rx}${transformStyle} />`;
+    }" height="${box.h}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"${opacityAttr}${rx}${transformStyle} />`;
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';

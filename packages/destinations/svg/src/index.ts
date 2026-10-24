@@ -73,7 +73,19 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     if (node.assetRef && assets[node.assetRef]) {
       const asset = assets[node.assetRef];
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
-      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="none"${opacityAttr}${transformStyle} />`;
+      const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
+      const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
+      if (fit === 'cover') {
+        return [
+          `  <clipPath id="imgclip-${escapeXml(node.id)}">`,
+          `    <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"${rx} />`,
+          '  </clipPath>',
+          `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformStyle}>`,
+          `    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}" />`,
+          '  </g>',
+        ].join('\n');
+      }
+      return `  <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${transformStyle} />`;
     }
     return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="#cccccc"${rx}${opacityAttr}${transformStyle} />`;
   }

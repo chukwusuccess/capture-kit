@@ -229,7 +229,9 @@ export function modelToReact(
         node.assetRef && capture.assets[node.assetRef]
           ? `data:${capture.assets[node.assetRef].mimeType};base64,${capture.assets[node.assetRef].base64}`
           : 'https://placehold.co/400x300';
-      return `${indent}<img src="${src}" alt="${node.id}" className="${classes} object-cover"${styleAttr} />`;
+      const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
+      const fitCls = fit === 'cover' ? 'object-cover' : fit === 'contain' ? 'object-contain' : fit === 'none' ? 'object-none' : 'object-fill';
+      return `${indent}<img src="${src}" alt="${node.id}" className="${classes} ${fitCls}"${styleAttr} />`;
     }
 
     if (children.length === 0) {
