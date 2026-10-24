@@ -46,6 +46,18 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.clipPath) {
     styles.push(`clip-path: ${style.clipPath}`);
   }
+  // Pixel-fidelity fields (only set when non-default)
+  if (style.transform) styles.push(`transform: ${style.transform}`);
+  if (style.transformOrigin) styles.push(`transform-origin: ${style.transformOrigin}`);
+  if (style.filter) styles.push(`filter: ${style.filter}`);
+  if (style.backdropFilter) styles.push(`backdrop-filter: ${style.backdropFilter}`);
+  if (style.mixBlendMode) styles.push(`mix-blend-mode: ${style.mixBlendMode}`);
+  if (style.backgroundSize) styles.push(`background-size: ${style.backgroundSize}`);
+  if (style.backgroundPosition) styles.push(`background-position: ${style.backgroundPosition}`);
+  if (style.backgroundRepeat) styles.push(`background-repeat: ${style.backgroundRepeat}`);
+  if (style.backgroundClip) {
+    styles.push(`background-clip: ${style.backgroundClip}`, `-webkit-background-clip: ${style.backgroundClip}`);
+  }
   // Layout
   if (style.layout && style.layout.mode !== 'none') {
     if (style.layout.mode === 'grid') {
@@ -97,14 +109,13 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
-    styles.push(
-      `background-image: url('data:${asset.mimeType};base64,${asset.base64}')`,
-      'background-size: cover',
-      'background-position: center'
-    );
+    styles.push(`background-image: url('data:${asset.mimeType};base64,${asset.base64}')`);
+    // Defaults only when the capture didn't record a real value (CSS last-wins).
+    if (!style.backgroundSize) styles.push('background-size: cover');
+    if (!style.backgroundPosition) styles.push('background-position: center');
   }
 
-  const styleAttr = ` style="${styles.join('; ')}"`;
+  const styleAttr = ` style="${escapeHtml(styles.join('; '))}"`;
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
       .map((p) => {
@@ -118,11 +129,11 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   }
 
 
-  if (type === 'image') {
+    if (type === 'image') {
     if (assetRef && assets[assetRef]) {
       const asset = assets[assetRef];
       const src = `data:${asset.mimeType};base64,${asset.base64}`;
-      return `    <img id="${escapeHtml(node.id)}"${styleAttr} src="${src}" alt="Captured image" style="${styles.join('; ')}; object-fit: cover;" />`;
+      return `    <img id="${escapeHtml(node.id)}" src="${src}" alt="Captured image" style="${escapeHtml(`${styles.join('; ')}; object-fit: cover`)}" />`;
     }
     return `    <div id="${escapeHtml(node.id)}"${styleAttr}></div>`;
   }
@@ -142,8 +153,15 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     if (text.letterSpacing) {
       textStyles.push(`letter-spacing: ${typeof text.letterSpacing === 'number' ? `${text.letterSpacing}px` : text.letterSpacing}`);
     }
+    if (text.italic) textStyles.push('font-style: italic');
+    if (text.decoration) textStyles.push(`text-decoration: ${text.decoration}`);
+    if (text.textTransform) textStyles.push(`text-transform: ${text.textTransform}`);
+    if (text.textShadow) textStyles.push(`text-shadow: ${text.textShadow}`);
+    if (text.overflow === 'ellipsis') {
+      textStyles.push('overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap');
+    }
 
-    return `    <div id="${escapeHtml(node.id)}" style="${textStyles.join('; ')}">${escapeHtml(text.content)}</div>`;
+    return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${escapeHtml(text.content)}</div>`;
   }
 
   return `    <div id="${escapeHtml(node.id)}"${styleAttr}></div>`;
