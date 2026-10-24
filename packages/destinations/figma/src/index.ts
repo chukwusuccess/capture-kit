@@ -198,19 +198,23 @@ function buildFigmaDefs(captures: Capture[]): string {
     for (const node of capture.nodes) {
       const gradFill = node.style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
       if (gradFill && gradFill.stops) {
-        const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
-        const cos = Math.cos(angleRad);
-        const sin = Math.sin(angleRad);
-        const x1 = `${Math.round((0.5 - cos * 0.5) * 100)}%`;
-        const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
-        const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
-        const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
-
         const stops = gradFill.stops
           .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
           .join('\n');
 
-        defs.push(`    <linearGradient id="grad-${escapeXml(node.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
+        if (gradFill.gradientType === 'radial') {
+          defs.push(`    <radialGradient id="grad-${escapeXml(node.id)}" cx="50%" cy="50%" r="75%">\n${stops}\n    </radialGradient>`);
+        } else {
+          const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
+          const cos = Math.cos(angleRad);
+          const sin = Math.sin(angleRad);
+          const x1 = `${Math.round((0.5 - cos * 0.5) * 100)}%`;
+          const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
+          const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
+          const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
+
+          defs.push(`    <linearGradient id="grad-${escapeXml(node.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
+        }
       }
 
       if (node.style.clip) {

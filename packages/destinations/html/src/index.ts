@@ -89,7 +89,11 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     const stopsStr = gradFill.stops
       .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
       .join(', ');
-    styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+    if (gradFill.gradientType === 'radial') {
+      styles.push(`background-image: radial-gradient(circle, ${stopsStr})`);
+    } else {
+      styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+    }
   }
 
 
