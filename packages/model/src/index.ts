@@ -85,6 +85,9 @@ export const StyleSchema = z.object({
   backgroundPosition: z.string().optional(),
   backgroundRepeat: z.string().optional(),
   backgroundClip: z.string().optional(),
+  // CSS mask-image (e.g. radial fade on glow washes): capture the raw value;
+  // destinations render it as an SVG mask so masked nodes don't paint solid.
+  maskImage: z.string().optional(),
 });
 
 export const TextRunSchema = z.object({
