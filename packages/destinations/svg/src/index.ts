@@ -54,10 +54,11 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
             .join('')
         : content;
 
+    const textLenAttr = box.w > 0 ? ` textLength="${box.w}" lengthAdjust="spacingAndGlyphs"` : '';
     const textY = box.y;
     return `  <text x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}" text-anchor="${anchor}"${textLenAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const vb = node.vectorViewBox;

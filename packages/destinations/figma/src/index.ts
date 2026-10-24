@@ -87,10 +87,16 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
           .join('')
         : content;
 
+    // Position-exact text: textLength pins the advance width to the measured
+    // box so the glyphs land where capture put them even when the importer
+    // substitutes fonts with different metrics. spacingAndGlyphs allows
+    // condensing/expanding; without it only spacing adjusts and CJK-like
+    // wide substitutions still overflow.
+    const textLenAttr = box.w > 0 ? ` textLength="${box.w}" lengthAdjust="spacingAndGlyphs"` : '';
     const textY = box.y;
     return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr} text-anchor="${anchor}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr} text-anchor="${anchor}"${textLenAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     // Path data lives in viewBox units: scale into the laid-out box with a
