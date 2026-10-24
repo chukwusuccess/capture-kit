@@ -260,6 +260,50 @@ function parseCssGradients(bgImage: string): Fill[] {
       }
     }
   }
+  const radialMatches = bgImage.matchAll(/radial-gradient\(\s*([^()]+|\([^()]*\))+\)/gi);
+  for (const m of radialMatches) {
+    const inside = m[0].replace(/^radial-gradient\(\s*|\s*\)$/gi, '').trim();
+    const parts = inside.split(/,(?![^(]*\))/).map((s) => s.trim());
+    if (parts.length < 1) continue;
+
+    // Skip the optional shape/size/position preamble (circle, ellipse, at center…).
+    let stopStartIndex = 0;
+    const first = parts[0].toLowerCase();
+    if (
+      first.includes('circle') ||
+      first.includes('ellipse') ||
+      first.includes('closest') ||
+      first.includes('farthest') ||
+      first.includes('at ') ||
+      /^\d/.test(first)
+    ) {
+      stopStartIndex = 1;
+    }
+
+    const rawStops = parts.slice(stopStartIndex);
+    const stops: Array<{ color: string; position: number }> = [];
+
+    for (let i = 0; i < rawStops.length; i++) {
+      const s = rawStops[i];
+      const match = s.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+)(?:\s+([\d.]+)%)?/i);
+      if (match) {
+        const color = match[1];
+        const defaultPos = rawStops.length > 1 ? i / (rawStops.length - 1) : 0;
+        const position = match[2] ? parseFloat(match[2]) / 100 : defaultPos;
+        stops.push({ color, position: Math.max(0, Math.min(1, position)) });
+      }
+    }
+
+    if (stops.length >= 2) {
+      fills.push({
+        type: 'gradient',
+        gradientType: 'radial',
+        stops,
+        opacity: 1,
+      });
+    }
+  }
+
 
   return fills;
 }
