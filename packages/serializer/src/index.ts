@@ -336,8 +336,7 @@ function parseTransformMatrix(value: string | undefined): Affine | null {
         Math.abs(v[6]) < 1e-6 && Math.abs(v[7]) < 1e-6 &&
         Math.abs(v[8]) < 1e-6 && Math.abs(v[9]) < 1e-6 &&
         Math.abs(v[10] - 1) < 1e-6 && Math.abs(v[11]) < 1e-6 &&
-        Math.abs(v[12]) < 1e-6 && Math.abs(v[13]) < 1e-6 &&
-        Math.abs(v[14]) < 1e-6 && Math.abs(v[15] - 1) < 1e-6;
+        Math.abs(v[15] - 1) < 1e-6;
       if (!identity3d) return null; // real 3D — caller falls back to raw emit
       return { a: v[0], b: v[1], c: v[4], d: v[5], e: v[12], f: v[13] };
     }
@@ -440,6 +439,9 @@ function freezeTransform(el: Element, defaultView: Window & typeof globalThis): 
     (values.rotate && values.rotate !== 'none' && values.rotate !== '0deg') ||
     (values.scale && values.scale !== 'none' && values.scale !== '1');
   if (!active) return null;
+  if (values.transform !== 'none' && !parseTransformMatrix(values.transform)) {
+    return null;
+  }
 
   const origin = cs.transformOrigin ?? '50% 50%';
   const props = ['transform', 'translate', 'rotate', 'scale'];
@@ -470,7 +472,11 @@ function thawTransform(el: Element, frozen: FrozenTransform): void {
 // Build a single affine from an element's saved transform state. Per spec the
 // individual properties compose as translate ∘ rotate ∘ scale ∘ transform.
 // Returns null when a real 3D transform makes it inexpressible in 2D.
-function affineFromFrozen(f: FrozenTransform): Affine | null {
+function affineFromFrozen(
+  f: FrozenTransform,
+  boxW = 0,
+  boxH = 0
+): Affine | null {
   const base = parseTransformMatrix(f.transform);
   if (f.transform !== 'none' && !base) return null;
   let m: Affine = base ?? IDENTITY;
@@ -492,9 +498,16 @@ function affineFromFrozen(f: FrozenTransform): Affine | null {
   };
   const applyTranslate = (raw: string): boolean => {
     if (!raw || raw === 'none' || raw === '0px') return true;
-    const nums = raw.split(/[\s,]+/).filter(Boolean).map(parseFloat);
-    if (nums.length === 0 || nums.some((n) => Number.isNaN(n))) return false;
-    m = affineCompose({ a: 1, b: 0, c: 0, d: 1, e: nums[0] ?? 0, f: nums[1] ?? 0 }, m);
+    const tokens = raw.split(/[\s,]+/).filter(Boolean);
+    if (tokens.length === 0) return false;
+    const resolveTok = (tok: string | undefined, baseDim: number): number => {
+      if (!tok) return 0;
+      if (tok.endsWith('%')) return ((parseFloat(tok) || 0) / 100) * baseDim;
+      return parseFloat(tok) || 0;
+    };
+    const tx = resolveTok(tokens[0], boxW);
+    const ty = resolveTok(tokens[1], boxH);
+    m = affineCompose({ a: 1, b: 0, c: 0, d: 1, e: tx, f: ty }, m);
     return true;
   };
   if (!applyScale(f.scale) || !applyRotate(f.rotate) || !applyTranslate(f.translate)) return null;
@@ -546,17 +559,17 @@ function chainMatrix(
     if (!state.transformed.has(node)) return true;
     const f = state.frozen.get(node);
     if (!f) return true;
-    const m = affineFromFrozen(f);
-    if (!m) {
-      failed = true;
-      return false;
-    }
     // Measure on demand — layout space while transforms are frozen.
     let b = state.boxes.get(node);
     if (!b) {
       const r = node.getBoundingClientRect();
       b = { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
       state.boxes.set(node, b);
+    }
+    const m = affineFromFrozen(f, b.w, b.h);
+    if (!m) {
+      failed = true;
+      return false;
     }
     const origin = resolveOrigin(f.origin, b.w, b.h);
     const about = affineAbout(m, b.x + origin.x, b.y + origin.y);
@@ -1009,15 +1022,7 @@ async function extractWebFonts(
             const weight = style.fontWeight || '400';
             const fontStyle = style.fontStyle || 'normal';
 
-            if (!seenFamilies.has(family)) {
-              seenFamilies.add(family);
-              fonts.push({
-                family,
-                weight,
-                style: fontStyle,
-              });
-            }
-
+            let assetRef: string | undefined;
             const srcDeclaration =
               typeof style.getPropertyValue === 'function'
                 ? style.getPropertyValue('src')
@@ -1034,6 +1039,7 @@ async function extractWebFonts(
                     mimeType: dataMatch[1],
                     base64: dataMatch[2],
                   };
+                  assetRef = assetKey;
                 }
               } else {
                 try {
@@ -1051,12 +1057,24 @@ async function extractWebFonts(
                         mimeType: blob.type || 'font/woff2',
                         base64,
                       };
+                      assetRef = assetKey;
                     }
                   }
                 } catch {
                   // Ignore font fetch failure
                 }
               }
+            }
+
+            const fontIdentity = `${family}|${weight}|${fontStyle}`;
+            if (!seenFamilies.has(fontIdentity)) {
+              seenFamilies.add(fontIdentity);
+              fonts.push({
+                family,
+                weight,
+                style: fontStyle,
+                assetRef,
+              });
             }
           }
         }
@@ -1113,7 +1131,13 @@ async function serializeSubtree(
     while (n) {
       if (n.nodeType === 1) {
         const el = n as Element;
-        if (!IGNORED_TAGS[el.tagName.toLowerCase()]) elements.push(el);
+        const tag = el.tagName.toLowerCase();
+        if (
+          !IGNORED_TAGS[tag] &&
+          (!el.closest || !el.closest('svg') || tag === 'svg')
+        ) {
+          elements.push(el);
+        }
       }
       n = walker.nextNode();
     }
@@ -1180,7 +1204,12 @@ async function serializeSubtree(
     }
 
     const computed = defaultView.getComputedStyle(el);
-    if (!computed || computed.display === 'none' || computed.visibility === 'hidden') {
+    if (
+      !computed ||
+      computed.display === 'none' ||
+      computed.visibility === 'hidden' ||
+      parseFloat(computed.opacity) <= 0.001
+    ) {
       hiddenAncestors.add(el);
       continue;
     }
@@ -1355,6 +1384,11 @@ async function serializeSubtree(
         }
 
         if (svgString) {
+          const currentColor = computed.color || 'rgba(0, 0, 0, 1)';
+          svgString = svgString.replace(/currentColor/gi, currentColor);
+          if (!svgString.includes('xmlns=')) {
+            svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+          }
           const base64 = btoa(unescape(encodeURIComponent(svgString)));
           const assetKey = `asset-${nextAssetId++}`;
           assets[assetKey] = {
@@ -1369,16 +1403,15 @@ async function serializeSubtree(
       }
 
       const vectorPaths = extractSvgPaths(el);
-      const isVector = vectorPaths.length > 0;
 
       nodes.push({
         id: nodeId,
         parentId,
-        type: isVector ? 'vector' : 'image',
+        type: 'image',
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
         style,
         assetRef,
-        vectorPaths: isVector ? vectorPaths : undefined,
+        vectorPaths: vectorPaths.length > 0 ? vectorPaths : undefined,
       });
       continue;
     }
@@ -1618,17 +1651,63 @@ async function serializeSubtree(
         : letterSpacingValue;
 
       // Content box, not border box: text never starts under the padding.
-      const num2 = (v: string | undefined): number => Math.max(0, parseFloat(v ?? "") || 0);
+      const num2 = (v: string | undefined): number => Math.max(0, parseFloat(v ?? '') || 0);
       const cbX = x + num2(computed.borderLeftWidth) + num2(computed.paddingLeft);
       const cbY = y + num2(computed.borderTopWidth) + num2(computed.paddingTop);
       const cbW = Math.max(
         1,
-        w - num2(computed.borderLeftWidth) - num2(computed.borderRightWidth) - num2(computed.paddingLeft) - num2(computed.paddingRight)
+        w -
+          num2(computed.borderLeftWidth) -
+          num2(computed.borderRightWidth) -
+          num2(computed.paddingLeft) -
+          num2(computed.paddingRight) +
+          2
       );
       const cbH = Math.max(
         1,
-        h - num2(computed.borderTopWidth) - num2(computed.borderBottomWidth) - num2(computed.paddingTop) - num2(computed.paddingBottom)
+        h -
+          num2(computed.borderTopWidth) -
+          num2(computed.borderBottomWidth) -
+          num2(computed.paddingTop) -
+          num2(computed.paddingBottom)
       );
+
+      let runs: Array<{ text: string; fontFamily?: string; fontSize?: number; fontWeight?: string | number; color?: string }> | undefined;
+      if (typeof doc.createRange === 'function' && childTextNodes.length === 1) {
+        try {
+          const tNode = childTextNodes[0];
+          const fullStr = tNode.textContent || '';
+          const range = doc.createRange();
+          range.selectNodeContents(tNode);
+          const clientRects = range.getClientRects();
+          if (clientRects && clientRects.length > 1) {
+            const lineRuns: Array<{ text: string }> = [];
+            let currentLine = '';
+            let prevTop: number | null = null;
+            const charRange = doc.createRange();
+            for (let ci = 0; ci < fullStr.length; ci++) {
+              charRange.setStart(tNode, ci);
+              charRange.setEnd(tNode, ci + 1);
+              const cr = charRange.getBoundingClientRect();
+              if (cr.width === 0 && cr.height === 0) {
+                currentLine += fullStr[ci];
+                continue;
+              }
+              if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
+                if (currentLine.trim()) lineRuns.push({ text: currentLine.trim() });
+                currentLine = fullStr[ci];
+              } else {
+                currentLine += fullStr[ci];
+              }
+              prevTop = cr.top;
+            }
+            if (currentLine.trim()) lineRuns.push({ text: currentLine.trim() });
+            if (lineRuns.length > 1) runs = lineRuns;
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       nodes.push({
         id: nodeId,
@@ -1645,6 +1724,7 @@ async function serializeSubtree(
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
           color: computed.color || 'rgba(0, 0, 0, 1)',
+          ...(runs ? { runs } : {}),
           ...extractTextFidelity(computed),
         },
       });
@@ -1690,19 +1770,11 @@ async function serializeSubtree(
       const contentBox = {
         x: x + num(computed.borderLeftWidth) + num(computed.paddingLeft),
         y: y + num(computed.borderTopWidth) + num(computed.paddingTop),
-        w: Math.max(1, w - num(computed.borderLeftWidth) - num(computed.borderRightWidth) - num(computed.paddingLeft) - num(computed.paddingRight)),
+        w: Math.max(1, w - num(computed.borderLeftWidth) - num(computed.borderRightWidth) - num(computed.paddingLeft) - num(computed.paddingRight) + 2),
         h: Math.max(1, h - num(computed.borderTopWidth) - num(computed.borderBottomWidth) - num(computed.paddingTop) - num(computed.paddingBottom)),
       };
 
-      const isSingleTextLeaf = childTextNodes.length === 1 && !hasChildren;
-      if (isSingleTextLeaf) {
-        textX = contentBox.x;
-        textY = contentBox.y;
-        textW = contentBox.w;
-        textH = contentBox.h;
-      } else if (typeof doc.createRange === 'function') {
-        // Mixed content: text fragments interleaved with children — only the
-        // Range knows where each run sits.
+      if (typeof doc.createRange === 'function') {
         try {
           const range = doc.createRange();
           range.selectNodeContents(textNode);
@@ -1710,7 +1782,7 @@ async function serializeSubtree(
           if (rangeRect.width > 0 && rangeRect.height > 0) {
             textX = rangeRect.left + scrollX - frameRect.originX;
             textY = rangeRect.top + scrollY - frameRect.originY;
-            textW = rangeRect.width;
+            textW = rangeRect.width + 2;
             textH = rangeRect.height;
           } else {
             textX = contentBox.x;
@@ -1724,6 +1796,11 @@ async function serializeSubtree(
           textW = contentBox.w;
           textH = contentBox.h;
         }
+      } else {
+        textX = contentBox.x;
+        textY = contentBox.y;
+        textW = contentBox.w;
+        textH = contentBox.h;
       }
 
       const fontSize = parseFloat(computed.fontSize) || 16;
