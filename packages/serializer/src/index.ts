@@ -1254,7 +1254,7 @@ async function serializeSubtree(
 
   const capture = emptyCapture({
     url: defaultView.location?.href || baseURI,
-    version: '0.1.1',
+    version: '0.1.2',
     frame: {
       width: Math.max(1, Math.round(frameRect.width)),
       height: Math.max(1, Math.round(frameRect.height)),
@@ -2265,7 +2265,7 @@ export async function serializeDocument(
   if (!targetRoot) {
     return emptyCapture({
       url: defaultView.location?.href || 'about:blank',
-      version: '0.1.1',
+      version: '0.1.2',
     });
   }
 
