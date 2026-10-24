@@ -147,9 +147,13 @@ export function modelToSvg(capture: Capture): string {
     .filter(Boolean)
     .join('\n');
 
+  const frameBg = capture.frame.background
+    ? `  <rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXml(capture.frame.background)}" />`
+    : '';
   return [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`,
     buildSvgDefs(capture),
+    frameBg,
     elements,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }

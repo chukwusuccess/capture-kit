@@ -260,9 +260,14 @@ function buildFigmaSvg(captures: Capture[]): string {
   const defs = buildFigmaDefs(captures);
   if (captures.length === 1) {
     const { width, height } = captures[0].frame;
+    const frameBg = captures[0].frame.background;
+    const bgRect = frameBg
+      ? `  <rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXml(frameBg)}" />\n`
+      : '';
     return [
       `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
       defs,
+      bgRect.trimEnd(),
       `  <g id="Frame" clip-path="url(#frame-clip-0)" data-clips-content="true">`,
       buildFigmaLayers(captures[0]),
       '  </g>',

@@ -156,14 +156,14 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string {
   const standalone = opts?.standalone ?? true;
   const title = opts?.title ?? 'Captured Document';
-  const { width, height } = capture.frame;
+  const frameBg = capture.frame.background || '#ffffff';
 
   const renderedNodes = capture.nodes
     .map((node) => renderNodeToHtml(node, capture.assets))
     .join('\n');
 
   const canvasHtml = [
-    `  <div class="capture-canvas" style="position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: #ffffff;">`,
+  `  <div class="capture-canvas" style="position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: ${escapeHtml(frameBg)};">`,
     renderedNodes,
     '  </div>',
   ].join('\n');
