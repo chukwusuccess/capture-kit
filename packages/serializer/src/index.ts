@@ -1322,3 +1322,4 @@ export function startElementPicker(
 
   return cleanup;
 }
+export * from './replica.js';
