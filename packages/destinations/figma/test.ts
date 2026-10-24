@@ -118,6 +118,14 @@ function runFigmaDestinationTests() {
     'Font size missing on text node'
   );
 
+  assert.ok(
+    !payload.svg.includes('dominant-baseline="text-before-edge"'),
+    'Should not emit dominant-baseline="text-before-edge" (ignored by Figma)'
+  );
+  assert.ok(
+    payload.svg.includes('x="70" y="93"'),
+    'Text baseline y should be placed inside the text box (70 + 32/2 + 20*0.35 = 93)'
+  );
   // 6. Assert embedded image data URI
   assert.ok(
     payload.svg.includes('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA'),

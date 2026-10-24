@@ -25,9 +25,14 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     if (!text) return '';
 
     const content = escapeXml(text.content);
-    // Bare x/y: the measured left edge is the only positioning signal.
-    const textX = box.x;
-
+    const anchor = text.align === 'center' ? 'middle' : text.align === 'right' ? 'end' : 'start';
+    const anchorAttr = anchor !== 'start' ? ` text-anchor="${anchor}"` : '';
+    const textX =
+      anchor === 'middle'
+        ? Math.round((box.x + box.w / 2) * 100) / 100
+        : anchor === 'end'
+        ? Math.round((box.x + box.w) * 100) / 100
+        : box.x;
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
     const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
     const textFillAttr = textGradFill ? `url(#grad-${escapeXml(node.id)})` : escapeXml(text.color);
@@ -43,8 +48,10 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
             .join('')
         : content;
 
-    const textY = box.y;
-    return `  <text x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
+    const hasMultiRuns = Boolean(text.runs && text.runs.length > 1);
+    const firstLineH = hasMultiRuns ? lh : box.h > 0 ? box.h : lh;
+    const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.35) * 100) / 100;
+    return `  <text x="${textX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}"${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }

@@ -56,9 +56,14 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     if (!text) return '';
 
     const content = escapeXml(text.content);
-    // Bare x/y: the measured left edge is the only positioning signal.
-    const textX = box.x;
-
+    const anchor = text.align === 'center' ? 'middle' : text.align === 'right' ? 'end' : 'start';
+    const anchorAttr = anchor !== 'start' ? ` text-anchor="${anchor}"` : '';
+    const textX =
+      anchor === 'middle'
+        ? Math.round((box.x + box.w / 2) * 100) / 100
+        : anchor === 'end'
+        ? Math.round((box.x + box.w) * 100) / 100
+        : box.x;
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
     const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
     // bg-clip:text nodes carry the gradient in fills with a transparent text
@@ -76,13 +81,13 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
           .join('')
         : content;
 
-    const textY = box.y;
-    // Bare x/y, no anchor, no textLength: position comes ONLY from the
-    // measured left edge. Importers that reflow on text-anchor or drop
-    // textLength (Figma does both) then have nothing to reinterpret — the
-    // text starts exactly where capture measured it. Width drift from font
-    // substitution can only extend rightward, never displace left.
-    return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}" dominant-baseline="text-before-edge" font-family="${escapeXml(
+    // Figma's SVG importer ignores dominant-baseline="text-before-edge" and
+    // treats y as the alphabetic baseline. Compute the true baseline from the
+    // first line's vertical midpoint plus cap-height half-offset (0.35 * em).
+    const hasMultiRuns = Boolean(text.runs && text.runs.length > 1);
+    const firstLineH = hasMultiRuns ? lh : box.h > 0 ? box.h : lh;
+    const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.35) * 100) / 100;
+    return `    <text id="${escapeXml(node.id)}" x="${textX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr}${opacityAttr}${transformStyle}${filterAttr}>${innerContent}</text>`;
   }
