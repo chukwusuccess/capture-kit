@@ -575,15 +575,18 @@ function buildSketchLayerTree(
       (node.style.shadows && node.style.shadows.length > 0) ||
       (node.style.radius && node.style.radius.topLeft > 0);
 
-    if (hasVisuals) {
+    if (hasVisuals || node.style.clip) {
       const bgRectNode: Node = {
         ...node,
         id: `${node.id}-bg`,
         box: { x: node.box.x, y: node.box.y, w: node.box.w, h: node.box.h },
       };
-      groupLayers.push(
-        convertNodeToSketchLayer(bgRectNode, assets, node.box.x, node.box.y)
-      );
+      const bgLayer = convertNodeToSketchLayer(bgRectNode, assets, node.box.x, node.box.y);
+      if (node.style.clip) {
+        bgLayer.hasClippingMask = true;
+        bgLayer.clippingMaskMode = 0;
+      }
+      groupLayers.push(bgLayer);
     }
 
     // Process children relative to container origin

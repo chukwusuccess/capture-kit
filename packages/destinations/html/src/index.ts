@@ -39,6 +39,14 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.opacity < 1) {
     styles.push(`opacity: ${style.opacity}`);
   }
+  // Clipping
+  if (style.clip) {
+    styles.push('overflow: hidden');
+  }
+  if (style.clipPath) {
+    styles.push(`clip-path: ${style.clipPath}`);
+  }
+
 
   // Radius
   const r = style.radius;

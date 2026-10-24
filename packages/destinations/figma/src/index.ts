@@ -141,8 +141,12 @@ function buildFigmaLayers(capture: Capture): string {
     const selfLayer = renderNodeToFigmaSvg(node, capture.assets);
     const childrenSvg = children.map(renderTree).join('\n');
 
+    const clipAttr = node.style.clip
+      ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"`
+      : '';
+
     return [
-      `  <g id="group-${escapeXml(node.id)}">`,
+      `  <g id="group-${escapeXml(node.id)}"${clipAttr}>`,
       selfLayer,
       childrenSvg,
       '  </g>',
@@ -171,6 +175,13 @@ function buildFigmaDefs(captures: Capture[]): string {
           .join('\n');
 
         defs.push(`    <linearGradient id="grad-${escapeXml(node.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
+      }
+
+      if (node.style.clip) {
+        const rx = node.style.radius?.topLeft ? ` rx="${node.style.radius.topLeft}"` : '';
+        defs.push(
+          `    <clipPath id="clip-${escapeXml(node.id)}">\n      <rect x="${node.box.x}" y="${node.box.y}" width="${node.box.w}" height="${node.box.h}"${rx} />\n    </clipPath>`
+        );
       }
     }
   }
