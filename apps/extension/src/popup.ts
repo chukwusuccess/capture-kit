@@ -527,7 +527,7 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
         zip.file(`${name}.svg`, svg);
         fileLinks.push({ name, file: `${name}.svg` });
       } else if (format === 'html') {
-        const html = modelToHtml(capture);
+        const html = capture.replica ?? modelToHtml(capture);
         zip.file(`${name}.html`, html);
         fileLinks.push({ name, file: `${name}.html` });
       } else if (format === 'react') {
@@ -567,7 +567,7 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
   const name = fileName(capture, withWidth);
   if (format === 'sketch') triggerDownload(await modelToSketch(capture), `${name}.sketch`);
   else if (format === 'svg') triggerDownload(new Blob([modelToSvg(capture)], { type: 'image/svg+xml' }), `${name}.svg`);
-  else if (format === 'html') triggerDownload(new Blob([modelToHtml(capture)], { type: 'text/html' }), `${name}.html`);
+  else if (format === 'html') triggerDownload(new Blob([capture.replica ?? modelToHtml(capture)], { type: 'text/html' }), `${name}.html`);
   else if (format === 'react') triggerDownload(new Blob([modelToReact(capture)], { type: 'text/typescript' }), `${name}.tsx`);
   else if (format === 'md') triggerDownload(new Blob([modelToMarkdown(capture)], { type: 'text/markdown' }), `${name}.md`);
   else triggerDownload(new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' }), `${name}.json`);
@@ -690,6 +690,7 @@ captureBtn?.addEventListener('click', async () => {
       urls,
       widths,
       scrollStitch: optScrollStitch?.checked ?? false,
+      replica: getFormat() === 'html',
       tabId: currentTabId,
       origin: siteOrigin,
     })) as CaptureMessageResponse | undefined;
