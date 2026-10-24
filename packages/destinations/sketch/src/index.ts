@@ -352,23 +352,49 @@ function convertNodeToSketchLayer(
       attributedString: {
         _class: 'attributedString',
         string: content,
-        attributes: [
-          {
-            _class: 'stringAttribute',
-            location: 0,
-            length: content.length,
-            attributes: {
-              MSAttributedStringFontAttribute: {
-                _class: 'fontDescriptor',
-                attributes: {
-                  name: textProps.fontFamily,
-                  size: textProps.fontSize,
+        attributes:
+          textProps.runs && textProps.runs.length > 0
+            ? (() => {
+                const attrs: Array<Record<string, unknown>> = [];
+                let loc = 0;
+                for (const r of textProps.runs) {
+                  const rColor = r.color ? parseCssColor(r.color) : textColor;
+                  attrs.push({
+                    _class: 'stringAttribute',
+                    location: loc,
+                    length: r.text.length,
+                    attributes: {
+                      MSAttributedStringFontAttribute: {
+                        _class: 'fontDescriptor',
+                        attributes: {
+                          name: r.fontFamily || textProps.fontFamily,
+                          size: r.fontSize || textProps.fontSize,
+                        },
+                      },
+                      MSAttributedStringColorAttribute: rColor,
+                    },
+                  });
+                  loc += r.text.length;
+                }
+                return attrs;
+              })()
+            : [
+                {
+                  _class: 'stringAttribute',
+                  location: 0,
+                  length: content.length,
+                  attributes: {
+                    MSAttributedStringFontAttribute: {
+                      _class: 'fontDescriptor',
+                      attributes: {
+                        name: textProps.fontFamily,
+                        size: textProps.fontSize,
+                      },
+                    },
+                    MSAttributedStringColorAttribute: textColor,
+                  },
                 },
-              },
-              MSAttributedStringColorAttribute: textColor,
-            },
-          },
-        ],
+              ],
       },
       automaticallyDrawOnUnderlyingPath: false,
       dontSynchroniseWithSymbol: false,

@@ -59,6 +59,16 @@ export const StyleSchema = z.object({
   clipPath: z.string().optional(),
 });
 
+export const TextRunSchema = z.object({
+  text: z.string(),
+  fontFamily: z.string().optional(),
+  fontSize: z.number().optional(),
+  fontWeight: z.union([z.string(), z.number()]).optional(),
+  color: z.string().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+});
+
 export const TextPropsSchema = z.object({
   content: z.string(),
   fontFamily: z.string(),
@@ -68,6 +78,7 @@ export const TextPropsSchema = z.object({
   letterSpacing: z.union([z.string(), z.number()]),
   align: z.enum(['left', 'center', 'right', 'justify']),
   color: z.string(),
+  runs: z.array(TextRunSchema).optional(),
 });
 
 export const AssetSchema = z.object({
@@ -136,6 +147,7 @@ export type Stroke = z.infer<typeof StrokeSchema>;
 export type CornerRadius = z.infer<typeof CornerRadiusSchema>;
 export type Shadow = z.infer<typeof ShadowSchema>;
 export type Style = z.infer<typeof StyleSchema>;
+export type TextRun = z.infer<typeof TextRunSchema>;
 export type TextProps = z.infer<typeof TextPropsSchema>;
 export type Asset = z.infer<typeof AssetSchema>;
 export type Font = z.infer<typeof FontSchema>;

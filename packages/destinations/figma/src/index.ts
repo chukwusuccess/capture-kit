@@ -50,6 +50,16 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
     if (!text) return '';
 
     const content = escapeXml(text.content);
+    const innerContent =
+      text.runs && text.runs.length > 0
+        ? text.runs
+            .map((r) => {
+              const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
+              const rColor = r.color ? ` fill="${escapeXml(r.color)}"` : '';
+              return `<tspan${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
+            })
+            .join('')
+        : content;
     const anchor =
       text.align === 'center'
         ? 'middle'
@@ -70,7 +80,7 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets']): string {
       text.fontFamily
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${escapeXml(
       text.color
-    )}" text-anchor="${anchor}"${opacityAttr}>${content}</text>`;
+    )}" text-anchor="${anchor}"${opacityAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
