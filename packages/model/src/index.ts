@@ -29,6 +29,7 @@ export const StrokeSchema = z.object({
   width: z.number().gte(0),
   style: z.enum(['solid', 'dashed', 'dotted']).optional(),
   side: z.enum(['all', 'top', 'right', 'bottom', 'left']).optional(),
+  offset: z.number().optional(),
 });
 
 export const CornerRadiusSchema = z.object({

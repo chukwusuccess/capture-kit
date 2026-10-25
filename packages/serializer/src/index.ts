@@ -940,7 +940,7 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
     const oc = computed.outlineColor;
     if (ow > 0 && os && os !== 'none' && os !== 'auto' && oc && oc !== 'transparent' && oc !== 'rgba(0, 0, 0, 0)') {
       const ost: 'solid' | 'dashed' | 'dotted' = os === 'dashed' || os === 'dotted' ? os : 'solid';
-      strokes.push({ color: oc, width: ow, style: ost, side: 'all' });
+      strokes.push({ color: oc, width: ow, style: ost, side: 'all', offset: parseFloat(computed.outlineOffset) || 0 });
     }
   }
   return strokes;
@@ -1581,11 +1581,16 @@ async function serializeSubtree(
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
     const radius = parseCornerRadius(computed);
     const shadows = parseBoxShadow(computed.boxShadow);
+    const overflows =
+      el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
     const isClipped =
       computed.overflow === 'hidden' ||
       computed.overflow === 'clip' ||
       computed.overflowX === 'hidden' ||
-      computed.overflowY === 'hidden';
+      computed.overflowY === 'hidden' ||
+      ((computed.overflow === 'scroll' || computed.overflow === 'auto' ||
+        computed.overflowX === 'scroll' || computed.overflowX === 'auto' ||
+        computed.overflowY === 'scroll' || computed.overflowY === 'auto') && overflows);
     const clipPath =
       computed.clipPath && computed.clipPath !== 'none'
         ? computed.clipPath
@@ -1863,8 +1868,16 @@ async function serializeSubtree(
 
     // 3. Iframe elements (same-origin traversal)
     if (tagName === 'iframe') {
+      let iframeLabel: string | undefined;
+      try {
+        const host = new URL((el as HTMLIFrameElement).src || '', defaultView.location?.href || baseURI).hostname.replace(/^www\./, '');
+        if (host) iframeLabel = `Embed · ${host.slice(0, 24)}`;
+      } catch {
+        // ignore
+      }
       nodes.push({
         id: nodeId,
+        ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
         parentId,
         type: 'frame',
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
@@ -1949,9 +1962,11 @@ async function serializeSubtree(
 
     // 4. Form controls
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+      const inputType = tagName === 'input' ? (el as HTMLInputElement).type?.toLowerCase() : '';
+      const isToggle = inputType === 'checkbox' || inputType === 'radio';
       let controlText = '';
       let isPlaceholder = false;
-      if (tagName === 'input') {
+      if (tagName === 'input' && !isToggle) {
         const input = el as HTMLInputElement;
         controlText = input.value || input.placeholder || '';
         isPlaceholder = !input.value && Boolean(input.placeholder);
@@ -1965,12 +1980,20 @@ async function serializeSubtree(
           select.options?.[select.selectedIndex]?.text || select.value || '';
       }
 
+      const controlStyle = { ...style, clip: false };
+      if (isToggle) {
+        const checked = (el as HTMLInputElement).checked;
+        const accent = computed.accentColor && computed.accentColor !== 'auto' ? computed.accentColor : 'rgba(13, 153, 255, 1)';
+        controlStyle.fills = checked
+          ? [{ type: 'solid' as const, color: accent, opacity: 1 }]
+          : controlStyle.fills;
+      }
       nodes.push({
         id: nodeId,
         parentId,
         type: 'rect',
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
-        style: { ...style, clip: false },
+        style: controlStyle,
       });
 
       if (controlText.trim().length > 0) {
