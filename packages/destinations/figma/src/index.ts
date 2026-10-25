@@ -268,6 +268,10 @@ function renderNodeToFigmaSvg(
     }
   }
   const edgeLines = renderPerEdgeLines(node, transformAttr);
+  const outlineOffset = allSidedStroke?.offset && allSidedStroke.offset !== 0 ? Math.max(0, allSidedStroke.offset) : 0;
+  const outlineOverlay = outlineOffset > 0 && allSidedStroke
+    ? `\n    <rect id="${escapeXml(node.id)}-outline" x="${box.x - outlineOffset}" y="${box.y - outlineOffset}" width="${box.w + outlineOffset * 2}" height="${box.h + outlineOffset * 2}" fill="none"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr} />`
+    : '';
   const lineSuffix = edgeLines ? `\n${edgeLines}` : '';
 
   if (type === 'text') {
@@ -405,12 +409,13 @@ function renderNodeToFigmaSvg(
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
-  if (isGroupSelf && fill === 'none' && !strokeAttrs && !edgeLines) return '';
-  const shapeAttrs = `${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr}${blendStyle}`;
+  if (isGroupSelf && fill === 'none' && !strokeAttrs && !edgeLines && !outlineOverlay) return '';
+  const baseStrokeAttrs = outlineOverlay ? '' : strokeAttrs;
+  const shapeAttrs = `${baseStrokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr}${blendStyle}`;
   const baseShape = asymPathD
     ? `    <path id="${escapeXml(node.id)}" d="${asymPathD}" fill="${fill}"${shapeAttrs} />`
     : `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${shapeAttrs} />`;
-  return `${baseShape}${lineSuffix}`;
+  return `${baseShape}${outlineOverlay}${lineSuffix}`;
 }
 
 function buildFigmaLayers(capture: Capture): string {

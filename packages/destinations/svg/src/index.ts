@@ -220,7 +220,11 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     if (ring) strokeAttrs = ` stroke="${escapeXml(ring.color)}" stroke-width="${ring.spread && ring.spread > 0 ? ring.spread : 1}"`;
   }
   const edgeLines = renderPerEdgeLines(node, transformAttr);
-  const lineSuffix = edgeLines ? `\n${edgeLines}` : '';
+  const outlineOffset = allSidedStroke?.offset && allSidedStroke.offset !== 0 ? Math.max(0, allSidedStroke.offset) : 0;
+  const outlineOverlay = outlineOffset > 0 && allSidedStroke
+    ? `\n  <rect id="${escapeXml(node.id)}-outline" x="${box.x - outlineOffset}" y="${box.y - outlineOffset}" width="${box.w + outlineOffset * 2}" height="${box.h + outlineOffset * 2}" fill="none"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr} />`
+    : '';
+  const lineSuffix = `${outlineOverlay}${edgeLines ? `\n${edgeLines}` : ''}`;
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
@@ -305,7 +309,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
-  const shapeAttrs = `${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${blendStyle}${leafClipAttr}`;
+  const shapeAttrs = `${outlineOverlay ? '' : strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${blendStyle}${leafClipAttr}`;
   const baseShape = asymPathD
     ? `  <path id="${escapeXml(node.id)}" d="${asymPathD}" fill="${fill}"${shapeAttrs} />`
     : `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${shapeAttrs} />`;
