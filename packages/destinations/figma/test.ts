@@ -210,6 +210,39 @@ function runFigmaDestinationTests() {
 
   assert.ok(payload.svg.includes('<line x1="0" y1="63.5" x2="1200" y2="63.5"'), 'Single-side border-bottom missing as crisp line');
   assert.ok(payload.svg.includes('d="M 16 0 H 1184 A 16 16 0 0 1 1200 16 V 64 A 0 0 0 0 1 1200 64 H 0 A 0 0 0 0 1 0 64 V 16 A 16 16 0 0 1 16 0 Z"'), 'Asymmetric corner radius missing as exact path');
+  const roundedLine = modelToFigma({
+    ...sampleCapture,
+    nodes: [{
+      id: 'node-pill-line',
+      type: 'frame',
+      box: { x: 10, y: 10, w: 200, h: 40 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
+        strokes: [{ color: 'rgba(255,255,255,0.2)', width: 2, style: 'solid', side: 'top' }],
+        opacity: 1,
+        radius: { topLeft: 20, topRight: 20, bottomRight: 20, bottomLeft: 20 },
+        shadows: [],
+      },
+    }],
+  }).svg;
+  assert.ok(roundedLine.includes('<line x1="30" y1="11" x2="190" y2="11"'), 'Per-edge line must inset by corner radii on rounded pill');
+  const clipped = modelToFigma({
+    ...sampleCapture,
+    nodes: [{
+      id: 'node-clipped-circle',
+      type: 'frame',
+      box: { x: 0, y: 0, w: 100, h: 100 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(255, 0, 0, 1)' }],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+        shadows: [],
+        clipPath: 'circle(50% at 50% 50%)',
+      },
+    }],
+  }).svg;
+  assert.ok(clipped.includes('<clipPath id="clip-node-clipped-circle">') && clipped.includes('r="50"'), 'circle() clipPath with at-position must emit centered circle');
   console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }
 
