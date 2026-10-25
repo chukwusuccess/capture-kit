@@ -56,7 +56,13 @@ function isNodeOffscreen(node: Node, frame: Capture['frame']): boolean {
   return Math.max(...ys) <= 0 || Math.max(...xs) <= 0 || Math.min(...xs) >= frame.width || Math.min(...ys) >= frame.height;
 }
 
-function renderNodeToFigmaSvg(node: Node, assets: Capture['assets'], isGroupSelf = false, inlineLeadWidth = 0): string {
+function renderNodeToFigmaSvg(
+  node: Node,
+  assets: Capture['assets'],
+  isGroupSelf = false,
+  inlineLeadWidth = 0,
+  pillMidY?: number
+): string {
   const { box, style, type } = node;
   const opacityAttr = style.opacity !== undefined && style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
   const rxVal = style.radius?.topLeft ? Math.min(style.radius.topLeft, box.w / 2, box.h / 2) : 0;
@@ -79,6 +85,14 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets'], isGroupSelf
       strokeAttrs = ` stroke="${escapeXml(stroke.color)}" stroke-width="${
         stroke.width
       }"${dash}`;
+    }
+  }
+  if (!strokeAttrs && style.shadows && style.shadows.length > 0) {
+    const ring = style.shadows.find(
+      (s) => Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1 && s.blur <= 2 && ((s.spread && s.spread > 0) || s.inset) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+    );
+    if (ring) {
+      strokeAttrs = ` stroke="${escapeXml(ring.color)}" stroke-width="${ring.spread && ring.spread > 0 ? ring.spread : 1}"`;
     }
   }
 
@@ -130,7 +144,8 @@ function renderNodeToFigmaSvg(node: Node, assets: Capture['assets'], isGroupSelf
     // first line's vertical midpoint plus cap-height half-offset (0.35 * em).
     const hasMultiRuns = Boolean(effectiveRuns && effectiveRuns.length > 1);
     const firstLineH = hasMultiRuns ? lh : box.h > 0 ? box.h : lh;
-    const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.35) * 100) / 100;
+    const lineMidY = !hasMultiRuns && pillMidY !== undefined ? pillMidY : box.y + firstLineH / 2;
+    const textY = Math.round((lineMidY + text.fontSize * 0.33) * 100) / 100;
     return `    <text id="${escapeXml(node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
@@ -229,16 +244,40 @@ function buildFigmaLayers(capture: Capture): string {
     const lead = sibs.find((s) => s.id !== node.id && s.type === 'text' && Math.abs(s.box.x - node.box.x) < 2 && Math.abs(s.box.y - node.box.y) < 4 && s.box.w < node.box.w * 0.5);
     return lead ? lead.box.w : 0;
   }
+  function resolvePillMidY(node: Node): number | undefined {
+    if (node.type !== 'text' || !node.parentId) return undefined;
+    let anc = nodeMap.get(node.parentId);
+    if (anc && anc.style.fills.length === 0 && (!anc.style.strokes || anc.style.strokes.length === 0) && anc.parentId) {
+      const gp = nodeMap.get(anc.parentId);
+      if (gp && gp.box.h <= 60) anc = gp;
+    }
+    if (!anc || anc.box.h < 20 || anc.box.h > 60) return undefined;
+    const ancMid = anc.box.y + anc.box.h / 2;
+    const textMid = node.box.y + (node.box.h > 0 ? node.box.h : node.text?.fontSize ?? 16) / 2;
+    return Math.abs(textMid - ancMid) <= 5 ? ancMid : undefined;
+  }
 
   function renderTree(node: Node): string {
     const children = childrenMap.get(node.id);
     if (!children || children.length === 0) {
-      return isNodeOffscreen(node, capture.frame) ? '' : renderNodeToFigmaSvg(node, capture.assets, false, findInlineLeadWidth(node));
+      return isNodeOffscreen(node, capture.frame)
+        ? ''
+        : renderNodeToFigmaSvg(node, capture.assets, false, findInlineLeadWidth(node), resolvePillMidY(node));
     }
     const childrenSvg = children.map(renderTree).filter(Boolean).join('\n');
     if (!childrenSvg && isNodeOffscreen(node, capture.frame)) return '';
     const selfLayer = renderNodeToFigmaSvg(node, capture.assets, true);
-    const clipAttr = node.style.clip ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"` : '';
+    const childrenOverflow = children.some(
+      (c) =>
+        c.box.x < node.box.x - 1 ||
+        c.box.y < node.box.y - 1 ||
+        c.box.x + c.box.w > node.box.x + node.box.w + 2 ||
+        c.box.y + c.box.h > node.box.y + node.box.h + 2
+    );
+    const clipAttr =
+      node.style.clip && childrenOverflow
+        ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"`
+        : '';
     const groupOpacity = !selfLayer && node.style.opacity !== undefined && node.style.opacity < 1 ? ` opacity="${node.style.opacity}"` : '';
     const groupMask = node.style.maskImage && node.style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
     const groupFilter = node.style.filter && node.style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
@@ -320,7 +359,10 @@ function buildFigmaDefs(captures: Capture[]): string {
       }
 
       if (node.style.clip) {
-        const rx = node.style.radius?.topLeft ? ` rx="${node.style.radius.topLeft}"` : '';
+        const clipRxVal = node.style.radius?.topLeft
+          ? Math.min(node.style.radius.topLeft, node.box.w / 2, node.box.h / 2)
+          : 0;
+        const rx = clipRxVal > 0 ? ` rx="${clipRxVal}" ry="${clipRxVal}"` : '';
         defs.push(
           `    <clipPath id="clip-${escapeXml(node.id)}">\n      <rect x="${node.box.x}" y="${node.box.y}" width="${node.box.w}" height="${node.box.h}"${rx} />\n    </clipPath>`
         );

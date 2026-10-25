@@ -51,6 +51,17 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const transformAttr = tm ? tm.attr : '';
   const filterAttr = style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
   const maskAttr = style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
+  let strokeAttrs = '';
+  if (style.strokes && style.strokes.length > 0 && style.strokes[0].width > 0) {
+    const s = style.strokes[0];
+    const dash = s.style === 'dashed' ? ` stroke-dasharray="${s.width * 3},${s.width * 2}"` : s.style === 'dotted' ? ` stroke-dasharray="${s.width},${s.width * 1.5}"` : '';
+    strokeAttrs = ` stroke="${escapeXml(s.color)}" stroke-width="${s.width}"${dash}`;
+  } else if (style.shadows && style.shadows.length > 0) {
+    const ring = style.shadows.find(
+      (s) => Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1 && s.blur <= 2 && ((s.spread && s.spread > 0) || s.inset) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+    );
+    if (ring) strokeAttrs = ` stroke="${escapeXml(ring.color)}" stroke-width="${ring.spread && ring.spread > 0 ? ring.spread : 1}"`;
+  }
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
@@ -81,7 +92,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
 
     const hasMultiRuns = Boolean(text.runs && text.runs.length > 1);
     const firstLineH = hasMultiRuns ? lh : box.h > 0 ? box.h : lh;
-    const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.35) * 100) / 100;
+    const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.33) * 100) / 100;
     return `  <text x="${textX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}"${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
@@ -125,13 +136,13 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   // Frame or rect
   const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   if (gradFill) {
-    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${opacityAttr}${transformAttr}${filterAttr}${maskAttr} />`;
+    return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr} />`;
   }
 
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
 
-  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${opacityAttr}${transformAttr}${filterAttr}${maskAttr} />`;
+  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr} />`;
 }
 /** Map a CSS filter chain to SVG filter primitives. */
 function buildFilterPrimitives(filter: string | undefined): string[] {

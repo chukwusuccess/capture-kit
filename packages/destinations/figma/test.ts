@@ -161,8 +161,8 @@ function runFigmaDestinationTests() {
     'Should not emit dominant-baseline="text-before-edge" (ignored by Figma)'
   );
   assert.ok(
-    payload.svg.includes('x="70" y="93"'),
-    'Text baseline y should be placed inside the text box (70 + 32/2 + 20*0.35 = 93)'
+    payload.svg.includes('x="70" y="92.6"'),
+    'Text baseline y should be placed inside the text box (70 + 32/2 + 20*0.33 = 92.6)'
   );
   assert.ok(
     !payload.svg.includes('Skip to content'),
