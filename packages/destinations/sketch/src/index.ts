@@ -92,6 +92,7 @@ function convertStrokes(strokes: Stroke[]): {
 
   for (const stroke of strokes) {
     if (stroke.width <= 0) continue;
+    if (stroke.side && stroke.side !== 'all') continue;
     borders.push({
       _class: 'border',
       isEnabled: true,
@@ -238,6 +239,62 @@ function convertFills(
   }
 
   return fillList;
+}
+
+function edgeLineLayers(node: Node, offsetX: number, offsetY: number): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const b = node.box;
+  for (const s of node.style.strokes ?? []) {
+    if (!s.side || s.side === 'all' || s.width <= 0) continue;
+    const w = s.width;
+    const frame =
+      s.side === 'top'
+        ? { x: b.x - offsetX, y: b.y - offsetY, width: b.w, height: w }
+        : s.side === 'bottom'
+        ? { x: b.x - offsetX, y: b.y + b.h - w - offsetY, width: b.w, height: w }
+        : s.side === 'left'
+        ? { x: b.x - offsetX, y: b.y - offsetY, width: w, height: b.h }
+        : { x: b.x + b.w - w - offsetX, y: b.y - offsetY, width: w, height: b.h };
+    out.push({
+      _class: 'rectangle',
+      do_objectID: `${node.id}-edge-${s.side}`,
+      booleanOperation: -1,
+      isFixedToViewport: false,
+      isFlippedHorizontal: false,
+      isFlippedVertical: false,
+      isLocked: false,
+      isVisible: true,
+      layerListExpandedType: 0,
+      name: `Border ${s.side} ${node.name || node.id}`,
+      nameIsFixed: false,
+      resizingConstraint: 63,
+      resizingType: 0,
+      rotation: 0,
+      shouldBreakMaskChain: false,
+      hasClippingMask: false,
+      clippingMaskMode: 0,
+      isTemplate: false,
+      frame: { _class: 'rect', constrainProportions: false, ...frame },
+      style: {
+        _class: 'style',
+        endMarkerType: 0,
+        miterLimit: 10,
+        startMarkerType: 0,
+        windingRule: 1,
+        fills: [{ _class: 'fill', isEnabled: true, fillType: 0, color: parseCssColor(s.color), contextSettings: { _class: 'graphicsContextSettings', blendMode: 0, opacity: 1 } }],
+        borders: [],
+        shadows: [],
+        innerShadows: [],
+      },
+      edited: false,
+      isClosed: true,
+      pointRadiusBehaviour: 1,
+      points: makeRectPoints(0),
+      fixedRadius: 0,
+      needsConvertionToNewRoundCorners: false,
+    });
+  }
+  return out;
 }
 
 function convertNodeToSketchLayer(
@@ -546,12 +603,12 @@ function buildSketchLayerTree(
     node: Node,
     parentOffsetX: number,
     parentOffsetY: number
-  ): Record<string, unknown> {
+  ): Array<Record<string, unknown>> {
     const children = childrenMap.get(node.id);
 
-    // Leaf node: render standard Sketch layer
+    // Leaf node: render standard Sketch layer plus per-edge border lines
     if (!children || children.length === 0) {
-      return convertNodeToSketchLayer(node, assets, parentOffsetX, parentOffsetY);
+      return [convertNodeToSketchLayer(node, assets, parentOffsetX, parentOffsetY), ...edgeLineLayers(node, parentOffsetX, parentOffsetY)];
     }
 
     // Node with children: emit Sketch group layer
@@ -589,8 +646,9 @@ function buildSketchLayerTree(
 
     // Process children relative to container origin
     for (const child of children) {
-      groupLayers.push(processNode(child, node.box.x, node.box.y));
+      groupLayers.push(...processNode(child, node.box.x, node.box.y));
     }
+    groupLayers.push(...edgeLineLayers(node, node.box.x, node.box.y));
 
     const groupLayout =
       node.style.layout && node.style.layout.mode !== 'none'
@@ -601,7 +659,7 @@ function buildSketchLayerTree(
           }
         : { _class: 'MSImmutableFreeformGroupLayout' };
 
-    return {
+    return [{
       _class: 'group',
       do_objectID: node.id,
       booleanOperation: -1,
@@ -631,10 +689,10 @@ function buildSketchLayerTree(
       hasClickThrough: false,
       groupLayout,
       layers: groupLayers,
-    };
+    }];
   }
 
-  return rootNodes.map((root) => processNode(root, 0, 0));
+  return rootNodes.flatMap((root) => processNode(root, 0, 0));
 }
 
 
