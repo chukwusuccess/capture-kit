@@ -1,4 +1,4 @@
-import type { Capture, Node } from '@capture-kit/model';
+import type { Capture, CornerRadius, Node } from '@capture-kit/model';
 
 function escapeXml(unsafe: string): string {
   return unsafe
@@ -29,6 +29,31 @@ function applyTextTransform(str: string, tt?: string): string {
   if (tt === 'lowercase') return str.toLowerCase();
   if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
   return str;
+}
+function makeAsymmetricRoundRectPath(box: { x: number; y: number; w: number; h: number }, r: CornerRadius): string {
+  const { x, y, w, h } = box;
+  const maxR = Math.min(w / 2, h / 2);
+  const tl = Math.max(0, Math.min(r.topLeft, maxR));
+  const tr = Math.max(0, Math.min(r.topRight, maxR));
+  const br = Math.max(0, Math.min(r.bottomRight, maxR));
+  const bl = Math.max(0, Math.min(r.bottomLeft, maxR));
+  return `M ${x + tl} ${y} H ${x + w - tr} A ${tr} ${tr} 0 0 1 ${x + w} ${y + tr} V ${y + h - br} A ${br} ${br} 0 0 1 ${x + w - br} ${y + h} H ${x + bl} A ${bl} ${bl} 0 0 1 ${x} ${y + h - bl} V ${y + tl} A ${tl} ${tl} 0 0 1 ${x + tl} ${y} Z`;
+}
+
+function renderPerEdgeLines(node: Node, tmAttr: string): string {
+  const lines: string[] = [];
+  const b = node.box;
+  for (const s of node.style.strokes ?? []) {
+    if (!s.side || s.side === 'all' || s.width <= 0) continue;
+    const dash = s.style === 'dashed' ? ` stroke-dasharray="${s.width * 3},${s.width * 2}"` : s.style === 'dotted' ? ` stroke-dasharray="${s.width},${s.width * 1.5}"` : '';
+    const w = s.width;
+    const c = escapeXml(s.color);
+    if (s.side === 'top') lines.push(`  <line x1="${b.x}" y1="${Math.round((b.y + w / 2) * 100) / 100}" x2="${b.x + b.w}" y2="${Math.round((b.y + w / 2) * 100) / 100}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'bottom') lines.push(`  <line x1="${b.x}" y1="${Math.round((b.y + b.h - w / 2) * 100) / 100}" x2="${b.x + b.w}" y2="${Math.round((b.y + b.h - w / 2) * 100) / 100}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'left') lines.push(`  <line x1="${Math.round((b.x + w / 2) * 100) / 100}" y1="${b.y}" x2="${Math.round((b.x + w / 2) * 100) / 100}" y2="${b.y + b.h}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'right') lines.push(`  <line x1="${Math.round((b.x + b.w - w / 2) * 100) / 100}" y1="${b.y}" x2="${Math.round((b.x + b.w - w / 2) * 100) / 100}" y2="${b.y + b.h}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+  }
+  return lines.join('\n');
 }
 
 
@@ -62,8 +87,12 @@ function svgTransformMatrix(node: Node) {
 function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const { box, style, type } = node;
   const opacityAttr = style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
-  const rxVal = style.radius?.topLeft ? Math.min(style.radius.topLeft, box.w / 2, box.h / 2) : 0;
+  const r = style.radius;
+  const isUniformRadius = !r || (r.topLeft === r.topRight && r.topRight === r.bottomRight && r.bottomRight === r.bottomLeft);
+  const rxVal = isUniformRadius && r && r.topLeft ? Math.min(r.topLeft, box.w / 2, box.h / 2) : 0;
   const rx = rxVal > 0 ? ` rx="${rxVal}" ry="${rxVal}"` : '';
+  const asymPathD = !isUniformRadius && r ? makeAsymmetricRoundRectPath(box, r) : '';
+  const blendStyle = style.mixBlendMode && style.mixBlendMode !== 'normal' ? ` style="mix-blend-mode: ${escapeXml(style.mixBlendMode)};"` : '';
   const tm = svgTransformMatrix(node);
   const transformAttr = tm ? tm.attr : '';
   const hasOuterShadow = Boolean(
@@ -74,16 +103,18 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   const filterAttr = (style.filter && style.filter !== 'none') || hasOuterShadow ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
   const maskAttr = style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
-  if (style.strokes && style.strokes.length > 0 && style.strokes[0].width > 0) {
-    const s = style.strokes[0];
-    const dash = s.style === 'dashed' ? ` stroke-dasharray="${s.width * 3},${s.width * 2}"` : s.style === 'dotted' ? ` stroke-dasharray="${s.width},${s.width * 1.5}"` : '';
-    strokeAttrs = ` stroke="${escapeXml(s.color)}" stroke-width="${s.width}"${dash}`;
+  const allSidedStroke = style.strokes?.find((s) => (!s.side || s.side === 'all') && s.width > 0);
+  if (allSidedStroke) {
+    const dash = allSidedStroke.style === 'dashed' ? ` stroke-dasharray="${allSidedStroke.width * 3},${allSidedStroke.width * 2}"` : allSidedStroke.style === 'dotted' ? ` stroke-dasharray="${allSidedStroke.width},${allSidedStroke.width * 1.5}"` : '';
+    strokeAttrs = ` stroke="${escapeXml(allSidedStroke.color)}" stroke-width="${allSidedStroke.width}"${dash}`;
   } else if (style.shadows && style.shadows.length > 0) {
     const ring = style.shadows.find(
       (s) => Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1 && s.blur <= 2 && ((s.spread && s.spread > 0) || s.inset) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
     );
     if (ring) strokeAttrs = ` stroke="${escapeXml(ring.color)}" stroke-width="${ring.spread && ring.spread > 0 ? ring.spread : 1}"`;
   }
+  const edgeLines = renderPerEdgeLines(node, transformAttr);
+  const lineSuffix = edgeLines ? `\n${edgeLines}` : '';
   if (type === 'text') {
     const text = node.text;
     if (!text) return '';
@@ -167,8 +198,11 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
 
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
-
-  return `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr} />`;
+  const shapeAttrs = `${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${blendStyle}`;
+  const baseShape = asymPathD
+    ? `  <path id="${escapeXml(node.id)}" d="${asymPathD}" fill="${fill}"${shapeAttrs} />`
+    : `  <rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${shapeAttrs} />`;
+  return `${baseShape}${lineSuffix}`;
 }
 /** Map a CSS filter chain to SVG filter primitives. */
 function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style']['shadows']): string[] {

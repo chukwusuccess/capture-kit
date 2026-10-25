@@ -62,6 +62,18 @@ function runFigmaDestinationTests() {
         assetRef: 'img-thumb',
       },
       {
+        id: 'node-nav-border',
+        type: 'frame',
+        box: { x: 0, y: 0, w: 1200, h: 64 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
+          strokes: [{ color: 'rgba(255, 255, 255, 0.1)', width: 1, style: 'solid', side: 'bottom' }],
+          opacity: 1,
+          radius: { topLeft: 16, topRight: 16, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
         id: 'node-skip-offscreen',
         type: 'text',
         box: { x: 637, y: 24, w: 117, h: 18 },
@@ -196,6 +208,8 @@ function runFigmaDestinationTests() {
   assert.ok(withDs.includes('id="Design System"'), 'Design System frame missing when includeDesignSystem is true');
   assert.ok(withDs.includes('COLOR TOKENS') && withDs.includes('TYPOGRAPHY SCALE'), 'Design System sections missing');
 
+  assert.ok(payload.svg.includes('<line x1="0" y1="63.5" x2="1200" y2="63.5"'), 'Single-side border-bottom missing as crisp line');
+  assert.ok(payload.svg.includes('d="M 16 0 H 1184 A 16 16 0 0 1 1200 16 V 64 A 0 0 0 0 1 1200 64 H 0 A 0 0 0 0 1 0 64 V 16 A 16 16 0 0 1 16 0 Z"'), 'Asymmetric corner radius missing as exact path');
   console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }
 

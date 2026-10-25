@@ -1,4 +1,4 @@
-import type { Capture, Node } from '@capture-kit/model';
+import type { Capture, CornerRadius, Node } from '@capture-kit/model';
 
 export interface FigmaExportOptions {
   pasteboardFormat?: 'clipboard' | 'file';
@@ -40,6 +40,31 @@ function applyTextTransform(str: string, tt?: string): string {
   if (tt === 'lowercase') return str.toLowerCase();
   if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
   return str;
+}
+function makeAsymmetricRoundRectPath(box: { x: number; y: number; w: number; h: number }, r: CornerRadius): string {
+  const { x, y, w, h } = box;
+  const maxR = Math.min(w / 2, h / 2);
+  const tl = Math.max(0, Math.min(r.topLeft, maxR));
+  const tr = Math.max(0, Math.min(r.topRight, maxR));
+  const br = Math.max(0, Math.min(r.bottomRight, maxR));
+  const bl = Math.max(0, Math.min(r.bottomLeft, maxR));
+  return `M ${x + tl} ${y} H ${x + w - tr} A ${tr} ${tr} 0 0 1 ${x + w} ${y + tr} V ${y + h - br} A ${br} ${br} 0 0 1 ${x + w - br} ${y + h} H ${x + bl} A ${bl} ${bl} 0 0 1 ${x} ${y + h - bl} V ${y + tl} A ${tl} ${tl} 0 0 1 ${x + tl} ${y} Z`;
+}
+
+function renderPerEdgeLines(node: Node, tmAttr: string): string {
+  const lines: string[] = [];
+  const b = node.box;
+  for (const s of node.style.strokes ?? []) {
+    if (!s.side || s.side === 'all' || s.width <= 0) continue;
+    const dash = s.style === 'dashed' ? ` stroke-dasharray="${s.width * 3},${s.width * 2}"` : s.style === 'dotted' ? ` stroke-dasharray="${s.width},${s.width * 1.5}"` : '';
+    const w = s.width;
+    const c = escapeXml(s.color);
+    if (s.side === 'top') lines.push(`    <line x1="${b.x}" y1="${Math.round((b.y + w / 2) * 100) / 100}" x2="${b.x + b.w}" y2="${Math.round((b.y + w / 2) * 100) / 100}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'bottom') lines.push(`    <line x1="${b.x}" y1="${Math.round((b.y + b.h - w / 2) * 100) / 100}" x2="${b.x + b.w}" y2="${Math.round((b.y + b.h - w / 2) * 100) / 100}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'left') lines.push(`    <line x1="${Math.round((b.x + w / 2) * 100) / 100}" y1="${b.y}" x2="${Math.round((b.x + w / 2) * 100) / 100}" y2="${b.y + b.h}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'right') lines.push(`    <line x1="${Math.round((b.x + b.w - w / 2) * 100) / 100}" y1="${b.y}" x2="${Math.round((b.x + b.w - w / 2) * 100) / 100}" y2="${b.y + b.h}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+  }
+  return lines.join('\n');
 }
 
 
@@ -91,8 +116,12 @@ function renderNodeToFigmaSvg(
 ): string {
   const { box, style, type } = node;
   const opacityAttr = style.opacity !== undefined && style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
-  const rxVal = style.radius?.topLeft ? Math.min(style.radius.topLeft, box.w / 2, box.h / 2) : 0;
+  const r = style.radius;
+  const isUniformRadius = !r || (r.topLeft === r.topRight && r.topRight === r.bottomRight && r.bottomRight === r.bottomLeft);
+  const rxVal = isUniformRadius && r && r.topLeft ? Math.min(r.topLeft, box.w / 2, box.h / 2) : 0;
   const rx = rxVal > 0 ? ` rx="${rxVal}" ry="${rxVal}"` : '';
+  const asymPathD = !isUniformRadius && r ? makeAsymmetricRoundRectPath(box, r) : '';
+  const blendStyle = style.mixBlendMode && style.mixBlendMode !== 'normal' ? ` style="mix-blend-mode: ${escapeXml(style.mixBlendMode)};"` : '';
   const tm = svgTransformMatrix(node);
   const transformAttr = tm ? tm.attr : '';
   const hasOuterShadow = Boolean(
@@ -107,21 +136,11 @@ function renderNodeToFigmaSvg(
   const maskAttr = !isGroupSelf && style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
   const leafClipAttr = !isGroupSelf && style.clip ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
-  if (style.strokes && style.strokes.length > 0) {
-    const stroke = style.strokes[0];
-    if (stroke.width > 0) {
-      const dash =
-        stroke.style === 'dashed'
-          ? ` stroke-dasharray="${stroke.width * 3},${stroke.width * 2}"`
-          : stroke.style === 'dotted'
-          ? ` stroke-dasharray="${stroke.width},${stroke.width * 1.5}"`
-          : '';
-      strokeAttrs = ` stroke="${escapeXml(stroke.color)}" stroke-width="${
-        stroke.width
-      }"${dash}`;
-    }
-  }
-  if (!strokeAttrs && style.shadows && style.shadows.length > 0) {
+  const allSidedStroke = style.strokes?.find((s) => (!s.side || s.side === 'all') && s.width > 0);
+  if (allSidedStroke) {
+    const dash = allSidedStroke.style === 'dashed' ? ` stroke-dasharray="${allSidedStroke.width * 3},${allSidedStroke.width * 2}"` : allSidedStroke.style === 'dotted' ? ` stroke-dasharray="${allSidedStroke.width},${allSidedStroke.width * 1.5}"` : '';
+    strokeAttrs = ` stroke="${escapeXml(allSidedStroke.color)}" stroke-width="${allSidedStroke.width}"${dash}`;
+  } else if (style.shadows && style.shadows.length > 0) {
     const ring = style.shadows.find(
       (s) => Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1 && s.blur <= 2 && ((s.spread && s.spread > 0) || s.inset) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
     );
@@ -129,6 +148,8 @@ function renderNodeToFigmaSvg(
       strokeAttrs = ` stroke="${escapeXml(ring.color)}" stroke-width="${ring.spread && ring.spread > 0 ? ring.spread : 1}"`;
     }
   }
+  const edgeLines = renderPerEdgeLines(node, transformAttr);
+  const lineSuffix = edgeLines ? `\n${edgeLines}` : '';
 
   if (type === 'text') {
     const text = node.text;
@@ -256,11 +277,12 @@ function renderNodeToFigmaSvg(
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
-  if (isGroupSelf && fill === 'none' && !strokeAttrs) return '';
-
-  return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
-    box.w
-  }" height="${box.h}" fill="${fill}"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`;
+  if (isGroupSelf && fill === 'none' && !strokeAttrs && !edgeLines) return '';
+  const shapeAttrs = `${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr}${blendStyle}`;
+  const baseShape = asymPathD
+    ? `    <path id="${escapeXml(node.id)}" d="${asymPathD}" fill="${fill}"${shapeAttrs} />`
+    : `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${shapeAttrs} />`;
+  return `${baseShape}${lineSuffix}`;
 }
 
 function buildFigmaLayers(capture: Capture): string {
@@ -411,7 +433,25 @@ function buildFigmaDefs(captures: Capture[]): string {
         }
       });
 
-      if (node.style.clip) {
+      if (node.style.clipPath && node.style.clipPath !== 'none') {
+        const cp = node.style.clipPath.trim();
+        const poly = cp.match(/polygon\(([^)]+)\)/);
+        const circ = cp.match(/circle\(([^)]+)\)/);
+        const { x, y, w, h } = node.box;
+        if (poly?.[1]) {
+          const pts = poly[1].split(',').map((pair) => {
+            const parts = pair.trim().split(/\s+/);
+            const px = parts[0]?.endsWith('%') ? x + (parseFloat(parts[0]) / 100) * w : x + (parseFloat(parts[0] || '0') || 0);
+            const py = parts[1]?.endsWith('%') ? y + (parseFloat(parts[1]) / 100) * h : y + (parseFloat(parts[1] || '0') || 0);
+            return `${Math.round(px * 100) / 100},${Math.round(py * 100) / 100}`;
+          }).join(' ');
+          defs.push(`    <clipPath id="clip-${escapeXml(node.id)}">\n      <polygon points="${pts}" />\n    </clipPath>`);
+        } else if (circ?.[1]) {
+          const rNum = parseFloat(circ[1]) || w / 2;
+          const rVal = circ[1].includes('%') ? (rNum / 100) * Math.min(w, h) : rNum;
+          defs.push(`    <clipPath id="clip-${escapeXml(node.id)}">\n      <circle cx="${x + w / 2}" cy="${y + h / 2}" r="${rVal}" />\n    </clipPath>`);
+        }
+      } else if (node.style.clip) {
         const clipRxVal = node.style.radius?.topLeft
           ? Math.min(node.style.radius.topLeft, node.box.w / 2, node.box.h / 2)
           : 0;
