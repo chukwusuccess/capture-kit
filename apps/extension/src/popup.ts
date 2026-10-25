@@ -63,6 +63,8 @@ const siteLine = $('#site-line');
 const currentW = $('#current-w');
 const sizesTally = $('#sizes-tally');
 const optScrollStitch = $<HTMLInputElement>('#opt-scroll-stitch');
+const optDesignSystem = $<HTMLInputElement>('#opt-design-system');
+const optDualTheme = $<HTMLInputElement>('#opt-dual-theme');
 const progressWrap = $('#progress-wrap');
 const progressFill = $('#progress-fill');
 const progressPct = $('#progress-pct');
@@ -263,6 +265,8 @@ function saveSettings(): void {
   if (!chrome.storage?.local) return;
   chrome.storage.local.set({
     scrollStitch: optScrollStitch?.checked ?? false,
+    designSystem: optDesignSystem?.checked ?? false,
+    dualTheme: optDualTheme?.checked ?? false,
     format: getFormat(),
     sizes: pickedSizes(),
   });
@@ -270,8 +274,10 @@ function saveSettings(): void {
 
 async function loadSettings(): Promise<void> {
   if (!chrome.storage?.local) return;
-  const data = await chrome.storage.local.get(['scrollStitch', 'format', 'sizes']);
+  const data = await chrome.storage.local.get(['scrollStitch', 'designSystem', 'dualTheme', 'format', 'sizes']);
   if (typeof data.scrollStitch === 'boolean' && optScrollStitch) optScrollStitch.checked = data.scrollStitch;
+  if (typeof data.designSystem === 'boolean' && optDesignSystem) optDesignSystem.checked = data.designSystem;
+  if (typeof data.dualTheme === 'boolean' && optDualTheme) optDualTheme.checked = data.dualTheme;
   const radio = formatRadios.find((r) => r.value === data.format);
   if (radio) radio.checked = true;
   if (Array.isArray(data.sizes) && data.sizes.length > 0) {
@@ -494,8 +500,9 @@ function fileName(capture: Capture, withWidth: boolean): string {
 async function exportCaptures(captures: Capture[]): Promise<string> {
   const format = getFormat();
   if (format === 'figma') {
-    await copyToFigmaClipboard(captures);
-    return `Copied ${plural(captures.length, 'frame')} — paste into Figma with ⌘V`;
+    const includeDesignSystem = optDesignSystem?.checked ?? false;
+    await copyToFigmaClipboard(captures, { includeDesignSystem });
+    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — paste into Figma with ⌘V`;
   }
   if (format === 'react' && captures.length === 1) {
     const tsx = modelToReact(captures[0]);
@@ -694,6 +701,7 @@ captureBtn?.addEventListener('click', async () => {
       urls,
       widths,
       scrollStitch: optScrollStitch?.checked ?? false,
+      dualTheme: optDualTheme?.checked ?? false,
       tabId: currentTabId,
       origin: siteOrigin,
     })) as CaptureMessageResponse | undefined;
@@ -727,7 +735,8 @@ pickBtn?.addEventListener('click', async () => {
 figmaBtn?.addEventListener('click', async () => {
   if (latestCaptures.length === 0) return;
   try {
-    await copyToFigmaClipboard(latestCaptures);
+    const includeDesignSystem = optDesignSystem?.checked ?? false;
+    await copyToFigmaClipboard(latestCaptures, { includeDesignSystem });
     setStatus(`Copied ${plural(latestCaptures.length, 'frame')} again`, 'ok');
   } catch (err: unknown) {
     setStatus(err instanceof Error ? err.message : String(err), 'error');
@@ -769,6 +778,8 @@ formatRadios.forEach((r) =>
   })
 );
 optScrollStitch?.addEventListener('change', saveSettings);
+optDesignSystem?.addEventListener('change', saveSettings);
+optDualTheme?.addEventListener('change', saveSettings);
 
 void Promise.all([loadSettings(), loadTabInfo()]).then(() => {
   syncUI();

@@ -306,10 +306,51 @@ async function waitForLayout(tabId: number): Promise<void> {
   });
 }
 
-async function handleFullCapture(scrollStitch = false): Promise<Capture> {
-  const tabId = await getActiveTabId();
-  await injectSerializer(tabId);
-  return runSerializer(tabId, scrollStitch);
+async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean): Promise<Capture[]> {
+  const primary = await runSerializer(tabId, scrollStitch);
+  if (!dualTheme) return [primary];
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const root = document.documentElement;
+        const isDark = root.classList.contains('dark') || root.dataset.theme === 'dark' || getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.slice(0, 3).every((v) => Number(v) < 60);
+        root.dataset.ckPrevClass = root.className;
+        root.dataset.ckPrevTheme = root.dataset.theme ?? '';
+        root.dataset.ckPrevScheme = root.style.colorScheme;
+        if (isDark) {
+          root.classList.remove('dark');
+          root.classList.add('light');
+          root.dataset.theme = 'light';
+          root.style.colorScheme = 'light';
+        } else {
+          root.classList.remove('light');
+          root.classList.add('dark');
+          root.dataset.theme = 'dark';
+          root.style.colorScheme = 'dark';
+        }
+      },
+    });
+    await waitForLayout(tabId);
+    const alt = await runSerializer(tabId, scrollStitch);
+    return [primary, alt];
+  } catch {
+    return [primary];
+  } finally {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const root = document.documentElement;
+        if (root.dataset.ckPrevClass !== undefined) root.className = root.dataset.ckPrevClass;
+        if (root.dataset.ckPrevTheme) root.dataset.theme = root.dataset.ckPrevTheme;
+        else delete root.dataset.theme;
+        root.style.colorScheme = root.dataset.ckPrevScheme ?? '';
+        delete root.dataset.ckPrevClass;
+        delete root.dataset.ckPrevTheme;
+        delete root.dataset.ckPrevScheme;
+      },
+    }).catch(() => undefined);
+  }
 }
 
 async function handlePickCapture(): Promise<Capture> {
@@ -441,7 +482,8 @@ async function handleCaptureRun(
   rawWidths: unknown,
   scrollStitch: boolean,
   passedTabId?: number,
-  passedOrigin?: string
+  passedOrigin?: string,
+  dualTheme = false
 ): Promise<{ count: number; skipped: string[] }> {
   let targetOrigin = passedOrigin || '';
   let activeTabUrl = '';
@@ -478,8 +520,10 @@ async function handleCaptureRun(
 
   // Just this tab at its own width: capture in place, keeping its live state.
   if (urls.length === 1 && activeTabUrl && samePage(urls[0], activeTabUrl) && sizes.length === 1 && sizes[0] === activeTabWidth) {
-    await deliverCaptureToPopup(await handleFullCapture(scrollStitch), 0);
-    return { count: 1, skipped: [] };
+    const activeId = passedTabId ?? (await getActiveTabId());
+    const caps = await captureWithThemes(activeId, scrollStitch, dualTheme);
+    for (const [idx, c] of caps.entries()) await deliverCaptureToPopup(c, idx);
+    return { count: caps.length, skipped: [] };
   }
   // Everything else runs in one unfocused window, so the user's window never resizes.
   const win = await chrome.windows.create({
@@ -519,9 +563,11 @@ async function handleCaptureRun(
           if (cancelRunRequested) break;
           reportProgress(i * sizes.length + j, total, url);
           await fitViewport(win.id, tabId, width);
-          const cap = await runSerializer(tabId, scrollStitch);
-          await deliverCaptureToPopup(cap, count);
-          count += 1;
+          const caps = await captureWithThemes(tabId, scrollStitch, dualTheme);
+          for (const cap of caps) {
+            await deliverCaptureToPopup(cap, count);
+            count += 1;
+          }
         }
       } catch (err: unknown) {
         // Keep going — one broken page shouldn't kill the whole run.
@@ -552,15 +598,13 @@ chrome.runtime.onMessage.addListener(
 
       if (action === 'capture-run') {
         const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
+        const dualTheme = 'dualTheme' in message && Boolean(message.dualTheme);
         const urls = 'urls' in message ? message.urls : undefined;
         const widths = 'widths' in message ? message.widths : undefined;
         const tabId = 'tabId' in message && typeof message.tabId === 'number' ? message.tabId : undefined;
         const origin = 'origin' in message && typeof message.origin === 'string' ? message.origin : undefined;
-        // Ack right away: captures stream to the popup as they complete. Awaiting
-        // the whole run on this channel broke in MV3 — the worker could be killed
-        // mid-crawl and one giant response exceeded the message size limit.
         sendResponse({ success: true, accepted: true });
-        handleCaptureRun(urls, widths, scrollStitch, tabId, origin).then(
+        handleCaptureRun(urls, widths, scrollStitch, tabId, origin, dualTheme).then(
           ({ count, skipped }) => sendToPopup({ type: 'run-done', count, skipped }),
           (error: unknown) =>
             sendToPopup({
