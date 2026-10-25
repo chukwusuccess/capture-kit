@@ -160,9 +160,9 @@ function parseTextAlign(alignStr: string): TextProps['align'] {
 // Text fidelity: italic/decoration/case/shadow/overflow as rendered.
 function extractTextFidelity(computed: CSSStyleDeclaration): Pick<
   TextProps,
-  'italic' | 'decoration' | 'textTransform' | 'textShadow' | 'overflow'
+  'italic' | 'decoration' | 'textTransform' | 'textShadow' | 'overflow' | 'wordSpacing' | 'textStroke' | 'writingMode' | 'direction'
 > {
-  const out: Pick<TextProps, 'italic' | 'decoration' | 'textTransform' | 'textShadow' | 'overflow'> = {};
+  const out: Pick<TextProps, 'italic' | 'decoration' | 'textTransform' | 'textShadow' | 'overflow' | 'wordSpacing' | 'textStroke' | 'writingMode' | 'direction'> = {};
   if (computed.fontStyle === 'italic' || computed.fontStyle === 'oblique') out.italic = true;
   const deco = [computed.textDecorationLine, computed.textDecorationStyle]
     .filter((v) => v && v !== 'none' && v !== 'solid')
@@ -192,6 +192,15 @@ function extractTextFidelity(computed: CSSStyleDeclaration): Pick<
   if (ts && ts !== 'none') out.textShadow = ts;
   const overflow = computed.textOverflow?.trim();
   if (overflow === 'ellipsis') out.overflow = 'ellipsis';
+  const ws = computed.wordSpacing?.trim();
+  if (ws && ws !== '0px' && ws !== 'normal') out.wordSpacing = ws;
+  const strokeW = (computed as CSSStyleDeclaration & { webkitTextStrokeWidth?: string; textStrokeWidth?: string }).webkitTextStrokeWidth ?? (computed as CSSStyleDeclaration & { textStrokeWidth?: string }).textStrokeWidth;
+  const strokeC = (computed as CSSStyleDeclaration & { webkitTextStrokeColor?: string; textStrokeColor?: string }).webkitTextStrokeColor ?? (computed as CSSStyleDeclaration & { textStrokeColor?: string }).textStrokeColor;
+  if (strokeW && parseFloat(strokeW) > 0) out.textStroke = `${strokeW} ${strokeC || computed.color}`;
+  const wm = computed.writingMode?.trim();
+  if (wm && wm !== 'horizontal-tb') out.writingMode = wm;
+  const dir = computed.direction?.trim();
+  if (dir && dir === 'rtl') out.direction = dir;
   return out;
 }
 

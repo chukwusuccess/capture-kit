@@ -302,6 +302,9 @@ function renderNodeToFigmaSvg(
     }
     const firstRunX = inlineLeadWidth > 0 && anchor === 'start' ? Math.round((box.x + inlineLeadWidth + 8) * 100) / 100 : textX;
     const lsAttr = typeof text.letterSpacing === 'number' && text.letterSpacing !== 0 ? ` letter-spacing="${text.letterSpacing}"` : '';
+    const wsAttr = typeof text.wordSpacing === 'number' && text.wordSpacing !== 0 ? ` word-spacing="${text.wordSpacing}"` : typeof text.wordSpacing === 'string' && text.wordSpacing && text.wordSpacing !== 'normal' && text.wordSpacing !== '0px' ? ` word-spacing="${escapeXml(text.wordSpacing)}"` : '';
+    const textStrokeAttr = text.textStroke ? ` stroke="${escapeXml(text.textStroke.split(/\s+/).slice(1).join(' ') || text.color)}" stroke-width="${escapeXml(text.textStroke.split(/\s+/)[0])}" paint-order="stroke"` : '';
+    const dirAttr = text.direction === 'rtl' ? ' direction="rtl" unicode-bidi="embed"' : '';
     const italicAttr = text.italic ? ' font-style="italic"' : '';
     const decoAttr = text.decoration && text.decoration !== 'none' && !text.decoration.startsWith('none') ? ` text-decoration="${escapeXml(text.decoration.split(' ')[0])}"` : '';
     const innerContent =
@@ -326,7 +329,7 @@ function renderNodeToFigmaSvg(
     const textY = Math.round((lineMidY + text.fontSize * 0.33) * 100) / 100;
     return `    <text id="${escapeXml(node.name || node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${wsAttr}${textStrokeAttr}${dirAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     // Path data lives in viewBox units: scale into the laid-out box with a
