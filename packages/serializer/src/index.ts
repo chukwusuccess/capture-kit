@@ -893,6 +893,14 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
       break;
     }
   }
+  if (strokes.length === 0) {
+    const ow = Math.max(0, parseFloat(computed.outlineWidth) || 0);
+    const os = computed.outlineStyle;
+    const oc = computed.outlineColor;
+    if (ow > 0 && os && os !== 'none' && os !== 'auto' && oc && oc !== 'transparent' && oc !== 'rgba(0, 0, 0, 0)') {
+      strokes.push({ color: oc, width: ow, style: os === 'dashed' || os === 'dotted' ? os : 'solid' });
+    }
+  }
 
   return strokes;
 }
@@ -1254,7 +1262,7 @@ async function serializeSubtree(
 
   const capture = emptyCapture({
     url: defaultView.location?.href || baseURI,
-    version: '0.1.2',
+    version: '0.1.3',
     frame: {
       width: Math.max(1, Math.round(frameRect.width)),
       height: Math.max(1, Math.round(frameRect.height)),
@@ -1864,12 +1872,15 @@ async function serializeSubtree(
     // 4. Form controls
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
       let controlText = '';
+      let isPlaceholder = false;
       if (tagName === 'input') {
         const input = el as HTMLInputElement;
         controlText = input.value || input.placeholder || '';
+        isPlaceholder = !input.value && Boolean(input.placeholder);
       } else if (tagName === 'textarea') {
         const textarea = el as HTMLTextAreaElement;
         controlText = textarea.value || textarea.placeholder || '';
+        isPlaceholder = !textarea.value && Boolean(textarea.placeholder);
       } else if (tagName === 'select') {
         const select = el as HTMLSelectElement;
         controlText =
@@ -1881,21 +1892,36 @@ async function serializeSubtree(
         parentId,
         type: 'rect',
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
-        style,
+        style: { ...style, clip: false },
       });
 
       if (controlText.trim().length > 0) {
         const fontSize = parseFloat(computed.fontSize) || 14;
+        const align = parseTextAlign(computed.textAlign);
+        const padL = (parseFloat(computed.borderLeftWidth) || 0) + (parseFloat(computed.paddingLeft) || 0);
+        const padR = (parseFloat(computed.borderRightWidth) || 0) + (parseFloat(computed.paddingRight) || 0);
+        const insetL = padL > 0 ? padL : align === 'center' ? 8 : 12;
+        const insetR = padR > 0 ? padR : align === 'center' ? 8 : 12;
+        const ctrlH = Math.min(h, fontSize * 1.25);
+        let textColor = computed.color || 'rgba(0, 0, 0, 1)';
+        if (isPlaceholder) {
+          try {
+            const phColor = defaultView.getComputedStyle(el, '::placeholder')?.color;
+            if (phColor && phColor !== 'rgba(0, 0, 0, 0)' && phColor !== 'transparent') textColor = phColor;
+          } catch {
+            // keep computed.color
+          }
+        }
         const textNodeId = `node-${nextNodeId++}`;
         const controlTextNode = {
           id: textNodeId,
           parentId: nodeId,
           type: 'text' as const,
           box: {
-            x: x + 8,
-            y: y + Math.max(0, (h - fontSize) / 2),
-            w: Math.max(0, w - 16),
-            h: Math.min(h, fontSize * 1.4),
+            x: x + insetL,
+            y: y + Math.max(0, (h - ctrlH) / 2),
+            w: Math.max(0, w - insetL - insetR),
+            h: ctrlH,
           },
           style: {
             fills: [],
@@ -1912,8 +1938,8 @@ async function serializeSubtree(
             fontWeight: computed.fontWeight || 400,
             lineHeight: (() => { const v = parseFloat(computed.lineHeight); return Number.isNaN(v) ? 'normal' : v; })(),
             letterSpacing: parseFloat(computed.letterSpacing) || 0,
-            align: parseTextAlign(computed.textAlign),
-            color: computed.color || 'rgba(0, 0, 0, 1)',
+            align,
+            color: textColor,
             ...extractTextFidelity(computed),
           },
         };
@@ -2265,7 +2291,7 @@ export async function serializeDocument(
   if (!targetRoot) {
     return emptyCapture({
       url: defaultView.location?.href || 'about:blank',
-      version: '0.1.2',
+      version: '0.1.3',
     });
   }
 

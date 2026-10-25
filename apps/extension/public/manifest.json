@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "capture-kit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Capture a page or every page of a site into a neutral model; export to Figma, Sketch, SVG, HTML.",
   "permissions": [
     "activeTab",

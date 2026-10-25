@@ -11,13 +11,13 @@ function runTests(): void {
   // 1. Accepts minimal capture
   const minimal = emptyCapture();
   const parsedMinimal = CaptureSchema.parse(minimal);
-  assert.strictEqual(parsedMinimal.version, '0.1.2');
+  assert.strictEqual(parsedMinimal.version, '0.1.3');
   assert.strictEqual(parsedMinimal.nodes.length, 0);
 
   // 2. Accepts capture with full nodes
   const fullCapture: Capture = {
     url: 'https://example.com',
-    version: '0.1.2',
+    version: '0.1.3',
     frame: {
       width: 1440,
       height: 900,
@@ -91,7 +91,7 @@ function runTests(): void {
   // 3. Rejects malformed capture (missing frame or wrong types)
   const malformedCapture = {
     url: 'https://example.com',
-    version: '0.1.2',
+    version: '0.1.3',
     // missing frame
     nodes: 'not an array',
   };
