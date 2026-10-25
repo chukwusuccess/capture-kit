@@ -90,6 +90,8 @@ export const StyleSchema = z.object({
   // CSS mask-image (e.g. radial fade on glow washes): capture the raw value;
   // destinations render it as an SVG mask so masked nodes don't paint solid.
   maskImage: z.string().optional(),
+  interactiveClasses: z.array(z.string()).optional(),
+  hoverStyle: z.record(z.string(), z.string()).optional(),
 });
 
 export const TextRunSchema = z.object({
@@ -100,6 +102,9 @@ export const TextRunSchema = z.object({
   color: z.string().optional(),
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().optional(),
 });
 
 export const TextPropsSchema = z.object({
@@ -153,6 +158,7 @@ export const VectorViewBoxSchema = z.object({
 
 export const NodeSchema = z.object({
   id: z.string(),
+  name: z.string().optional(),
   parentId: z.string().optional(),
   type: z.enum(['frame', 'text', 'rect', 'image', 'vector']),
   box: BoxSchema,

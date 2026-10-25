@@ -1442,6 +1442,43 @@ async function serializeSubtree(
 
     const nodeId = `node-${nextNodeId++}`;
     elementToIdMap.set(el, nodeId);
+    const rawLabel = (
+      el.getAttribute('aria-label') ||
+      el.getAttribute('alt') ||
+      el.getAttribute('placeholder') ||
+      el.getAttribute('title') ||
+      (el.children.length <= 2 ? el.textContent : '') ||
+      ''
+    )
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 28);
+    const tagLabelMap: Record<string, string> = {
+      nav: 'Nav',
+      header: 'Header',
+      footer: 'Footer',
+      main: 'Main',
+      section: 'Section',
+      article: 'Article',
+      aside: 'Aside',
+      button: 'Button',
+      a: 'Link',
+      input: 'Input',
+      select: 'Select',
+      textarea: 'Textarea',
+      form: 'Form',
+      ul: 'List',
+      ol: 'List',
+      li: 'Item',
+      h1: 'H1',
+      h2: 'H2',
+      h3: 'H3',
+      h4: 'H4',
+      img: 'Image',
+      svg: 'Icon',
+    };
+    const baseTagLabel = tagLabelMap[el.tagName.toLowerCase()] || (el.id ? `#${el.id.slice(0, 20)}` : '');
+    const semanticName = baseTagLabel && rawLabel ? `${baseTagLabel} · ${rawLabel}` : baseTagLabel || (rawLabel ? `Frame · ${rawLabel}` : undefined);
 
     // Parent ID from nearest mapped ancestor. parentElement chains stop at
     // shadow boundaries, so hop through ShadowRoot.host when exhausted.
@@ -2026,7 +2063,7 @@ async function serializeSubtree(
           num2(computed.paddingBottom)
       );
 
-      let runs: Array<{ text: string; fontFamily?: string; fontSize?: number; fontWeight?: string | number; color?: string }> | undefined;
+      let runs: Array<{ text: string; x?: number; y?: number; w?: number; fontFamily?: string; fontSize?: number; fontWeight?: string | number; color?: string }> | undefined;
       if (typeof doc.createRange === 'function' && childTextNodes.length === 1) {
         try {
           const tNode = childTextNodes[0];
@@ -2035,8 +2072,9 @@ async function serializeSubtree(
           range.selectNodeContents(tNode);
           const clientRects = range.getClientRects();
           if (clientRects && clientRects.length > 1) {
-            const lineRuns: Array<{ text: string }> = [];
+            const lineRuns: Array<{ text: string; x?: number; y?: number; w?: number }> = [];
             let currentLine = '';
+            let minL = Infinity, minT = Infinity, maxR = -Infinity;
             let prevTop: number | null = null;
             const charRange = doc.createRange();
             for (let ci = 0; ci < fullStr.length; ci++) {
@@ -2048,14 +2086,26 @@ async function serializeSubtree(
                 continue;
               }
               if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
-                if (currentLine.trim()) lineRuns.push({ text: currentLine.trim() });
+                if (currentLine.trim()) {
+                  lineRuns.push({
+                    text: currentLine.trim(),
+                    ...(minL < Infinity ? { x: round2(minL + scrollX - frameRect.originX), y: round2(minT + scrollY - frameRect.originY), w: round2(maxR - minL + 2) } : {}),
+                  });
+                }
                 currentLine = fullStr[ci];
+                minL = cr.left; minT = cr.top; maxR = cr.right;
               } else {
                 currentLine += fullStr[ci];
+                minL = Math.min(minL, cr.left); minT = Math.min(minT, cr.top); maxR = Math.max(maxR, cr.right);
               }
               prevTop = cr.top;
             }
-            if (currentLine.trim()) lineRuns.push({ text: currentLine.trim() });
+            if (currentLine.trim()) {
+              lineRuns.push({
+                text: currentLine.trim(),
+                ...(minL < Infinity ? { x: round2(minL + scrollX - frameRect.originX), y: round2(minT + scrollY - frameRect.originY), w: round2(maxR - minL + 2) } : {}),
+              });
+            }
             if (lineRuns.length > 1) runs = lineRuns;
           }
         } catch {
@@ -2065,6 +2115,7 @@ async function serializeSubtree(
 
       nodes.push({
         id: nodeId,
+        ...(semanticName ? { name: semanticName } : {}),
         parentId,
         type: 'text',
         box: { x: cbX, y: cbY, w: cbW, h: cbH },
@@ -2090,6 +2141,7 @@ async function serializeSubtree(
 
     nodes.push({
       id: nodeId,
+      ...(semanticName ? { name: semanticName } : {}),
       parentId,
       type: hasChildren ? 'frame' : 'rect',
       box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
