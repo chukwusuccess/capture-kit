@@ -480,7 +480,8 @@ function buildFigmaLayers(capture: Capture): string {
         : '';
     const groupOpacity = !selfLayer && node.style.opacity !== undefined && node.style.opacity < 1 ? ` opacity="${node.style.opacity}"` : '';
     const groupMask = node.style.maskImage && node.style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
-    const groupFilter = node.style.filter && node.style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+    const groupHasFilter = (node.style.filter && node.style.filter !== 'none') || (node.style.backdropFilter && node.style.backdropFilter !== 'none') || (node.style.shadows ?? []).some((s) => !s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)');
+    const groupFilter = groupHasFilter ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
     const groupId = node.name ? `${escapeXml(node.name)} (${escapeXml(node.id)})` : `group-${escapeXml(node.id)}`;
     return [`  <g id="${groupId}"${clipAttr}${groupOpacity}${groupMask}${groupFilter}>`, selfLayer, childrenSvg, '  </g>'].filter(Boolean).join('\n');
   }
