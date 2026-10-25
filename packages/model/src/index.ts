@@ -28,6 +28,7 @@ export const StrokeSchema = z.object({
   color: z.string(),
   width: z.number().gte(0),
   style: z.enum(['solid', 'dashed', 'dotted']).optional(),
+  side: z.enum(['all', 'top', 'right', 'bottom', 'left']).optional(),
 });
 
 export const CornerRadiusSchema = z.object({
@@ -218,7 +219,7 @@ export type SiteCapture = z.infer<typeof SiteCaptureSchema>;
 export function emptyCapture(opts: Partial<Capture> = {}): Capture {
   return {
     url: opts.url ?? 'about:blank',
-    version: opts.version ?? '0.2.0',
+    version: opts.version ?? '0.2.1',
     frame: opts.frame ?? {
       width: 1200,
       height: 800,

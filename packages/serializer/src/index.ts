@@ -813,7 +813,7 @@ function extractSvgPaths(
   const paths: Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> = [];
 
   if (typeof svgEl.querySelectorAll !== 'function') return paths;
-  for (const child of svgEl.querySelectorAll('path, rect, circle, polygon, line')) {
+  for (const child of svgEl.querySelectorAll('path, rect, circle, ellipse, polygon, polyline, line')) {
     if (typeof child.closest === 'function' && child.closest('defs, clipPath, mask, pattern, marker')) continue;
     const tag = child.tagName.toLowerCase();
     let d = '';
@@ -825,22 +825,31 @@ function extractSvgPaths(
       const ry = parseFloat(child.getAttribute('y') || '0');
       const rw = parseFloat(child.getAttribute('width') || '0');
       const rh = parseFloat(child.getAttribute('height') || '0');
-      if (rw > 0 && rh > 0) {
-        d = `M ${rx} ${ry} H ${rx + rw} V ${ry + rh} H ${rx} Z`;
-      }
+      if (rw > 0 && rh > 0) d = `M ${rx} ${ry} H ${rx + rw} V ${ry + rh} H ${rx} Z`;
     } else if (tag === 'circle') {
       const cx = parseFloat(child.getAttribute('cx') || '0');
       const cy = parseFloat(child.getAttribute('cy') || '0');
       const r = parseFloat(child.getAttribute('r') || '0');
-      if (r > 0) {
-        d = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
-      }
-    } else if (tag === 'polygon') {
+      if (r > 0) d = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+    } else if (tag === 'ellipse') {
+      const cx = parseFloat(child.getAttribute('cx') || '0');
+      const cy = parseFloat(child.getAttribute('cy') || '0');
+      const rx = parseFloat(child.getAttribute('rx') || '0');
+      const ry = parseFloat(child.getAttribute('ry') || '0');
+      if (rx > 0 && ry > 0) d = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+    } else if (tag === 'line') {
+      const x1 = parseFloat(child.getAttribute('x1') || '0');
+      const y1 = parseFloat(child.getAttribute('y1') || '0');
+      const x2 = parseFloat(child.getAttribute('x2') || '0');
+      const y2 = parseFloat(child.getAttribute('y2') || '0');
+      d = `M ${x1} ${y1} L ${x2} ${y2}`;
+    } else if (tag === 'polygon' || tag === 'polyline') {
       const points = child.getAttribute('points');
       if (points) {
         const coords = points.trim().split(/[\s,]+/);
         if (coords.length >= 4) {
-          d = `M ${coords[0]} ${coords[1]} ` + coords.slice(2).reduce((acc, val, idx) => (idx % 2 === 0 ? `${acc} L ${val}` : `${acc} ${val}`), '') + ' Z';
+          const z = tag === 'polygon' ? ' Z' : '';
+          d = `M ${coords[0]} ${coords[1]} ` + coords.slice(2).reduce((acc, val, idx) => (idx % 2 === 0 ? `${acc} L ${val}` : `${acc} ${val}`), '') + z;
         }
       }
     }
@@ -897,43 +906,32 @@ function parseCornerRadius(computed: CSSStyleDeclaration): CornerRadius {
 
 function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
   const strokes: Stroke[] = [];
-  const edges = [
-    { width: computed.borderTopWidth, style: computed.borderTopStyle, color: computed.borderTopColor },
-    { width: computed.borderRightWidth, style: computed.borderRightStyle, color: computed.borderRightColor },
-    { width: computed.borderBottomWidth, style: computed.borderBottomStyle, color: computed.borderBottomColor },
-    { width: computed.borderLeftWidth, style: computed.borderLeftStyle, color: computed.borderLeftColor },
+  const edgeDefs: Array<{ side: 'top' | 'right' | 'bottom' | 'left'; width: string; style: string; color: string }> = [
+    { side: 'top', width: computed.borderTopWidth, style: computed.borderTopStyle, color: computed.borderTopColor },
+    { side: 'right', width: computed.borderRightWidth, style: computed.borderRightStyle, color: computed.borderRightColor },
+    { side: 'bottom', width: computed.borderBottomWidth, style: computed.borderBottomStyle, color: computed.borderBottomColor },
+    { side: 'left', width: computed.borderLeftWidth, style: computed.borderLeftStyle, color: computed.borderLeftColor },
   ];
-
-  for (const edge of edges) {
-    const width = Math.max(0, parseFloat(edge.width) || 0);
-    const style = edge.style;
-    const color = edge.color;
-
-    if (
-      width > 0 &&
-      style &&
-      style !== 'none' &&
-      color &&
-      color !== 'transparent' &&
-      color !== 'rgba(0, 0, 0, 0)'
-    ) {
-      strokes.push({
-        color,
-        width,
-        style: style === 'dashed' || style === 'dotted' ? style : 'solid',
-      });
-      break;
-    }
+  const validEdges = edgeDefs
+    .map((e) => {
+      const w = Math.max(0, parseFloat(e.width) || 0);
+      const ok = w > 0 && e.style && e.style !== 'none' && e.color && e.color !== 'transparent' && e.color !== 'rgba(0, 0, 0, 0)';
+      return ok ? { side: e.side, width: w, style: e.style === 'dashed' || e.style === 'dotted' ? e.style : ('solid' as const), color: e.color } : null;
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+  if (validEdges.length === 4 && validEdges.every((e) => e.width === validEdges[0].width && e.color === validEdges[0].color && e.style === validEdges[0].style)) {
+    strokes.push({ color: validEdges[0].color, width: validEdges[0].width, style: validEdges[0].style, side: 'all' });
+  } else if (validEdges.length > 0) {
+    for (const e of validEdges) strokes.push({ color: e.color, width: e.width, style: e.style, side: e.side });
   }
   if (strokes.length === 0) {
     const ow = Math.max(0, parseFloat(computed.outlineWidth) || 0);
     const os = computed.outlineStyle;
     const oc = computed.outlineColor;
     if (ow > 0 && os && os !== 'none' && os !== 'auto' && oc && oc !== 'transparent' && oc !== 'rgba(0, 0, 0, 0)') {
-      strokes.push({ color: oc, width: ow, style: os === 'dashed' || os === 'dotted' ? os : 'solid' });
+      strokes.push({ color: oc, width: ow, style: os === 'dashed' || os === 'dotted' ? os : 'solid', side: 'all' });
     }
   }
-
   return strokes;
 }
 function extractPseudoElement(
@@ -1294,7 +1292,7 @@ async function serializeSubtree(
 
   const capture = emptyCapture({
     url: defaultView.location?.href || baseURI,
-    version: '0.2.0',
+    version: '0.2.1',
     frame: {
       width: Math.max(1, Math.round(frameRect.width)),
       height: Math.max(1, Math.round(frameRect.height)),
@@ -2313,19 +2311,24 @@ async function serializeSubtree(
       pendingAssetFetches.map(async ({ url, assetKey }) => {
         try {
           const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
-          if (!res.ok) return;
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const blob = await res.blob();
           const transcoded = await transcodeToPng(blob);
           const finalBlob = transcoded ?? blob;
           const buffer = await finalBlob.arrayBuffer();
           const base64 = await arrayBufferToBase64(buffer);
-          assets[assetKey] = {
-            kind: 'image',
-            mimeType: finalBlob.type || 'image/png',
-            base64,
-          };
+          assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
         } catch {
-          // fetch failure ignored
+          if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+            try {
+              const bg = (await chrome.runtime.sendMessage({ action: 'fetch-asset', url })) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              if (bg?.success && bg.base64) {
+                assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
+              }
+            } catch {
+              // ignore
+            }
+          }
         }
       })
     );
@@ -2375,7 +2378,7 @@ export async function serializeDocument(
   if (!targetRoot) {
     return emptyCapture({
       url: defaultView.location?.href || 'about:blank',
-      version: '0.2.0',
+      version: '0.2.1',
     });
   }
 

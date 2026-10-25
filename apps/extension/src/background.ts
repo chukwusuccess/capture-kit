@@ -651,6 +651,21 @@ chrome.runtime.onMessage.addListener(
         sendResponse({ success: true });
         return true;
       }
+      if (action === 'fetch-asset' && 'url' in message && typeof message.url === 'string') {
+        const assetUrl = message.url;
+        fetch(assetUrl, { signal: AbortSignal.timeout(6000) })
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const buffer = await blob.arrayBuffer();
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            sendResponse({ success: true, mimeType: blob.type || 'image/png', base64: btoa(binary) });
+          })
+          .catch(fail);
+        return true;
+      }
     }
     return false;
   }
