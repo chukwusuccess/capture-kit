@@ -51,18 +51,105 @@ function makeAsymmetricRoundRectPath(box: { x: number; y: number; w: number; h: 
   return `M ${x + tl} ${y} H ${x + w - tr} A ${tr} ${tr} 0 0 1 ${x + w} ${y + tr} V ${y + h - br} A ${br} ${br} 0 0 1 ${x + w - br} ${y + h} H ${x + bl} A ${bl} ${bl} 0 0 1 ${x} ${y + h - bl} V ${y + tl} A ${tl} ${tl} 0 0 1 ${x + tl} ${y} Z`;
 }
 
+function clipShapeForNode(node: Node): string | null {
+  const { x, y, w, h } = node.box;
+  const r2 = (n: number): number => Math.round(n * 100) / 100;
+  const cp = node.style.clipPath?.trim();
+  if (cp && cp !== 'none') {
+    const poly = cp.match(/polygon\(([^)]+)\)/);
+    if (poly?.[1]) {
+      const pts = poly[1].split(',').map((pair) => {
+        const parts = pair.trim().split(/\s+/);
+        const px = parts[0]?.endsWith('%') ? x + (parseFloat(parts[0]) / 100) * w : x + (parseFloat(parts[0] || '0') || 0);
+        const py = parts[1]?.endsWith('%') ? y + (parseFloat(parts[1]) / 100) * h : y + (parseFloat(parts[1] || '0') || 0);
+        return `${r2(px)},${r2(py)}`;
+      }).join(' ');
+      return `<polygon points="${pts}" />`;
+    }
+    const circ = cp.match(/circle\(\s*([^\s]+)(?:\s+at\s+([^\s]+)\s+([^\s)]+))?\s*\)/);
+    if (circ) {
+      const dim = (tok: string | undefined, size: number): number => {
+        if (!tok) return size / 2;
+        if (tok.endsWith('%')) return (parseFloat(tok) / 100) * size;
+        if (tok === 'left' || tok === 'top') return 0;
+        if (tok === 'right' || tok === 'bottom') return size;
+        if (tok === 'center') return size / 2;
+        return parseFloat(tok) || size / 2;
+      };
+      const rTok = circ[1] ?? '';
+      const cx = x + dim(circ[2], w);
+      const cy = y + dim(circ[3], h);
+      const rr = rTok.endsWith('%') ? (parseFloat(rTok) / 100) * Math.min(w, h) : parseFloat(rTok) || Math.min(w, h) / 2;
+      return `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(rr)}" />`;
+    }
+    const ell = cp.match(/ellipse\(\s*([^\s]+)\s+([^\s]+)(?:\s+at\s+([^\s]+)\s+([^\s)]+))?\s*\)/);
+    if (ell) {
+      const dim = (tok: string | undefined, size: number): number => {
+        if (!tok) return size / 2;
+        if (tok.endsWith('%')) return (parseFloat(tok) / 100) * size;
+        if (tok === 'left' || tok === 'top') return 0;
+        if (tok === 'right' || tok === 'bottom') return size;
+        if (tok === 'center') return size / 2;
+        return parseFloat(tok) || size / 2;
+      };
+      const rx = ell[1]?.endsWith('%') ? (parseFloat(ell[1]) / 100) * w : parseFloat(ell[1] ?? '') || w / 2;
+      const ry = ell[2]?.endsWith('%') ? (parseFloat(ell[2]) / 100) * h : parseFloat(ell[2] ?? '') || h / 2;
+      const cx = x + dim(ell[3], w);
+      const cy = y + dim(ell[4], h);
+      return `<ellipse cx="${r2(cx)}" cy="${r2(cy)}" rx="${r2(rx)}" ry="${r2(ry)}" />`;
+    }
+    const inset = cp.match(/inset\(([^)]+)\)/);
+    if (inset?.[1]) {
+      const parts = inset[1].trim().split(/\s+/);
+      const edge = (tok: string | undefined, size: number): number => {
+        if (!tok || tok === '0') return 0;
+        if (tok.endsWith('%')) return (parseFloat(tok) / 100) * size;
+        return parseFloat(tok) || 0;
+      };
+      const t = edge(parts[0], h);
+      const rr = edge(parts[1] ?? parts[0], w);
+      const b = edge(parts[2] ?? parts[0], h);
+      const l = edge(parts[3] ?? parts[1] ?? parts[0], w);
+      return `<rect x="${r2(x + l)}" y="${r2(y + t)}" width="${r2(Math.max(0, w - l - rr))}" height="${r2(Math.max(0, h - t - b))}" />`;
+    }
+    return null;
+  }
+  if (node.style.clip) {
+    const maxR = Math.min(w / 2, h / 2);
+    const { tl, tr, br, bl } = cornerInsets(node.style.radius, maxR);
+    if (tl === tr && tr === br && br === bl) {
+      const rx = tl > 0 ? ` rx="${tl}" ry="${tl}"` : '';
+      return `<rect x="${x}" y="${y}" width="${w}" height="${h}"${rx} />`;
+    }
+    return `<path d="${makeAsymmetricRoundRectPath(node.box, node.style.radius ?? { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 })}" />`;
+  }
+  return null;
+}
+function cornerInsets(r: CornerRadius | undefined, maxR: number): { tl: number; tr: number; br: number; bl: number } {
+  if (!r) return { tl: 0, tr: 0, br: 0, bl: 0 };
+  return {
+    tl: Math.max(0, Math.min(r.topLeft, maxR)),
+    tr: Math.max(0, Math.min(r.topRight, maxR)),
+    br: Math.max(0, Math.min(r.bottomRight, maxR)),
+    bl: Math.max(0, Math.min(r.bottomLeft, maxR)),
+  };
+}
+
 function renderPerEdgeLines(node: Node, tmAttr: string): string {
   const lines: string[] = [];
   const b = node.box;
+  const maxR = Math.min(b.w / 2, b.h / 2);
+  const { tl, tr, br, bl } = cornerInsets(node.style.radius, maxR);
+  const round2 = (n: number): number => Math.round(n * 100) / 100;
   for (const s of node.style.strokes ?? []) {
     if (!s.side || s.side === 'all' || s.width <= 0) continue;
     const dash = s.style === 'dashed' ? ` stroke-dasharray="${s.width * 3},${s.width * 2}"` : s.style === 'dotted' ? ` stroke-dasharray="${s.width},${s.width * 1.5}"` : '';
     const w = s.width;
     const c = escapeXml(s.color);
-    if (s.side === 'top') lines.push(`    <line x1="${b.x}" y1="${Math.round((b.y + w / 2) * 100) / 100}" x2="${b.x + b.w}" y2="${Math.round((b.y + w / 2) * 100) / 100}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
-    else if (s.side === 'bottom') lines.push(`    <line x1="${b.x}" y1="${Math.round((b.y + b.h - w / 2) * 100) / 100}" x2="${b.x + b.w}" y2="${Math.round((b.y + b.h - w / 2) * 100) / 100}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
-    else if (s.side === 'left') lines.push(`    <line x1="${Math.round((b.x + w / 2) * 100) / 100}" y1="${b.y}" x2="${Math.round((b.x + w / 2) * 100) / 100}" y2="${b.y + b.h}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
-    else if (s.side === 'right') lines.push(`    <line x1="${Math.round((b.x + b.w - w / 2) * 100) / 100}" y1="${b.y}" x2="${Math.round((b.x + b.w - w / 2) * 100) / 100}" y2="${b.y + b.h}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    if (s.side === 'top') lines.push(`    <line x1="${round2(b.x + tl)}" y1="${round2(b.y + w / 2)}" x2="${round2(b.x + b.w - tr)}" y2="${round2(b.y + w / 2)}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'bottom') lines.push(`    <line x1="${round2(b.x + bl)}" y1="${round2(b.y + b.h - w / 2)}" x2="${round2(b.x + b.w - br)}" y2="${round2(b.y + b.h - w / 2)}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'left') lines.push(`    <line x1="${round2(b.x + w / 2)}" y1="${round2(b.y + tl)}" x2="${round2(b.x + w / 2)}" y2="${round2(b.y + b.h - bl)}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
+    else if (s.side === 'right') lines.push(`    <line x1="${round2(b.x + b.w - w / 2)}" y1="${round2(b.y + tr)}" x2="${round2(b.x + b.w - w / 2)}" y2="${round2(b.y + b.h - br)}" stroke="${c}" stroke-width="${w}"${dash}${tmAttr} />`);
   }
   return lines.join('\n');
 }
@@ -134,7 +221,7 @@ function renderNodeToFigmaSvg(
       ? ` filter="url(#fx-${escapeXml(node.id)})"`
       : '';
   const maskAttr = !isGroupSelf && style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
-  const leafClipAttr = !isGroupSelf && style.clip ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
+  const leafClipAttr = !isGroupSelf && clipShapeForNode(node) ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
   const allSidedStroke = style.strokes?.find((s) => (!s.side || s.side === 'all') && s.width > 0);
   if (allSidedStroke) {
@@ -342,7 +429,7 @@ function buildFigmaLayers(capture: Capture): string {
         c.box.y + c.box.h > node.box.y + node.box.h + 2
     );
     const clipAttr =
-      node.style.clip && childrenOverflow
+      clipShapeForNode(node) && childrenOverflow
         ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"`
         : '';
     const groupOpacity = !selfLayer && node.style.opacity !== undefined && node.style.opacity < 1 ? ` opacity="${node.style.opacity}"` : '';
@@ -433,32 +520,9 @@ function buildFigmaDefs(captures: Capture[]): string {
         }
       });
 
-      if (node.style.clipPath && node.style.clipPath !== 'none') {
-        const cp = node.style.clipPath.trim();
-        const poly = cp.match(/polygon\(([^)]+)\)/);
-        const circ = cp.match(/circle\(([^)]+)\)/);
-        const { x, y, w, h } = node.box;
-        if (poly?.[1]) {
-          const pts = poly[1].split(',').map((pair) => {
-            const parts = pair.trim().split(/\s+/);
-            const px = parts[0]?.endsWith('%') ? x + (parseFloat(parts[0]) / 100) * w : x + (parseFloat(parts[0] || '0') || 0);
-            const py = parts[1]?.endsWith('%') ? y + (parseFloat(parts[1]) / 100) * h : y + (parseFloat(parts[1] || '0') || 0);
-            return `${Math.round(px * 100) / 100},${Math.round(py * 100) / 100}`;
-          }).join(' ');
-          defs.push(`    <clipPath id="clip-${escapeXml(node.id)}">\n      <polygon points="${pts}" />\n    </clipPath>`);
-        } else if (circ?.[1]) {
-          const rNum = parseFloat(circ[1]) || w / 2;
-          const rVal = circ[1].includes('%') ? (rNum / 100) * Math.min(w, h) : rNum;
-          defs.push(`    <clipPath id="clip-${escapeXml(node.id)}">\n      <circle cx="${x + w / 2}" cy="${y + h / 2}" r="${rVal}" />\n    </clipPath>`);
-        }
-      } else if (node.style.clip) {
-        const clipRxVal = node.style.radius?.topLeft
-          ? Math.min(node.style.radius.topLeft, node.box.w / 2, node.box.h / 2)
-          : 0;
-        const rx = clipRxVal > 0 ? ` rx="${clipRxVal}" ry="${clipRxVal}"` : '';
-        defs.push(
-          `    <clipPath id="clip-${escapeXml(node.id)}">\n      <rect x="${node.box.x}" y="${node.box.y}" width="${node.box.w}" height="${node.box.h}"${rx} />\n    </clipPath>`
-        );
+      const clipShape = clipShapeForNode(node);
+      if (clipShape) {
+        defs.push(`    <clipPath id="clip-${escapeXml(node.id)}">\n      ${clipShape}\n    </clipPath>`);
       }
       // CSS mask-image gradient fades: luminance mask so glows fade out.
       const mask = node.style.maskImage;
