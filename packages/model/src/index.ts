@@ -218,7 +218,7 @@ export type SiteCapture = z.infer<typeof SiteCaptureSchema>;
 export function emptyCapture(opts: Partial<Capture> = {}): Capture {
   return {
     url: opts.url ?? 'about:blank',
-    version: opts.version ?? '0.1.3',
+    version: opts.version ?? '0.2.0',
     frame: opts.frame ?? {
       width: 1200,
       height: 800,
