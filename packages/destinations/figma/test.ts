@@ -192,6 +192,9 @@ function runFigmaDestinationTests() {
   assert.ok(multi.includes('transform="translate(1320 0)"'), 'Second size not beside the first');
   assert.ok(multi.includes('transform="translate(0 1020)"'), 'Second page not on its own row');
   assert.ok(multi.includes('id="/pricing @ 1200"'), 'Capture group not labelled');
+  const withDs = modelToFigma(sampleCapture, { includeDesignSystem: true }).svg;
+  assert.ok(withDs.includes('id="Design System"'), 'Design System frame missing when includeDesignSystem is true');
+  assert.ok(withDs.includes('COLOR TOKENS') && withDs.includes('TYPOGRAPHY SCALE'), 'Design System sections missing');
 
   console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }

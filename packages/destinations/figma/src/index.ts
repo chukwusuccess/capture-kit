@@ -3,6 +3,7 @@ import type { Capture, Node } from '@capture-kit/model';
 export interface FigmaExportOptions {
   pasteboardFormat?: 'clipboard' | 'file';
   includeMetadata?: boolean;
+  includeDesignSystem?: boolean;
 }
 
 export interface FigmaClipboardPayload {
@@ -460,9 +461,86 @@ function captureLabel(capture: Capture): string {
   }
 }
 
-function buildFigmaSvg(captures: Capture[]): string {
+function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: string; width: number; height: number } {
+  const dsWidth = 640;
+  const colorCounts = new Map<string, { count: number; role: string }>();
+  const addColor = (raw: string | undefined, role: string) => {
+    if (!raw) return;
+    const c = raw.trim();
+    if (!c || c === 'none' || c === 'transparent' || c === 'rgba(0, 0, 0, 0)' || c.startsWith('url(')) return;
+    const prev = colorCounts.get(c);
+    colorCounts.set(c, { count: (prev?.count ?? 0) + 1, role: prev?.role ?? role });
+  };
+  const typoMap = new Map<string, { family: string; size: number; weight: string | number; lh: string | number; sample: string }>();
+  for (const cap of captures) {
+    addColor(cap.frame.background, 'Canvas');
+    for (const n of cap.nodes) {
+      for (const f of n.style.fills) {
+        if (f.type === 'solid') addColor(f.color, 'Surface');
+        if (f.type === 'gradient' && f.stops) for (const s of f.stops) addColor(s.color, 'Accent');
+      }
+      for (const st of n.style.strokes ?? []) addColor(st.color, 'Border');
+      if (n.type === 'text' && n.text) {
+        addColor(n.text.color, 'Text');
+        const fam = n.text.fontFamily.split(',')[0].replace(/["']/g, '').trim() || 'sans-serif';
+        const key = `${fam}|${Math.round(n.text.fontSize)}|${n.text.fontWeight}`;
+        if (!typoMap.has(key) && n.text.content.trim().length >= 2) {
+          typoMap.set(key, {
+            family: fam,
+            size: Math.round(n.text.fontSize),
+            weight: n.text.fontWeight,
+            lh: n.text.lineHeight,
+            sample: n.text.content.trim().slice(0, 28),
+          });
+        }
+      }
+    }
+  }
+  const topColors = [...colorCounts.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 12);
+  const topTypo = [...typoMap.values()].sort((a, b) => b.size - a.size).slice(0, 8);
+  const lines: string[] = [];
+  let curY = 88;
+  lines.push('    <text id="DS · Title" x="32" y="48" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f8fafc">Design System &amp; Brand Kit</text>');
+  lines.push('    <text id="DS · Colors Heading" x="32" y="80" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">COLOR TOKENS</text>');
+  curY = 96;
+  topColors.forEach(([color, meta], idx) => {
+    const col = idx % 4;
+    const row = Math.floor(idx / 4);
+    const sx = 32 + col * 146;
+    const sy = curY + row * 84;
+    lines.push(`    <g id="Swatch · ${escapeXml(color)}">`);
+    lines.push(`      <rect x="${sx}" y="${sy}" width="134" height="72" rx="8" ry="8" fill="#1e293b" stroke="#334155" stroke-width="1" />`);
+    lines.push(`      <rect x="${sx + 4}" y="${sy + 4}" width="126" height="40" rx="5" ry="5" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.12)" stroke-width="1" />`);
+    lines.push(`      <text x="${sx + 10}" y="${sy + 61}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="10" font-weight="500" fill="#e2e8f0">${escapeXml(color.slice(0, 18))}</text>`);
+    lines.push(`      <text x="${sx + 124}" y="${sy + 61}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#94a3b8">${escapeXml(meta.role)}</text>`);
+    lines.push('    </g>');
+  });
+  curY += Math.ceil(topColors.length / 4) * 84 + 28;
+  lines.push(`    <text id="DS · Typography Heading" x="32" y="${curY}" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">TYPOGRAPHY SCALE</text>`);
+  curY += 20;
+  for (const t of topTypo) {
+    const dispSize = Math.min(32, Math.max(12, t.size));
+    const rowH = dispSize + 28;
+    lines.push(`    <g id="Type · ${t.size}px ${escapeXml(String(t.weight))}">`);
+    lines.push(`      <rect x="32" y="${curY}" width="576" height="${rowH}" rx="8" ry="8" fill="#111827" stroke="#1f2937" stroke-width="1" />`);
+    lines.push(`      <text x="48" y="${curY + 20}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" font-weight="500" fill="#94a3b8">${escapeXml(t.family)} · ${t.size}px · w${escapeXml(String(t.weight))}</text>`);
+    lines.push(`      <text x="240" y="${Math.round(curY + rowH / 2 + dispSize * 0.33)}" font-family="${escapeXml(t.family)}, system-ui, sans-serif" font-size="${dispSize}" font-weight="${escapeXml(String(t.weight))}" fill="#f8fafc">${escapeXml(t.sample)}</text>`);
+    lines.push('    </g>');
+    curY += rowH + 10;
+  }
+  const dsHeight = Math.max(420, curY + 24);
+  const svg = [
+    `  <g id="Design System" transform="translate(${offsetX} 0)">`,
+    `    <rect id="DS · Background" x="0" y="0" width="${dsWidth}" height="${dsHeight}" rx="16" ry="16" fill="#0b0f19" stroke="#1e293b" stroke-width="1" />`,
+    ...lines,
+    '  </g>',
+  ].join('\n');
+  return { svg, width: dsWidth, height: dsHeight };
+}
+
+function buildFigmaSvg(captures: Capture[], opts?: FigmaExportOptions): string {
   const defs = buildFigmaDefs(captures);
-  if (captures.length === 1) {
+  if (captures.length === 1 && !opts?.includeDesignSystem) {
     const { width, height } = captures[0].frame;
     const frameBg = captures[0].frame.background;
     const bgRect = frameBg
@@ -479,7 +557,6 @@ function buildFigmaSvg(captures: Capture[]): string {
     ].filter(Boolean).join('\n');
   }
 
-  // Several captures: one row per page, its sizes left to right, one named group each.
   const rows = new Map<string, Capture[]>();
   for (const capture of captures) rows.set(capture.url, [...(rows.get(capture.url) ?? []), capture]);
 
@@ -490,19 +567,29 @@ function buildFigmaSvg(captures: Capture[]): string {
   for (const row of rows.values()) {
     let x = 0;
     for (const capture of row) {
+      const frameBg = capture.frame.background
+        ? `  <rect x="0" y="0" width="${capture.frame.width}" height="${capture.frame.height}" fill="${escapeXml(capture.frame.background)}" />`
+        : '';
       groups.push(
         [
           `<g id="${escapeXml(captureLabel(capture))}" transform="translate(${x} ${y})" clip-path="url(#frame-clip-${cIdx++})" data-clips-content="true">`,
+          frameBg,
           buildFigmaLayers(capture),
           '</g>',
-        ].join('\n')
+        ].filter(Boolean).join('\n')
       );
       x += capture.frame.width + CAPTURE_GAP;
     }
     width = Math.max(width, x - CAPTURE_GAP);
     y += Math.max(...row.map((c) => c.frame.height)) + CAPTURE_GAP;
   }
-  const height = y - CAPTURE_GAP;
+  let height = y - CAPTURE_GAP;
+  if (opts?.includeDesignSystem) {
+    const ds = buildDesignSystemFrame(captures, width + CAPTURE_GAP);
+    groups.push(ds.svg);
+    width += CAPTURE_GAP + ds.width;
+    height = Math.max(height, ds.height);
+  }
   return [
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
     defs,
@@ -513,11 +600,11 @@ function buildFigmaSvg(captures: Capture[]): string {
 
 export function modelToFigma(
   capture: Capture | Capture[],
-  _opts?: FigmaExportOptions
+  opts?: FigmaExportOptions
 ): FigmaClipboardPayload {
   const captures = Array.isArray(capture) ? capture : [capture];
   if (captures.length === 0) throw new Error('Nothing to export');
-  const svg = buildFigmaSvg(captures);
+  const svg = buildFigmaSvg(captures, opts);
 
   // HTML clipboard fragment that Figma's clipboard handler detects and ingests as vector layers
   const html = [
@@ -534,9 +621,8 @@ export function modelToFigma(
   };
 }
 
-export async function copyToFigmaClipboard(capture: Capture | Capture[]): Promise<void> {
-  const payload = modelToFigma(capture);
-
+export async function copyToFigmaClipboard(capture: Capture | Capture[], opts?: FigmaExportOptions): Promise<void> {
+  const payload = modelToFigma(capture, opts);
   if (
     typeof navigator !== 'undefined' &&
     navigator.clipboard &&
