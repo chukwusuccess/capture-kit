@@ -503,15 +503,23 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
   lines.push('    <text id="DS · Title" x="32" y="48" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f8fafc">Design System &amp; Brand Kit</text>');
   lines.push('    <text id="DS · Colors Heading" x="32" y="80" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">COLOR TOKENS</text>');
   curY = 96;
+  const toHexLabel = (raw: string): string => {
+    const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/i);
+    if (!m) return raw.slice(0, 12);
+    const hex = [m[1], m[2], m[3]].map((v) => Math.max(0, Math.min(255, Number(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+    const a = m[4] !== undefined ? Math.round(parseFloat(m[4]) * 100) : 100;
+    return a < 100 ? `#${hex} ${a}%` : `#${hex}`;
+  };
   topColors.forEach(([color, meta], idx) => {
     const col = idx % 4;
     const row = Math.floor(idx / 4);
     const sx = 32 + col * 146;
     const sy = curY + row * 84;
-    lines.push(`    <g id="Swatch · ${escapeXml(color)}">`);
+    const hexLabel = toHexLabel(color);
+    lines.push(`    <g id="Swatch · ${escapeXml(hexLabel)}">`);
     lines.push(`      <rect x="${sx}" y="${sy}" width="134" height="72" rx="8" ry="8" fill="#1e293b" stroke="#334155" stroke-width="1" />`);
     lines.push(`      <rect x="${sx + 4}" y="${sy + 4}" width="126" height="40" rx="5" ry="5" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.12)" stroke-width="1" />`);
-    lines.push(`      <text x="${sx + 10}" y="${sy + 61}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="10" font-weight="500" fill="#e2e8f0">${escapeXml(color.slice(0, 18))}</text>`);
+    lines.push(`      <text x="${sx + 10}" y="${sy + 61}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="10" font-weight="600" fill="#e2e8f0">${escapeXml(hexLabel)}</text>`);
     lines.push(`      <text x="${sx + 124}" y="${sy + 61}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#94a3b8">${escapeXml(meta.role)}</text>`);
     lines.push('    </g>');
   });
@@ -519,12 +527,14 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
   lines.push(`    <text id="DS · Typography Heading" x="32" y="${curY}" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">TYPOGRAPHY SCALE</text>`);
   curY += 20;
   for (const t of topTypo) {
-    const dispSize = Math.min(32, Math.max(12, t.size));
+    const dispSize = Math.min(28, Math.max(12, t.size));
     const rowH = dispSize + 28;
+    const maxChars = Math.max(10, Math.floor(330 / (dispSize * 0.58)));
+    const sampleStr = t.sample.length > maxChars ? `${t.sample.slice(0, maxChars - 1).trimEnd()}…` : t.sample;
     lines.push(`    <g id="Type · ${t.size}px ${escapeXml(String(t.weight))}">`);
     lines.push(`      <rect x="32" y="${curY}" width="576" height="${rowH}" rx="8" ry="8" fill="#111827" stroke="#1f2937" stroke-width="1" />`);
-    lines.push(`      <text x="48" y="${curY + 20}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" font-weight="500" fill="#94a3b8">${escapeXml(t.family)} · ${t.size}px · w${escapeXml(String(t.weight))}</text>`);
-    lines.push(`      <text x="240" y="${Math.round(curY + rowH / 2 + dispSize * 0.33)}" font-family="${escapeXml(t.family)}, system-ui, sans-serif" font-size="${dispSize}" font-weight="${escapeXml(String(t.weight))}" fill="#f8fafc">${escapeXml(t.sample)}</text>`);
+    lines.push(`      <text x="48" y="${Math.round(curY + rowH / 2 + 4)}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" font-weight="500" fill="#94a3b8">${escapeXml(t.family.slice(0, 12))} · ${t.size}px · w${escapeXml(String(t.weight))}</text>`);
+    lines.push(`      <text x="240" y="${Math.round(curY + rowH / 2 + dispSize * 0.33)}" font-family="${escapeXml(t.family)}, system-ui, sans-serif" font-size="${dispSize}" font-weight="${escapeXml(String(t.weight))}" fill="#f8fafc">${escapeXml(sampleStr)}</text>`);
     lines.push('    </g>');
     curY += rowH + 10;
   }
