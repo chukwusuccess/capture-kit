@@ -259,6 +259,18 @@ function parseCssGradients(bgImage: string): Fill[] {
       if (first.includes('deg')) {
         angle = parseFloat(first) || 180;
         stopStartIndex = 1;
+      } else if (first.includes('to right') && first.includes('top')) {
+        angle = 45;
+        stopStartIndex = 1;
+      } else if (first.includes('to right') && first.includes('bottom')) {
+        angle = 135;
+        stopStartIndex = 1;
+      } else if (first.includes('to left') && first.includes('bottom')) {
+        angle = 225;
+        stopStartIndex = 1;
+      } else if (first.includes('to left') && first.includes('top')) {
+        angle = 315;
+        stopStartIndex = 1;
       } else if (first.includes('to right')) {
         angle = 90;
         stopStartIndex = 1;
@@ -306,18 +318,24 @@ function parseCssGradients(bgImage: string): Fill[] {
 
     // Skip the optional shape/size/position preamble (circle, ellipse, at center…).
     let stopStartIndex = 0;
+    let cx: number | undefined;
+    let cy: number | undefined;
     const first = parts[0].toLowerCase();
-    if (
-      first.includes('circle') ||
-      first.includes('ellipse') ||
-      first.includes('closest') ||
-      first.includes('farthest') ||
-      first.includes('at ') ||
-      /^\d/.test(first)
-    ) {
+    if (first.includes('circle') || first.includes('ellipse') || first.includes('closest') || first.includes('farthest') || first.includes('at ') || /^\d/.test(first)) {
       stopStartIndex = 1;
+      const atMatch = first.match(/at\s+([^\s,]+)(?:\s+([^\s,]+))?/);
+      if (atMatch) {
+        const parseAxis = (tok: string | undefined): number => {
+          if (!tok || tok === 'center') return 0.5;
+          if (tok === 'left' || tok === 'top') return 0;
+          if (tok === 'right' || tok === 'bottom') return 1;
+          if (tok.endsWith('%')) return Math.max(0, Math.min(1, (parseFloat(tok) || 50) / 100));
+          return 0.5;
+        };
+        cx = parseAxis(atMatch[1]);
+        cy = parseAxis(atMatch[2] ?? atMatch[1]);
+      }
     }
-
     const rawStops = parts.slice(stopStartIndex);
     const stops: Array<{ color: string; position: number }> = [];
 
@@ -338,6 +356,8 @@ function parseCssGradients(bgImage: string): Fill[] {
         gradientType: 'radial',
         stops,
         opacity: 1,
+        ...(cx !== undefined ? { cx } : {}),
+        ...(cy !== undefined ? { cy } : {}),
       });
     }
   }

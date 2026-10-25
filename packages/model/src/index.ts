@@ -20,6 +20,8 @@ export const FillSchema = z.object({
   gradientType: z.enum(['linear', 'radial']).optional(),
   angle: z.number().optional(),
   stops: z.array(GradientStopSchema).optional(),
+  cx: z.number().min(0).max(1).optional(),
+  cy: z.number().min(0).max(1).optional(),
 });
 
 export const StrokeSchema = z.object({
