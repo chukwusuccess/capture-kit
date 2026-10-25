@@ -27,17 +27,35 @@ function parseStopAlpha(color: string): number {
   return rgba ? Math.max(0, Math.min(1, parseFloat(rgba[1]))) : 1;
 }
 
+function formatSvgStop(color: string, offsetPct: number): string {
+  const alpha = parseStopAlpha(color);
+  const rgba = color.trim().match(/^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,/i);
+  const rgbColor = rgba ? `rgb(${rgba[1]}, ${rgba[2]}, ${rgba[3]})` : color.trim().toLowerCase() === 'transparent' ? '#000000' : color;
+  const opAttr = alpha < 1 ? ` stop-opacity="${alpha}"` : '';
+  return `      <stop offset="${offsetPct}%" stop-color="${escapeXml(rgbColor)}"${opAttr} />`;
+}
+
 function svgTransformMatrix(node: Node) {
-  const m = node.style.transform?.match(/^matrix\(([^)]+)\)$/);
-  if (!m?.[1]) return null;
-  const p = m[1].split(',').map((s) => parseFloat(s.trim()));
-  if (p.length !== 6 || p.some((n) => Number.isNaN(n))) return null;
+  const tf = node.style.transform;
+  if (!tf || tf === 'none') return null;
+  let p: number[] | null = null;
+  const m2 = tf.match(/^matrix\(([^)]+)\)$/);
+  const m3 = tf.match(/^matrix3d\(([^)]+)\)$/);
+  if (m2?.[1]) {
+    const v = m2[1].split(',').map((s) => parseFloat(s.trim()));
+    if (v.length === 6 && !v.some((n) => Number.isNaN(n))) p = v;
+  } else if (m3?.[1]) {
+    const v = m3[1].split(',').map((s) => parseFloat(s.trim()));
+    if (v.length === 16 && !v.some((n) => Number.isNaN(n))) p = [v[0], v[1], v[4], v[5], v[12], v[13]];
+  }
+  if (!p) return null;
   const [a, b, c, d, tx, ty] = p;
   if (a === 1 && b === 0 && c === 0 && d === 1 && tx === 0 && ty === 0) return null;
   const { x, y, w, h } = node.box;
-  const isZero = node.style.transformOrigin === '0 0' || node.style.transformOrigin === '0px 0px';
-  const ox = isZero ? x : x + w / 2;
-  const oy = isZero ? y : y + h / 2;
+  const orig = node.style.transformOrigin?.trim() || '50% 50%';
+  const isZero = orig === '0 0' || orig === '0px 0px';
+  const ox = isZero ? x : orig.endsWith('px') && !orig.includes('%') ? x + (parseFloat(orig.split(/\s+/)[0]) || w / 2) : x + w / 2;
+  const oy = isZero ? y : orig.endsWith('px') && !orig.includes('%') ? y + (parseFloat(orig.split(/\s+/)[1] ?? orig.split(/\s+/)[0]) || h / 2) : y + h / 2;
   const e = Math.round((tx + ox - (a * ox + c * oy)) * 1e6) / 1e6;
   const f = Math.round((ty + oy - (b * ox + d * oy)) * 1e6) / 1e6;
   const matrix = `matrix(${Math.round(a * 1e6) / 1e6} ${Math.round(b * 1e6) / 1e6} ${Math.round(c * 1e6) / 1e6} ${Math.round(d * 1e6) / 1e6} ${e} ${f})`;
@@ -69,7 +87,15 @@ function renderNodeToFigmaSvg(
   const rx = rxVal > 0 ? ` rx="${rxVal}" ry="${rxVal}"` : '';
   const tm = svgTransformMatrix(node);
   const transformAttr = tm ? tm.attr : '';
-  const filterAttr = !isGroupSelf && style.filter && style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+  const hasOuterShadow = Boolean(
+    style.shadows?.some(
+      (s) => !s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+    )
+  );
+  const filterAttr =
+    !isGroupSelf && ((style.filter && style.filter !== 'none') || hasOuterShadow)
+      ? ` filter="url(#fx-${escapeXml(node.id)})"`
+      : '';
   const maskAttr = !isGroupSelf && style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
   const leafClipAttr = !isGroupSelf && style.clip ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
@@ -192,16 +218,23 @@ function renderNodeToFigmaSvg(
   }
 
   // Handle rect or frame
-  const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+  const gradFills = style.fills.filter((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const imageFill = style.fills.find((f) => f.type === 'image' && f.assetRef);
 
-  if (gradFill) {
-    return `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
-      box.w
-    }" height="${box.h}" fill="url(#grad-${escapeXml(node.id)})"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`;
+  if (gradFills.length > 0) {
+    const layers: string[] = [];
+    if (firstSolid?.color) {
+      layers.push(`    <rect id="${escapeXml(node.id)}-base" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${escapeXml(firstSolid.color)}"${rx}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
+    }
+    gradFills.forEach((_, gIdx) => {
+      const gradId = gIdx === 0 ? `grad-${escapeXml(node.id)}` : `grad-${escapeXml(node.id)}-${gIdx}`;
+      const idAttr = gIdx === 0 && !firstSolid?.color ? ` id="${escapeXml(node.id)}"` : ` id="${escapeXml(node.id)}-grad-${gIdx}"`;
+      const sAttr = gIdx === gradFills.length - 1 ? strokeAttrs : '';
+      layers.push(`    <rect${idAttr} x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#${gradId})"${rx}${sAttr}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
+    });
+    return layers.join('\n');
   }
-
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
     const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
@@ -288,9 +321,16 @@ function buildFigmaLayers(capture: Capture): string {
 }
 
 /** Map a CSS filter chain to SVG filter primitives. */
-function buildFilterPrimitives(filter: string | undefined): string[] {
-  if (!filter || filter === 'none') return [];
+function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style']['shadows']): string[] {
   const prims: string[] = [];
+  if (shadows) {
+    for (const s of shadows) {
+      if (!s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)') {
+        prims.push(`      <feDropShadow dx="${s.x}" dy="${s.y}" stdDeviation="${Math.max(0.5, s.blur / 2)}" flood-color="${escapeXml(s.color)}" />`);
+      }
+    }
+  }
+  if (!filter || filter === 'none') return prims;
   for (const m of filter.matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
     const fn = m[1].toLowerCase();
     const arg = m[2].trim();
@@ -326,7 +366,7 @@ function buildFigmaDefs(captures: Capture[]): string {
   const defs: string[] = [];
   for (const [cIdx, capture] of captures.entries()) {
     for (const node of capture.nodes) {
-      const prims = buildFilterPrimitives(node.style.filter);
+      const prims = buildFilterPrimitives(node.style.filter, node.style.shadows);
       if (prims.length > 0) {
         defs.push(
           `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n${prims.join('\n')}\n    </filter>`
@@ -337,14 +377,15 @@ function buildFigmaDefs(captures: Capture[]): string {
       `    <clipPath id="frame-clip-${cIdx}">\n      <rect x="0" y="0" width="${capture.frame.width}" height="${capture.frame.height}" />\n    </clipPath>`
     );
     for (const node of capture.nodes) {
-      const gradFill = node.style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
-      if (gradFill && gradFill.stops) {
-        const stops = gradFill.stops
-          .map((s) => `      <stop offset="${Math.round(s.position * 100)}%" stop-color="${escapeXml(s.color)}" />`)
-          .join('\n');
-
+      const gradFills = node.style.fills.filter((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+      gradFills.forEach((gradFill, gIdx) => {
+        if (!gradFill.stops) return;
+        const gradId = gIdx === 0 ? `grad-${escapeXml(node.id)}` : `grad-${escapeXml(node.id)}-${gIdx}`;
+        const stops = gradFill.stops.map((s) => formatSvgStop(s.color, Math.round(s.position * 100))).join('\n');
         if (gradFill.gradientType === 'radial') {
-          defs.push(`    <radialGradient id="grad-${escapeXml(node.id)}" cx="50%" cy="50%" r="75%">\n${stops}\n    </radialGradient>`);
+          const cx = `${Math.round((gradFill.cx ?? 0.5) * 100)}%`;
+          const cy = `${Math.round((gradFill.cy ?? 0.5) * 100)}%`;
+          defs.push(`    <radialGradient id="${gradId}" cx="${cx}" cy="${cy}" r="75%">\n${stops}\n    </radialGradient>`);
         } else {
           const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
           const cos = Math.cos(angleRad);
@@ -353,10 +394,9 @@ function buildFigmaDefs(captures: Capture[]): string {
           const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
           const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
           const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
-
-          defs.push(`    <linearGradient id="grad-${escapeXml(node.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
+          defs.push(`    <linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
         }
-      }
+      });
 
       if (node.style.clip) {
         const clipRxVal = node.style.radius?.topLeft
