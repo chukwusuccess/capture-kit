@@ -14,7 +14,7 @@
  */
 
 import JSZip from 'jszip';
-import type { Capture, Fill, Node, Shadow, Stroke } from '@capture-kit/model';
+import type { Capture, CornerRadius, Fill, Node, Shadow, Stroke } from '@capture-kit/model';
 
 interface SketchColor {
   _class: 'color';
@@ -70,48 +70,16 @@ function parseCssColor(colorStr: string): SketchColor {
   return { _class: 'color', red: 0, green: 0, blue: 0, alpha: 1 };
 }
 
-function makeRectPoints(radius: number) {
+function makeRectPoints(r: CornerRadius | number, maxR = Infinity) {
+  const tl = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.topLeft, maxR);
+  const tr = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.topRight, maxR);
+  const br = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.bottomRight, maxR);
+  const bl = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.bottomLeft, maxR);
   return [
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{0, 0}',
-      curveMode: 1,
-      curveTo: '{0, 0}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{0, 0}',
-    },
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{1, 0}',
-      curveMode: 1,
-      curveTo: '{1, 0}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{1, 0}',
-    },
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{1, 1}',
-      curveMode: 1,
-      curveTo: '{1, 1}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{1, 1}',
-    },
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{0, 1}',
-      curveMode: 1,
-      curveTo: '{0, 1}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{0, 1}',
-    },
+    { _class: 'curvePoint', cornerRadius: tl, curveFrom: '{0, 0}', curveMode: 1, curveTo: '{0, 0}', hasCurveFrom: false, hasCurveTo: false, point: '{0, 0}' },
+    { _class: 'curvePoint', cornerRadius: tr, curveFrom: '{1, 0}', curveMode: 1, curveTo: '{1, 0}', hasCurveFrom: false, hasCurveTo: false, point: '{1, 0}' },
+    { _class: 'curvePoint', cornerRadius: br, curveFrom: '{1, 1}', curveMode: 1, curveTo: '{1, 1}', hasCurveFrom: false, hasCurveTo: false, point: '{1, 1}' },
+    { _class: 'curvePoint', cornerRadius: bl, curveFrom: '{0, 1}', curveMode: 1, curveTo: '{0, 1}', hasCurveFrom: false, hasCurveTo: false, point: '{0, 1}' },
   ];
 }
 
@@ -290,6 +258,8 @@ function convertNodeToSketchLayer(
   const { borders, borderOptions } = convertStrokes(node.style.strokes ?? []);
   const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
 
+  const blurMatch = node.style.backdropFilter?.match(/blur\(([\d.]+)px\)/);
+  const blur = blurMatch ? { _class: 'blur', isEnabled: true, radius: parseFloat(blurMatch[1]), type: 1 } : undefined;
   if (node.type === 'text') {
     const textProps = node.text ?? {
       content: '',
@@ -497,7 +467,7 @@ function convertNodeToSketchLayer(
       edited: false,
       isClosed: true,
       pointRadiusBehaviour: 1,
-      points: makeRectPoints(node.style.radius?.topLeft ?? 0),
+      points: makeRectPoints(node.style.radius ?? 0, Math.min(node.box.w / 2, node.box.h / 2)),
       fixedRadius: node.style.radius?.topLeft ?? 0,
       needsConvertionToNewRoundCorners: false,
     };
@@ -540,12 +510,13 @@ function convertNodeToSketchLayer(
       ...(borderOptions ? { borderOptions } : {}),
       shadows: outerShadows,
       innerShadows,
+        ...(blur ? { blur } : {}),
     },
     edited: false,
     isClosed: true,
     pointRadiusBehaviour: 1,
-    points: makeRectPoints(radius),
-    fixedRadius: radius,
+    points: makeRectPoints(node.style.radius ?? 0, Math.min(node.box.w / 2, node.box.h / 2)),
+    fixedRadius: node.style.radius?.topLeft ?? 0,
     needsConvertionToNewRoundCorners: false,
   };
 }
