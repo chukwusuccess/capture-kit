@@ -34,6 +34,13 @@ function formatSvgStop(color: string, offsetPct: number): string {
   const opAttr = alpha < 1 ? ` stop-opacity="${alpha}"` : '';
   return `      <stop offset="${offsetPct}%" stop-color="${escapeXml(rgbColor)}"${opAttr} />`;
 }
+function applyTextTransform(str: string, tt?: string): string {
+  if (tt === 'uppercase') return str.toUpperCase();
+  if (tt === 'lowercase') return str.toLowerCase();
+  if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
+  return str;
+}
+
 
 function svgTransformMatrix(node: Node) {
   const tf = node.style.transform;
@@ -126,7 +133,7 @@ function renderNodeToFigmaSvg(
     const text = node.text;
     if (!text) return '';
 
-    const content = escapeXml(text.content);
+    const content = escapeXml(applyTextTransform(text.content, text.textTransform));
     const anchor = text.align === 'center' ? 'middle' : text.align === 'right' ? 'end' : 'start';
     const anchorAttr = anchor !== 'start' ? ` text-anchor="${anchor}"` : '';
     const textX =
@@ -153,14 +160,18 @@ function renderNodeToFigmaSvg(
       if (line1.length > 0 && rest) effectiveRuns = [{ text: line1.join(' ') }, { text: rest }];
     }
     const firstRunX = inlineLeadWidth > 0 && anchor === 'start' ? Math.round((box.x + inlineLeadWidth + 8) * 100) / 100 : textX;
+    const lsAttr = typeof text.letterSpacing === 'number' && text.letterSpacing !== 0 ? ` letter-spacing="${text.letterSpacing}"` : '';
+    const italicAttr = text.italic ? ' font-style="italic"' : '';
+    const decoAttr = text.decoration && text.decoration !== 'none' && !text.decoration.startsWith('none') ? ` text-decoration="${escapeXml(text.decoration.split(' ')[0])}"` : '';
     const innerContent =
       effectiveRuns && effectiveRuns.length > 0
         ? effectiveRuns
           .map((r, idx) => {
             const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
             const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
-            const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : inlineLeadWidth > 0 ? ` x="${firstRunX}"` : '';
-            return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
+            const runX = anchor === 'start' && r.x !== undefined ? r.x : idx === 0 && inlineLeadWidth > 0 ? firstRunX : textX;
+            const posAttrs = idx > 0 ? ` x="${runX}" dy="${lh}"` : inlineLeadWidth > 0 || (anchor === 'start' && r.x !== undefined) ? ` x="${runX}"` : '';
+            return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(applyTextTransform(r.text, text.textTransform))}</tspan>`;
           })
           .join('')
         : content;
@@ -172,9 +183,9 @@ function renderNodeToFigmaSvg(
     const firstLineH = hasMultiRuns ? lh : box.h > 0 ? box.h : lh;
     const lineMidY = !hasMultiRuns && pillMidY !== undefined ? pillMidY : box.y + firstLineH / 2;
     const textY = Math.round((lineMidY + text.fontSize * 0.33) * 100) / 100;
-    return `    <text id="${escapeXml(node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
+    return `    <text id="${escapeXml(node.name || node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     // Path data lives in viewBox units: scale into the laid-out box with a
@@ -314,7 +325,8 @@ function buildFigmaLayers(capture: Capture): string {
     const groupOpacity = !selfLayer && node.style.opacity !== undefined && node.style.opacity < 1 ? ` opacity="${node.style.opacity}"` : '';
     const groupMask = node.style.maskImage && node.style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
     const groupFilter = node.style.filter && node.style.filter !== 'none' ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
-    return [`  <g id="group-${escapeXml(node.id)}"${clipAttr}${groupOpacity}${groupMask}${groupFilter}>`, selfLayer, childrenSvg, '  </g>'].filter(Boolean).join('\n');
+    const groupId = node.name ? `${escapeXml(node.name)} (${escapeXml(node.id)})` : `group-${escapeXml(node.id)}`;
+    return [`  <g id="${groupId}"${clipAttr}${groupOpacity}${groupMask}${groupFilter}>`, selfLayer, childrenSvg, '  </g>'].filter(Boolean).join('\n');
   }
 
   return rootNodes.map(renderTree).filter(Boolean).join('\n');

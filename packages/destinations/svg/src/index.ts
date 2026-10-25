@@ -24,6 +24,13 @@ function formatSvgStop(color: string, offsetPct: number): string {
   return `      <stop offset="${offsetPct}%" stop-color="${escapeXml(rgbColor)}"${opAttr} />`;
 }
 
+function applyTextTransform(str: string, tt?: string): string {
+  if (tt === 'uppercase') return str.toUpperCase();
+  if (tt === 'lowercase') return str.toLowerCase();
+  if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
+  return str;
+}
+
 
 function svgTransformMatrix(node: Node) {
   const tf = node.style.transform;
@@ -81,7 +88,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     const text = node.text;
     if (!text) return '';
 
-    const content = escapeXml(text.content);
+    const content = escapeXml(applyTextTransform(text.content, text.textTransform));
     const anchor = text.align === 'center' ? 'middle' : text.align === 'right' ? 'end' : 'start';
     const anchorAttr = anchor !== 'start' ? ` text-anchor="${anchor}"` : '';
     const textX =
@@ -93,14 +100,18 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     const lh = typeof text.lineHeight === 'number' ? text.lineHeight : text.fontSize * 1.25;
     const textGradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
     const textFillAttr = textGradFill ? `url(#grad-${escapeXml(node.id)})` : escapeXml(text.color);
+    const lsAttr = typeof text.letterSpacing === 'number' && text.letterSpacing !== 0 ? ` letter-spacing="${text.letterSpacing}"` : '';
+    const italicAttr = text.italic ? ' font-style="italic"' : '';
+    const decoAttr = text.decoration && text.decoration !== 'none' && !text.decoration.startsWith('none') ? ` text-decoration="${escapeXml(text.decoration.split(' ')[0])}"` : '';
     const innerContent =
       text.runs && text.runs.length > 0
         ? text.runs
             .map((r, idx) => {
               const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
               const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
-              const posAttrs = idx > 0 ? ` x="${textX}" dy="${lh}"` : '';
-              return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(r.text)}</tspan>`;
+              const runX = anchor === 'start' && r.x !== undefined ? r.x : textX;
+              const posAttrs = idx > 0 ? ` x="${runX}" dy="${lh}"` : anchor === 'start' && r.x !== undefined ? ` x="${runX}"` : '';
+              return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(applyTextTransform(r.text, text.textTransform))}</tspan>`;
             })
             .join('')
         : content;
@@ -110,7 +121,7 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     const textY = Math.round((box.y + firstLineH / 2 + text.fontSize * 0.33) * 100) / 100;
     return `  <text x="${textX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       text.fontFamily
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}" fill="${textFillAttr}"${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${italicAttr}${decoAttr} fill="${textFillAttr}"${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const vb = node.vectorViewBox;
