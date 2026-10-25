@@ -916,7 +916,8 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
     .map((e) => {
       const w = Math.max(0, parseFloat(e.width) || 0);
       const ok = w > 0 && e.style && e.style !== 'none' && e.color && e.color !== 'transparent' && e.color !== 'rgba(0, 0, 0, 0)';
-      return ok ? { side: e.side, width: w, style: e.style === 'dashed' || e.style === 'dotted' ? e.style : ('solid' as const), color: e.color } : null;
+      const st: 'solid' | 'dashed' | 'dotted' = e.style === 'dashed' || e.style === 'dotted' ? e.style : 'solid';
+      return ok ? { side: e.side, width: w, style: st, color: e.color } : null;
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
   if (validEdges.length === 4 && validEdges.every((e) => e.width === validEdges[0].width && e.color === validEdges[0].color && e.style === validEdges[0].style)) {
@@ -929,7 +930,8 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
     const os = computed.outlineStyle;
     const oc = computed.outlineColor;
     if (ow > 0 && os && os !== 'none' && os !== 'auto' && oc && oc !== 'transparent' && oc !== 'rgba(0, 0, 0, 0)') {
-      strokes.push({ color: oc, width: ow, style: os === 'dashed' || os === 'dotted' ? os : 'solid', side: 'all' });
+      const ost: 'solid' | 'dashed' | 'dotted' = os === 'dashed' || os === 'dotted' ? os : 'solid';
+      strokes.push({ color: oc, width: ow, style: ost, side: 'all' });
     }
   }
   return strokes;
@@ -2319,9 +2321,11 @@ async function serializeSubtree(
           const base64 = await arrayBufferToBase64(buffer);
           assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
         } catch {
-          if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+          const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+          const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+          if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
             try {
-              const bg = (await chrome.runtime.sendMessage({ action: 'fetch-asset', url })) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              const bg = (await runtime.sendMessage({ action: 'fetch-asset', url })) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
               if (bg?.success && bg.base64) {
                 assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
               }
