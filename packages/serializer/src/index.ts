@@ -832,17 +832,17 @@ function extractSvgPaths(
       const r = parseFloat(child.getAttribute('r') || '0');
       if (r > 0) d = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
     } else if (tag === 'ellipse') {
-      const cx = parseFloat(child.getAttribute('cx') || '0');
-      const cy = parseFloat(child.getAttribute('cy') || '0');
+      const ex = parseFloat(child.getAttribute('cx') || '0');
+      const ey = parseFloat(child.getAttribute('cy') || '0');
       const rx = parseFloat(child.getAttribute('rx') || '0');
       const ry = parseFloat(child.getAttribute('ry') || '0');
-      if (rx > 0 && ry > 0) d = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+      if (rx > 0 && ry > 0) d = `M ${ex - rx} ${ey} A ${rx} ${ry} 0 1 0 ${ex + rx} ${ey} A ${rx} ${ry} 0 1 0 ${ex - rx} ${ey} Z`;
     } else if (tag === 'line') {
       const x1 = parseFloat(child.getAttribute('x1') || '0');
       const y1 = parseFloat(child.getAttribute('y1') || '0');
       const x2 = parseFloat(child.getAttribute('x2') || '0');
       const y2 = parseFloat(child.getAttribute('y2') || '0');
-      d = `M ${x1} ${y1} L ${x2} ${y2}`;
+      if (x1 !== x2 || y1 !== y2) d = `M ${x1} ${y1} L ${x2} ${y2}`;
     } else if (tag === 'polygon' || tag === 'polyline') {
       const points = child.getAttribute('points');
       if (points) {

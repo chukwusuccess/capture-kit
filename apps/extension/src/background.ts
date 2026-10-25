@@ -657,6 +657,7 @@ chrome.runtime.onMessage.addListener(
           .then(async (res) => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const blob = await res.blob();
+            if (blob.size > 8 * 1024 * 1024) throw new Error('Asset over 8 MB cap');
             const buffer = await blob.arrayBuffer();
             let binary = '';
             const bytes = new Uint8Array(buffer);
