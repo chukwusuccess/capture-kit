@@ -210,6 +210,24 @@ function runFigmaDestinationTests() {
 
   assert.ok(payload.svg.includes('<line x1="0" y1="63.5" x2="1200" y2="63.5"'), 'Single-side border-bottom missing as crisp line');
   assert.ok(payload.svg.includes('d="M 16 0 H 1184 A 16 16 0 0 1 1200 16 V 64 A 0 0 0 0 1 1200 64 H 0 A 0 0 0 0 1 0 64 V 16 A 16 16 0 0 1 16 0 Z"'), 'Asymmetric corner radius missing as exact path');
+  const glass = modelToFigma({
+    ...sampleCapture,
+    nodes: [{
+      id: 'glass-nav',
+      type: 'frame',
+      box: { x: 0, y: 0, w: 1200, h: 64 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(255,255,255,0.08)' }],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+        shadows: [],
+        backdropFilter: 'blur(12px) saturate(1.4)',
+      },
+    }],
+  }).svg;
+  assert.ok(glass.includes('filter="url(#fx-glass-nav)"'), 'Backdrop blur glass missing filter reference');
+  assert.ok(glass.includes('in="BackgroundImage" stdDeviation="12"'), 'Backdrop blur amount missing from filter def');
   const roundedLine = modelToFigma({
     ...sampleCapture,
     nodes: [{
@@ -219,7 +237,6 @@ function runFigmaDestinationTests() {
       style: {
         fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
         strokes: [{ color: 'rgba(255,255,255,0.2)', width: 2, style: 'solid', side: 'top' }],
-        opacity: 1,
         radius: { topLeft: 20, topRight: 20, bottomRight: 20, bottomLeft: 20 },
         shadows: [],
       },

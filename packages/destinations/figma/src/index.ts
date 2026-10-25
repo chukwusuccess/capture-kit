@@ -41,6 +41,37 @@ function applyTextTransform(str: string, tt?: string): string {
   if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
   return str;
 }
+function backgroundPreserveAspectRatio(style: Node['style']): { par: string; tile: 'none' | 'x' | 'y' | 'both' } {
+  const size = (style.backgroundSize || '').trim().toLowerCase();
+  const repeat = (style.backgroundRepeat || '').trim().toLowerCase();
+  if (repeat === 'repeat') return { par: 'xMidYMid slice', tile: 'both' };
+  if (repeat === 'repeat-x') return { par: 'xMidYMid slice', tile: 'x' };
+  if (repeat === 'repeat-y') return { par: 'xMidYMid slice', tile: 'y' };
+  if (size === 'contain') return { par: 'xMidYMid meet', tile: 'none' };
+  if (size === 'cover') return { par: 'xMidYMid slice', tile: 'none' };
+  if (size === 'auto' || size === '' || size === 'auto auto') return { par: 'none', tile: 'none' };
+  const parts = size.split(/\s+/);
+  const isPct = (t: string): boolean => t.endsWith('%');
+  if (parts.length === 2 && isPct(parts[0]) && isPct(parts[1])) return { par: 'none', tile: 'none' };
+  return { par: 'xMidYMid slice', tile: 'none' };
+}
+
+function backgroundPositionAlign(pos: string | undefined): { x: 'Min' | 'Mid' | 'Max'; y: 'Min' | 'Mid' | 'Max' } {
+  const p = (pos || '').trim().toLowerCase();
+  if (!p || p === '0% 0%' || p === 'left top') return { x: 'Min', y: 'Min' };
+  const tox = (t: string): 'Min' | 'Mid' | 'Max' => {
+    if (t === 'left' || t === 'top') return 'Min';
+    if (t === 'right' || t === 'bottom') return 'Max';
+    if (t === 'center') return 'Mid';
+    if (t.endsWith('%')) {
+      const v = parseFloat(t);
+      return v <= 33 ? 'Min' : v >= 67 ? 'Max' : 'Mid';
+    }
+    return 'Mid';
+  };
+  const parts = p.split(/\s+/);
+  return { x: tox(parts[0]), y: tox(parts[1] ?? parts[0]) };
+}
 function makeAsymmetricRoundRectPath(box: { x: number; y: number; w: number; h: number }, r: CornerRadius): string {
   const { x, y, w, h } = box;
   const maxR = Math.min(w / 2, h / 2);
@@ -216,8 +247,9 @@ function renderNodeToFigmaSvg(
       (s) => !s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
     )
   );
+  const hasBackdrop = Boolean(style.backdropFilter && style.backdropFilter !== 'none');
   const filterAttr =
-    !isGroupSelf && ((style.filter && style.filter !== 'none') || hasOuterShadow)
+    !isGroupSelf && ((style.filter && style.filter !== 'none') || hasOuterShadow || hasBackdrop)
       ? ` filter="url(#fx-${escapeXml(node.id)})"`
       : '';
   const maskAttr = !isGroupSelf && style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
@@ -323,8 +355,10 @@ function renderNodeToFigmaSvg(
   }
 
   if (type === 'image') {
-    const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
-    const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
+    const fit = node.objectFit ?? 'cover';
+    const meetSlice = fit === 'cover' ? 'slice' : fit === 'contain' ? 'meet' : 'none';
+    const align = backgroundPositionAlign(node.objectPosition);
+    const par = meetSlice === 'none' ? 'none' : `${align.x}${align.y} ${meetSlice}`;
     if (node.assetRef && assets[node.assetRef]) {
       const asset = assets[node.assetRef];
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
@@ -358,9 +392,13 @@ function renderNodeToFigmaSvg(
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
     const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
+    const { par: bgPar, tile } = backgroundPreserveAspectRatio(style);
+    const align = backgroundPositionAlign(style.backgroundPosition);
+    const meetSlice = bgPar.includes('meet') ? 'meet' : bgPar.includes('none') ? 'none' : 'slice';
+    const par = tile !== 'none' ? `xMidYMid ${meetSlice}` : `${align.x}${align.y} ${meetSlice}`;
     return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
-    }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`;
+    }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`;
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
@@ -443,17 +481,24 @@ function buildFigmaLayers(capture: Capture): string {
 }
 
 /** Map a CSS filter chain to SVG filter primitives. */
-function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style']['shadows']): string[] {
+function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style']['shadows'], backdrop?: string): string[] {
   const prims: string[] = [];
-  if (shadows) {
-    for (const s of shadows) {
-      if (!s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)') {
-        prims.push(`      <feDropShadow dx="${s.x}" dy="${s.y}" stdDeviation="${Math.max(0.5, s.blur / 2)}" flood-color="${escapeXml(s.color)}" />`);
+  if (backdrop && backdrop !== 'none') {
+    for (const m of backdrop.matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
+      const fn = m[1].toLowerCase();
+      const arg = m[2].trim();
+      const num = parseFloat(arg);
+      if ((fn === 'blur' || fn === 'backdrop-blur') && !Number.isNaN(num) && num > 0) {
+        prims.push(`      <feGaussianBlur in="BackgroundImage" stdDeviation="${num}" result="glass-blur" />`);
+        prims.push('      <feComposite in="SourceGraphic" in2="glass-blur" operator="over" />');
+      } else if (fn === 'brightness' || fn === 'contrast' || fn === 'saturate' || fn === 'grayscale') {
+        const v = arg.endsWith('%') ? num / 100 : num;
+        const kind = fn === 'brightness' ? 'brightness' : fn === 'contrast' ? 'contrast' : fn;
+        if (!Number.isNaN(v)) prims.push(`      <feColorMatrix in="BackgroundImage" type="${kind}" values="${v}" result="glass-tint" />`);
       }
     }
   }
-  if (!filter || filter === 'none') return prims;
-  for (const m of filter.matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
+  for (const m of (filter ?? '').matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
     const fn = m[1].toLowerCase();
     const arg = m[2].trim();
     const num = parseFloat(arg);
@@ -488,7 +533,7 @@ function buildFigmaDefs(captures: Capture[]): string {
   const defs: string[] = [];
   for (const [cIdx, capture] of captures.entries()) {
     for (const node of capture.nodes) {
-      const prims = buildFilterPrimitives(node.style.filter, node.style.shadows);
+      const prims = buildFilterPrimitives(node.style.filter, node.style.shadows, node.style.backdropFilter);
       if (prims.length > 0) {
         defs.push(
           `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n${prims.join('\n')}\n    </filter>`

@@ -30,6 +30,22 @@ function applyTextTransform(str: string, tt?: string): string {
   if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
   return str;
 }
+function backgroundPositionAlign(pos: string | undefined): { x: 'Min' | 'Mid' | 'Max'; y: 'Min' | 'Mid' | 'Max' } {
+  const p = (pos || '').trim().toLowerCase();
+  if (!p || p === '0% 0%' || p === 'left top') return { x: 'Min', y: 'Min' };
+  const tox = (t: string): 'Min' | 'Mid' | 'Max' => {
+    if (t === 'left' || t === 'top') return 'Min';
+    if (t === 'right' || t === 'bottom') return 'Max';
+    if (t === 'center') return 'Mid';
+    if (t.endsWith('%')) {
+      const v = parseFloat(t);
+      return v <= 33 ? 'Min' : v >= 67 ? 'Max' : 'Mid';
+    }
+    return 'Mid';
+  };
+  const parts = p.split(/\s+/);
+  return { x: tox(parts[0]), y: tox(parts[1] ?? parts[0]) };
+}
 function makeAsymmetricRoundRectPath(box: { x: number; y: number; w: number; h: number }, r: CornerRadius): string {
   const { x, y, w, h } = box;
   const maxR = Math.min(w / 2, h / 2);
@@ -188,7 +204,8 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
       (s) => !s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
     )
   );
-  const filterAttr = (style.filter && style.filter !== 'none') || hasOuterShadow ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
+  const hasBackdrop = Boolean(style.backdropFilter && style.backdropFilter !== 'none');
+  const filterAttr = (style.filter && style.filter !== 'none') || hasOuterShadow || hasBackdrop ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
   const maskAttr = style.maskImage && style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
   const leafClipAttr = clipShapeForNode(node) ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
@@ -269,8 +286,10 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
     if (node.assetRef && assets[node.assetRef]) {
       const asset = assets[node.assetRef];
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
-      const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
-      const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'contain' ? 'xMidYMid meet' : 'none';
+      const fit = node.objectFit ?? 'cover';
+      const meetSlice = fit === 'cover' ? 'slice' : fit === 'contain' ? 'meet' : 'none';
+      const align = backgroundPositionAlign(node.objectPosition);
+      const par = meetSlice === 'none' ? 'none' : `${align.x}${align.y} ${meetSlice}`;
       if (fit === 'cover') {
         return `  <g clip-path="url(#imgclip-${escapeXml(node.id)})"${opacityAttr}${transformAttr}${filterAttr}>\n    <image x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}" />\n  </g>`;
       }
@@ -296,8 +315,23 @@ function renderNodeToSvg(node: Node, assets: Capture['assets']): string {
   return `${baseShape}${lineSuffix}`;
 }
 /** Map a CSS filter chain to SVG filter primitives. */
-function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style']['shadows']): string[] {
+function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style']['shadows'], backdrop?: string): string[] {
   const prims: string[] = [];
+  if (backdrop && backdrop !== 'none') {
+    for (const m of backdrop.matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
+      const fn = m[1].toLowerCase();
+      const arg = m[2].trim();
+      const num = parseFloat(arg);
+      if ((fn === 'blur' || fn === 'backdrop-blur') && !Number.isNaN(num) && num > 0) {
+        prims.push(`      <feGaussianBlur in="BackgroundImage" stdDeviation="${num}" result="glass-blur" />`);
+        prims.push('      <feComposite in="SourceGraphic" in2="glass-blur" operator="over" />');
+      } else if (fn === 'brightness' || fn === 'contrast' || fn === 'saturate' || fn === 'grayscale') {
+        const v = arg.endsWith('%') ? num / 100 : num;
+        const kind = fn === 'brightness' ? 'brightness' : fn === 'contrast' ? 'contrast' : fn;
+        if (!Number.isNaN(v)) prims.push(`      <feColorMatrix in="BackgroundImage" type="${kind}" values="${v}" result="glass-tint" />`);
+      }
+    }
+  }
   if (shadows) {
     for (const s of shadows) {
       if (!s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)') {
@@ -306,7 +340,7 @@ function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style
     }
   }
   if (!filter || filter === 'none') return prims;
-  for (const m of filter.matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
+  for (const m of (filter ?? '').matchAll(/(\w[\w-]*)\(([^()]*)\)/g)) {
     const fn = m[1].toLowerCase();
     const arg = m[2].trim();
     const num = parseFloat(arg);
@@ -341,7 +375,7 @@ function buildSvgDefs(capture: Capture): string {
   const defs: string[] = [];
 
   for (const node of capture.nodes) {
-    const prims = buildFilterPrimitives(node.style.filter, node.style.shadows);
+    const prims = buildFilterPrimitives(node.style.filter, node.style.shadows, node.style.backdropFilter);
     if (prims.length === 0) continue;
     defs.push(
       `    <filter id="fx-${escapeXml(node.id)}" x="-40%" y="-40%" width="180%" height="180%">\n${prims.join("\n")}\n    </filter>`
