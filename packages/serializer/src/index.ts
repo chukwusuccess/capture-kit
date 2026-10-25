@@ -378,8 +378,10 @@ function parseCssGradients(bgImage: string): Fill[] {
    backgroundRepeat?: string;
    backgroundClip?: string;
    maskImage?: string;
+   interactiveClasses?: string[];
+   hoverStyle?: Record<string, string>;
  }
- function extractFidelityStyle(computed: CSSStyleDeclaration): FidelityStyle {
+ function extractFidelityStyle(computed: CSSStyleDeclaration, el?: Element): FidelityStyle {
    const out: FidelityStyle = {};
    const transform = computed.transform?.trim();
    if (transform && transform !== 'none') out.transform = transform;
@@ -403,6 +405,16 @@ function parseCssGradients(bgImage: string): Fill[] {
    // as a solid pill in every renderer.
    const mask = computed.maskImage?.trim() || (computed as CSSStyleDeclaration & { webkitMaskImage?: string }).webkitMaskImage?.trim();
    if (mask && mask !== 'none') out.maskImage = mask;
+   if (el && typeof el.getAttribute === 'function') {
+     const rawCls = el.getAttribute('class') || '';
+     const interactive = rawCls
+       .split(/\s+/)
+       .filter((t) => /^(?:hover:|focus:|focus-visible:|active:|group-hover:|group$|transition|duration-|ease-|cursor-pointer$)/.test(t));
+     if (computed.cursor === 'pointer' && !interactive.includes('cursor-pointer')) interactive.push('cursor-pointer');
+     const td = (computed as CSSStyleDeclaration & { transitionDuration?: string }).transitionDuration;
+     if (td && td !== '0s' && td !== '0ms' && !interactive.some((c) => c.startsWith('transition'))) interactive.push('transition-all');
+     if (interactive.length > 0) out.interactiveClasses = [...new Set(interactive)];
+   }
    return out;
  }
 // transform:none, saved) right before measurement so every box we capture is
@@ -1579,7 +1591,7 @@ async function serializeSubtree(
       clip: isClipped,
       clipPath,
       layout: parseLayout(computed),
-      ...extractFidelityStyle(computed),
+      ...extractFidelityStyle(computed, el),
       ...chainStyle(el, docX, docY),
     };
 

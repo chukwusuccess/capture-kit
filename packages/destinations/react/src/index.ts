@@ -140,6 +140,20 @@ function buildNodeClasses(
     cls.push('m-0');
   }
 
+  if (node.style.interactiveClasses && node.style.interactiveClasses.length > 0) {
+    for (const ic of node.style.interactiveClasses) {
+      if (!cls.includes(ic)) cls.push(ic);
+    }
+  }
+  if (node.style.hoverStyle) {
+    for (const [k, v] of Object.entries(node.style.hoverStyle)) {
+      const cleanV = v.replace(/\s+/g, '');
+      if (k === 'backgroundColor') cls.push(`hover:bg-[${cleanV}]`);
+      else if (k === 'color') cls.push(`hover:text-[${cleanV}]`);
+      else if (k === 'borderColor') cls.push(`hover:border-[${cleanV}]`);
+      else if (k === 'opacity') cls.push(`hover:opacity-[${cleanV}]`);
+    }
+  }
   return cls;
 }
 
@@ -234,15 +248,29 @@ export function modelToReact(
       return `${indent}<img src="${src}" alt="${node.id}" className="${classes} ${fitCls}"${styleAttr} />`;
     }
 
+    const containerTag = node.name?.startsWith('Button')
+      ? 'button'
+      : node.name?.startsWith('Link')
+      ? 'a'
+      : node.name?.startsWith('Nav')
+      ? 'nav'
+      : node.name?.startsWith('Header')
+      ? 'header'
+      : node.name?.startsWith('Footer')
+      ? 'footer'
+      : node.name?.startsWith('Section')
+      ? 'section'
+      : 'div';
+
     if (children.length === 0) {
-      return `${indent}<div className="${classes}"${styleAttr} />`;
+      return `${indent}<${containerTag} className="${classes}"${styleAttr} />`;
     }
 
     const childrenJsx = children
       .map((c) => renderJsxNode(c, depth + 1, false, { x: node.box.x, y: node.box.y }))
       .join('\n');
 
-    return `${indent}<div className="${classes}"${styleAttr}>\n${childrenJsx}\n${indent}</div>`;
+    return `${indent}<${containerTag} className="${classes}"${styleAttr}>\n${childrenJsx}\n${indent}</${containerTag}>`;
   }
 
   let bodyJsx = '';
