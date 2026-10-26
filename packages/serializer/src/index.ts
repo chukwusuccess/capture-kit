@@ -456,15 +456,18 @@ function parseTransformMatrix(value: string | undefined): Affine | null {
   if (m3 && m3[1]) {
     const v = m3[1].split(',').map((s) => parseFloat(s.trim()));
     if (v.length === 16 && !v.some((n) => Number.isNaN(n))) {
-      // Identity in Z (e.g. translateZ(0)) → safe to treat as its 2D part;
-      // a real 3D transform cannot be expressed in our 2D emit → null.
       const identity3d =
         Math.abs(v[2]) < 1e-6 && Math.abs(v[3]) < 1e-6 &&
         Math.abs(v[6]) < 1e-6 && Math.abs(v[7]) < 1e-6 &&
         Math.abs(v[8]) < 1e-6 && Math.abs(v[9]) < 1e-6 &&
         Math.abs(v[10] - 1) < 1e-6 && Math.abs(v[11]) < 1e-6 &&
         Math.abs(v[15] - 1) < 1e-6;
-      if (!identity3d) return null; // real 3D — caller falls back to raw emit
+      if (identity3d) return { a: v[0], b: v[1], c: v[4], d: v[5], e: v[12], f: v[13] };
+      // Real 3D (perspective tilt, rotateX/Y): project to its 2D affine part
+      // (orthographic approximation — drops the perspective divide). Folding
+      // this per node keeps tilted subtrees tilted together in every 2D
+      // destination; the alternative (raw matrix3d) is dropped by SVG/Figma
+      // importers and leaves children flat while the parent tilts.
       return { a: v[0], b: v[1], c: v[4], d: v[5], e: v[12], f: v[13] };
     }
     return null;
