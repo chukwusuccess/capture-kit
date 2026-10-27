@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { type Capture, emptyCapture } from '@capture-kit/model';
 import { modelToFigma } from './src/index.js';
+import { runNativePlanningTests } from './native.test.js';
 
 function runFigmaDestinationTests() {
   const sampleCapture: Capture = emptyCapture({
@@ -264,3 +265,4 @@ function runFigmaDestinationTests() {
 }
 
 runFigmaDestinationTests();
+runNativePlanningTests();
