@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { serializeDocument, serializeElement, startElementPicker, triggerPageScroll } from './src/index.js';
+import { serializeDocument, serializeElement, startElementPicker, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -97,6 +97,9 @@ class MockElement extends MockNode {
   placeholder = '';
   src = '';
   currentSrc = '';
+  complete = true;
+  naturalWidth = 100;
+  decode?: () => Promise<void>;
   ownerDocument: Document = null as unknown as Document;
   contentDocument?: unknown;
   toDataURL?: () => string;
@@ -130,8 +133,13 @@ class MockElement extends MockNode {
     return child;
   }
 
-  querySelectorAll(_sel: string): MockElement[] {
-    return [];
+  querySelectorAll(sel: string): MockElement[] {
+    const result: MockElement[] = [];
+    for (const child of this.children) {
+      if (sel === 'img' && child.tagName === 'IMG') result.push(child);
+      result.push(...child.querySelectorAll(sel));
+    }
+    return result;
   }
 
   classList = { add(_cls: string): void {}, contains(_cls: string): boolean { return false; } };
@@ -180,6 +188,7 @@ function createMockDocument() {
     documentElement: html,
     body,
     baseURI: 'https://example.com/demo',
+    querySelectorAll: (sel: string) => body.querySelectorAll(sel),
     createElement: (tag: string) => {
       const el = new MockElement(tag);
       el.ownerDocument = doc as unknown as Document;
@@ -202,8 +211,10 @@ function createMockDocument() {
       scrollY: 0,
       innerWidth: 1200,
       innerHeight: 800,
-      scrollTo: (_x: number, y: number) => {
+      scrollTo: (x: number, y: number) => {
         scrolledPositions.push(y);
+        doc.defaultView.scrollX = x;
+        doc.defaultView.scrollY = y;
       },
       getComputedStyle: (el: MockElement, pseudo?: string): MockComputedStyle => {
         if (pseudo && el.pseudoOverrides?.[pseudo]) {
@@ -254,6 +265,7 @@ function createMockDocument() {
   };
   html.ownerDocument = doc as unknown as Document;
   body.ownerDocument = doc as unknown as Document;
+  Object.assign(doc.defaultView, { document: doc });
   return { doc, body, styleMap, scrolledPositions };
 }
 
@@ -429,7 +441,221 @@ async function runSerializerAccuracyTests() {
   console.log('packages/serializer accuracy tests passed: all scenarios verified');
 }
 
-runSerializerAccuracyTests().catch((err) => {
+async function runReadinessTests() {
+  // Newly revealed image decoding grows the document beyond its first height.
+  {
+    const { doc, body } = createMockDocument();
+    let pageHeight = 1200;
+    let revealed = false;
+    let decoded = false;
+    Object.defineProperty(doc.documentElement, 'scrollHeight', { get: () => pageHeight });
+    const scroll = doc.defaultView.scrollTo;
+    doc.defaultView.scrollX = 17;
+    doc.defaultView.scrollY = 123;
+    doc.defaultView.scrollTo = (x, y) => {
+      scroll(x, y);
+      if (!revealed && y >= 400) {
+        revealed = true;
+        const image = new MockElement('img', { left: 0, top: 500, width: 100, height: 100 });
+        image.complete = false;
+        image.src = 'data:image/png;base64,YQ==';
+        image.getBoundingClientRect = () => ({
+          left: 0, top: 500 - doc.defaultView.scrollY, right: 100,
+          bottom: 600 - doc.defaultView.scrollY, width: 100, height: 100,
+          x: 0, y: 500 - doc.defaultView.scrollY, toJSON: () => {},
+        });
+        image.decode = async () => {
+          decoded = true;
+          image.complete = true;
+          pageHeight = 2400;
+        };
+        body.appendChild(image);
+      }
+    };
+    const capture = await serializeDocument(doc as unknown as Document, {
+      scrollStitch: true,
+      scrollOptions: { step: 400, delayMs: 0, maxPasses: 20 },
+    });
+    assert.ok(decoded, 'Scroll readiness must decode newly revealed images');
+    assert.strictEqual(capture.frame.height, 2400, 'Growing pages must be remeasured');
+    assert.strictEqual(doc.defaultView.scrollX, 17, 'Original horizontal scroll must be restored');
+    assert.strictEqual(doc.defaultView.scrollY, 123, 'Original vertical scroll must be restored');
+    assert.ok(!capture.diagnostics?.some((d) => d.code.startsWith('scroll_')));
+  }
+
+  // An infinite feed has an explicit completion boundary and a visible warning.
+  {
+    const { doc } = createMockDocument();
+    let pageHeight = 1200;
+    Object.defineProperty(doc.documentElement, 'scrollHeight', { get: () => pageHeight });
+    const scroll = doc.defaultView.scrollTo;
+    doc.defaultView.scrollTo = (x, y) => {
+      scroll(x, y);
+      if (y >= pageHeight - doc.defaultView.innerHeight) pageHeight += 400;
+    };
+    const capture = await serializeDocument(doc as unknown as Document, {
+      scrollStitch: true,
+      scrollOptions: { step: 400, delayMs: 0, maxPasses: 4 },
+    });
+    assert.ok(capture.diagnostics?.some((d) => d.code === 'scroll_pass_budget_exhausted'));
+    assert.strictEqual(doc.defaultView.scrollY, 0);
+    assert.ok(capture.frame.height < 4000, 'Infinite feeds must stop at the pass budget');
+  }
+
+  // Height and elapsed-time limits are independent explicit stop budgets.
+  for (const [scrollOptions, code] of [
+    [{ delayMs: 0, maxHeight: 1000 }, 'scroll_height_budget_exhausted'],
+    [{ delayMs: 0, maxPasses: 0 }, 'scroll_pass_budget_exhausted'],
+    [{ delayMs: 0, maxDurationMs: 0 }, 'scroll_time_budget_exhausted'],
+  ] as const) {
+    const { doc } = createMockDocument();
+    Object.defineProperty(doc.documentElement, 'scrollHeight', { value: 1200 });
+    doc.defaultView.scrollY = 57;
+    const capture = await serializeDocument(doc as unknown as Document, { scrollStitch: true, scrollOptions });
+    assert.ok(capture.diagnostics?.some((d) => d.code === code), `Missing ${code}`);
+    assert.strictEqual(doc.defaultView.scrollY, 57);
+  }
+
+  // A scroll failure must not strand the page at the last visited position.
+  {
+    const { doc } = createMockDocument();
+    doc.defaultView.scrollX = 9;
+    doc.defaultView.scrollY = 27;
+    Object.defineProperty(doc.documentElement, 'scrollHeight', { value: 1600 });
+    const scroll = doc.defaultView.scrollTo;
+    doc.defaultView.scrollTo = (x, y) => {
+      scroll(x, y);
+      if (y === 400) throw new Error('scroll failed');
+    };
+    await assert.rejects(triggerPageScroll(doc.defaultView as unknown as Window & typeof globalThis, {
+      step: 400, delayMs: 0,
+    }), /scroll failed/);
+    assert.strictEqual(doc.defaultView.scrollX, 9);
+    assert.strictEqual(doc.defaultView.scrollY, 27);
+    const capture = await serializeDocument(doc as unknown as Document, {
+      scrollStitch: true, scrollOptions: { step: 400, delayMs: 0 },
+    });
+    assert.ok(capture.diagnostics?.some((d) => d.code === 'scroll_failed'));
+    assert.strictEqual(doc.defaultView.scrollX, 9);
+    assert.strictEqual(doc.defaultView.scrollY, 27);
+  }
+
+  // More than 60 images are considered, without unbounded decode concurrency.
+  {
+    const { doc, body } = createMockDocument();
+    let inFlight = 0;
+    let peak = 0;
+    for (let i = 0; i < 65; i++) {
+      const image = new MockElement('img');
+      image.complete = false;
+      image.src = 'data:image/png;base64,YQ==';
+      image.decode = async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await Promise.resolve();
+        inFlight--;
+        image.complete = true;
+      };
+      body.appendChild(image);
+    }
+    const ready = await waitForImages(doc as unknown as Document, { concurrency: 3 });
+    assert.strictEqual(ready, 65);
+    assert.ok(peak <= 3, 'Image decode concurrency must be bounded');
+    const limited = await serializeDocument(doc as unknown as Document, { imageOptions: { maxImages: 60 } });
+    assert.ok(limited.diagnostics?.some((d) => d.code === 'image_budget_exhausted'));
+  }
+
+  // Timed-out browser decodes cannot be cancelled, so they retain their slots.
+  {
+    const { doc, body } = createMockDocument();
+    let started = 0;
+    const diagnostics: Array<{ code: string }> = [];
+    for (let i = 0; i < 12; i++) {
+      const image = new MockElement('img');
+      image.src = `/slow-${i}.png`;
+      image.complete = false;
+      image.decode = () => {
+        started++;
+        return Promise.withResolvers<void>().promise;
+      };
+      body.appendChild(image);
+    }
+    const ready = await waitForImages(doc as unknown as Document, {
+      concurrency: 2, timeoutMs: 1, totalTimeoutMs: 1000,
+    }, (diagnostic) => diagnostics.push(diagnostic));
+    assert.strictEqual(ready, 0);
+    assert.strictEqual(started, 2, 'Timed-out decodes must not create unbounded pending work');
+    assert.strictEqual(diagnostics.filter((d) => d.code === 'image_timeout').length, 2);
+    assert.ok(diagnostics.some((d) => d.code === 'image_budget_exhausted'));
+  }
+
+  // Failed and timed-out readiness and unavailable canvas bytes survive schema parsing.
+  {
+    const { doc, body } = createMockDocument();
+    const failed = new MockElement('img');
+    failed.src = 'data:image/png;base64,YQ==';
+    failed.complete = false;
+    failed.decode = async () => { throw new Error('broken image'); };
+    body.appendChild(failed);
+    const slow = new MockElement('img');
+    slow.src = 'data:image/png;base64,Yg==';
+    slow.complete = false;
+    slow.decode = () => Promise.withResolvers<void>().promise;
+    body.appendChild(slow);
+    const canvas = new MockElement('canvas');
+    canvas.toDataURL = () => { throw new Error('tainted'); };
+    body.appendChild(canvas);
+    Object.assign(doc.fonts, { ready: Promise.withResolvers<void>().promise });
+    const capture = CaptureSchema.parse(await serializeDocument(doc as unknown as Document, {
+      imageOptions: { timeoutMs: 1, totalTimeoutMs: 50 },
+      fontTimeoutMs: 0,
+    }));
+    assert.ok(capture.diagnostics?.some((d) => d.code === 'image_failed'));
+    assert.ok(capture.diagnostics?.some((d) => d.code === 'image_timeout'));
+    assert.ok(capture.diagnostics?.some((d) => d.code === 'fonts_timeout'));
+    const canvasNode = capture.nodes.find((n) => n.type === 'image' && !n.assetRef);
+    assert.ok(canvasNode);
+    assert.ok(capture.diagnostics?.some((d) => d.code === 'canvas_unavailable' && d.nodeId === canvasNode.id));
+  }
+
+  // Asset HTTP failures, timeouts, and unavailable cross-origin bytes are reported.
+  {
+    const originalFetch = globalThis.fetch;
+    try {
+      const { doc, body } = createMockDocument();
+      for (const source of ['/missing.png', '/stalled.png', 'https://other.example/image.png']) {
+        const image = new MockElement('img');
+        image.src = source;
+        body.appendChild(image);
+      }
+      globalThis.fetch = async (input) => String(input).endsWith('/stalled.png')
+        ? Promise.withResolvers<Response>().promise
+        : new Response('', { status: 404 });
+      const capture = CaptureSchema.parse(await serializeDocument(doc as unknown as Document, { assetTimeoutMs: 1 }));
+      assert.ok(capture.diagnostics?.some((d) => d.code === 'asset_failed' && d.nodeId));
+      assert.ok(capture.diagnostics?.some((d) => d.code === 'asset_timeout' && d.nodeId));
+      assert.ok(capture.diagnostics?.some((d) => d.code === 'asset_unavailable' && d.message.includes('Cross-origin image')));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
+  // Element capture waits for its own image and fonts before measuring its frame.
+  {
+    const { doc, body } = createMockDocument();
+    const image = new MockElement('img');
+    image.src = 'data:image/png;base64,YQ==';
+    image.complete = false;
+    image.decode = async () => { image.complete = true; image.rect.width = 240; };
+    Object.assign(doc.fonts, { ready: Promise.resolve().then(() => { image.rect.height = 90; }) });
+    body.appendChild(image);
+    const capture = await serializeElement(image as unknown as Element);
+    assert.strictEqual(capture.frame.width, 240);
+    assert.strictEqual(capture.frame.height, 90);
+  }
+}
+
+runSerializerAccuracyTests().then(runReadinessTests).catch((err) => {
   console.error('packages/serializer test failure:', err);
   process.exit(1);
 });

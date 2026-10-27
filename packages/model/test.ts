@@ -13,6 +13,11 @@ function runTests(): void {
   const parsedMinimal = CaptureSchema.parse(minimal);
   assert.strictEqual(parsedMinimal.version, '0.2.2');
   assert.strictEqual(parsedMinimal.nodes.length, 0);
+  assert.ok(!('diagnostics' in parsedMinimal), 'Old captures must not gain diagnostics by default');
+  const warning = { code: 'image_timeout', message: 'Image loading timed out', severity: 'warning' as const, nodeId: 'image-1' };
+  const withDiagnostics = CaptureSchema.parse(emptyCapture({ diagnostics: [warning] }));
+  assert.deepStrictEqual(withDiagnostics.diagnostics, [warning]);
+  assert.strictEqual(CaptureSchema.safeParse({ ...minimal, diagnostics: [{ ...warning, severity: 'error' }] }).success, false);
 
   // 2. Accepts capture with full nodes
   const fullCapture: Capture = {

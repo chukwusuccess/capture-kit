@@ -178,6 +178,13 @@ export const NodeSchema = z.object({
   objectPosition: z.string().optional(),
 });
 
+export const CaptureDiagnosticSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  severity: z.enum(['warning', 'info']),
+  nodeId: z.string().optional(),
+});
+
 export const CaptureSchema = z.object({
   url: z.string(),
   version: z.string(),
@@ -186,6 +193,7 @@ export const CaptureSchema = z.object({
   assets: z.record(z.string(), AssetSchema),
   fonts: z.array(FontSchema),
   alternatives: z.array(FrameSchema).optional(),
+  diagnostics: z.array(CaptureDiagnosticSchema).optional(),
 });
 
 export const SitePageCaptureSchema = z.object({
@@ -217,6 +225,7 @@ export type Frame = z.infer<typeof FrameSchema>;
 export type VectorPath = z.infer<typeof VectorPathSchema>;
 export type VectorViewBox = z.infer<typeof VectorViewBoxSchema>;
 export type Node = z.infer<typeof NodeSchema>;
+export type CaptureDiagnostic = z.infer<typeof CaptureDiagnosticSchema>;
 export type Capture = z.infer<typeof CaptureSchema>;
 export type SitePageCapture = z.infer<typeof SitePageCaptureSchema>;
 export type SiteCapture = z.infer<typeof SiteCaptureSchema>;
@@ -234,5 +243,6 @@ export function emptyCapture(opts: Partial<Capture> = {}): Capture {
     assets: opts.assets ?? {},
     fonts: opts.fonts ?? [],
     ...(opts.alternatives ? { alternatives: opts.alternatives } : {}),
+    ...(opts.diagnostics?.length ? { diagnostics: opts.diagnostics } : {}),
   };
 }

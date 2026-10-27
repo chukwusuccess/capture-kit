@@ -1,6 +1,7 @@
 import {
   type Asset,
   type Capture,
+  type CaptureDiagnostic,
   type CornerRadius,
   type Fill,
   type Font,
@@ -14,12 +15,35 @@ import {
 export interface ScrollStitchOptions {
   step?: number;
   delayMs?: number;
+  /** Defaults: 100 passes, 15 seconds, 100000px, and two stable bottom passes. */
+  maxPasses?: number;
+  maxDurationMs?: number;
+  maxHeight?: number;
+  stablePasses?: number;
+}
+
+export interface ImageReadinessOptions {
+  /** Per-image deadline, default 2500ms. */
+  timeoutMs?: number;
+  /** Shared deadline per discovery pass, default 5000ms. */
+  totalTimeoutMs?: number;
+  /** Maximum pending browser decodes, default 8. */
+  concurrency?: number;
+  /** Optional explicit cap; all discovered images are considered by default. */
+  maxImages?: number;
 }
 
 export interface SerializeOptions {
   baseURI?: string;
   scrollStitch?: boolean;
   scrollOptions?: ScrollStitchOptions;
+  imageOptions?: ImageReadinessOptions;
+  /** FontFaceSet readiness deadline, default 2500ms. */
+  fontTimeoutMs?: number;
+  /** Asset operation deadline and total font embedding budget, default 2500ms. */
+  assetTimeoutMs?: number;
+  /** Concurrent image asset fetches, default 8. */
+  assetConcurrency?: number;
 }
 
 function delay(ms: number): Promise<void> {
@@ -28,76 +52,248 @@ function delay(ms: number): Promise<void> {
   return promise;
 }
 
-export async function triggerPageScroll(
-  win: Window & typeof globalThis,
-  opts?: ScrollStitchOptions
-): Promise<void> {
-  if (typeof win.scrollTo !== 'function') return;
-  const step = opts?.step ?? Math.max(300, Math.round((win.innerHeight || 800) * 0.8));
-  const delayMs = opts?.delayMs ?? 50;
+class CaptureTimeout extends Error {}
 
-  const doc = win.document;
-  const docEl = doc?.documentElement;
-  const body = doc?.body;
-
-  const totalHeight = Math.max(
-    docEl?.scrollHeight ?? 0,
-    docEl?.clientHeight ?? 0,
-    body?.scrollHeight ?? 0,
-    win.innerHeight ?? 800
+function withTimeout<T>(pending: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  const { promise, resolve, reject } = Promise.withResolvers<T>();
+  const timer = setTimeout(() => reject(new CaptureTimeout('Timed out')), timeoutMs);
+  Promise.resolve(pending).then(
+    (value) => { clearTimeout(timer); resolve(value); },
+    (error: unknown) => { clearTimeout(timer); reject(error); }
   );
+  return promise;
+}
 
-  let currentY = 0;
-  while (currentY < totalHeight) {
-    currentY += step;
-    win.scrollTo(0, currentY);
-    if (delayMs > 0) {
-      await delay(delayMs);
+function boundedNumber(value: number | undefined, fallback: number, minimum = 0): number {
+  return value !== undefined && Number.isFinite(value) ? Math.max(minimum, value) : fallback;
+}
+
+type ReportDiagnostic = (diagnostic: CaptureDiagnostic) => void;
+
+function warning(report: ReportDiagnostic, code: string, message: string, nodeId?: string): void {
+  report({ code, message, severity: 'warning', ...(nodeId ? { nodeId } : {}) });
+}
+
+interface ImageReadinessState {
+  sources: Map<HTMLImageElement, string>;
+  considered: number;
+  pending: number;
+  report: ReportDiagnostic;
+}
+
+async function waitForImageElements(
+  root: Document | Element,
+  opts: ImageReadinessOptions | undefined,
+  state: ImageReadinessState,
+  visibleOnly = false,
+  outerDeadline = Infinity
+): Promise<number> {
+  const timeoutMs = boundedNumber(opts?.timeoutMs, 2500);
+  const deadline = Math.min(Date.now() + boundedNumber(opts?.totalTimeoutMs, 5000), outerDeadline);
+  const concurrency = Math.floor(boundedNumber(opts?.concurrency, 8, 1));
+  const maxImages = opts?.maxImages === undefined ? Infinity : Math.floor(boundedNumber(opts.maxImages, Infinity));
+  const images: HTMLImageElement[] = [];
+  if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
+  if (typeof root.querySelectorAll === 'function') images.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
+  const doc = 'tagName' in root ? root.ownerDocument : root;
+  const viewportHeight = doc.defaultView?.innerHeight ?? 800;
+  const candidates = images.filter((img) => {
+    const source = resolveHighestDpiSrc(img);
+    if (!source || state.sources.get(img) === source) return false;
+    if (!visibleOnly) return true;
+    const rect = img.getBoundingClientRect();
+    return rect.bottom >= 0 && rect.top <= viewportHeight;
+  });
+  let next = 0;
+  let decoded = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, async () => {
+    while (next < candidates.length && state.considered < maxImages && state.pending < concurrency && Date.now() < deadline) {
+      const img = candidates[next++];
+      const source = resolveHighestDpiSrc(img);
+      state.sources.set(img, source);
+      state.considered++;
+      try {
+        if (img.complete) {
+          if (img.naturalWidth <= 0) throw new Error('Image has no decoded pixels');
+        } else if (typeof img.decode === 'function') {
+          const decoding = img.decode();
+          state.pending++;
+          const pending = decoding.finally(() => { state.pending--; });
+          await withTimeout(pending, Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
+        } else {
+          const { promise, resolve, reject } = Promise.withResolvers<void>();
+          const finish = (error?: Error) => {
+            clearTimeout(timer);
+            img.removeEventListener('load', loaded);
+            img.removeEventListener('error', failed);
+            error ? reject(error) : resolve();
+          };
+          const loaded = () => finish(img.naturalWidth > 0 ? undefined : new Error('Image has no decoded pixels'));
+          const failed = () => finish(new Error('Image loading failed'));
+          const timer = setTimeout(() => finish(new CaptureTimeout('Timed out')), Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
+          img.addEventListener('load', loaded);
+          img.addEventListener('error', failed);
+          if (img.complete) loaded();
+          await promise;
+        }
+        decoded++;
+        state.sources.set(img, resolveHighestDpiSrc(img));
+      } catch (error) {
+        warning(state.report, error instanceof CaptureTimeout ? 'image_timeout' : 'image_failed',
+          `${error instanceof CaptureTimeout ? 'Image readiness timed out' : 'Image could not be decoded'}: ${source}`);
+        // Decode cannot be cancelled. Do not start another image in this slot
+        // while a timed-out browser decode may still be pending.
+        if (error instanceof CaptureTimeout) return;
+      }
     }
+  }));
+  if (next < candidates.length) {
+    warning(state.report, 'image_budget_exhausted',
+      `${candidates.length - next} images were not checked because the image ${state.considered >= maxImages ? 'count' : state.pending >= concurrency ? 'decode concurrency' : 'time'} budget was exhausted.`);
   }
+  return decoded;
+}
 
-  win.scrollTo(0, 0);
-  if (delayMs > 0) {
-    await delay(delayMs);
+function pageHeight(win: Window & typeof globalThis): number {
+  return Math.max(
+    win.document?.documentElement?.scrollHeight ?? 0,
+    win.document?.documentElement?.clientHeight ?? 0,
+    win.document?.body?.scrollHeight ?? 0,
+    win.innerHeight || 800
+  );
+}
+
+async function scrollPage(
+  win: Window & typeof globalThis,
+  opts: ScrollStitchOptions | undefined,
+  waitForPass: (deadline: number) => Promise<unknown>,
+  report: ReportDiagnostic
+): Promise<void> {
+  if (typeof win.scrollTo !== 'function') {
+    warning(report, 'scroll_failed', 'Page scrolling is unavailable; lazy content may be incomplete.');
+    return;
+  }
+  const originalX = win.scrollX ?? 0;
+  const originalY = win.scrollY ?? 0;
+  const viewportHeight = win.innerHeight || 800;
+  const step = boundedNumber(opts?.step, Math.max(300, Math.round(viewportHeight * 0.8)), 1);
+  const delayMs = boundedNumber(opts?.delayMs, 50);
+  const maxPasses = Math.floor(boundedNumber(opts?.maxPasses, 100));
+  const maxHeight = boundedNumber(opts?.maxHeight, 100000, viewportHeight);
+  const stablePasses = Math.floor(boundedNumber(opts?.stablePasses, 2, 1));
+  const deadline = Date.now() + boundedNumber(opts?.maxDurationMs, 15000);
+  let currentY = 0;
+  let stable = 0;
+  let previousHeight = pageHeight(win);
+  try {
+    for (let pass = 0; pass < maxPasses; pass++) {
+      if (Date.now() >= deadline) {
+        warning(report, 'scroll_time_budget_exhausted', 'Page readiness stopped at the scrolling time budget; lazy content may be incomplete.');
+        return;
+      }
+      win.scrollTo(originalX, currentY);
+      if (delayMs > 0) await delay(Math.min(delayMs, Math.max(0, deadline - Date.now())));
+      await waitForPass(deadline);
+      if (Date.now() >= deadline) {
+        warning(report, 'scroll_time_budget_exhausted', 'Page readiness stopped at the scrolling time budget; lazy content may be incomplete.');
+        return;
+      }
+      const height = pageHeight(win);
+      const bottom = Math.max(0, height - viewportHeight);
+      if (height > maxHeight) {
+        warning(report, 'scroll_height_budget_exhausted', `Page readiness stopped at the ${maxHeight}px height budget; lazy content may be incomplete.`);
+        return;
+      }
+      stable = currentY >= bottom && height === previousHeight ? stable + 1 : 0;
+      if (stable >= stablePasses) return;
+      previousHeight = height;
+      currentY = Math.min(currentY + step, bottom);
+    }
+    warning(report, 'scroll_pass_budget_exhausted', `Page readiness stopped after ${maxPasses} scroll passes; lazy content may be incomplete.`);
+  } finally {
+    win.scrollTo(originalX, originalY);
   }
 }
 
-/**
- * After scrolling (which triggers lazy loading), wait for in-viewport images
- */
+export async function triggerPageScroll(
+  win: Window & typeof globalThis,
+  opts?: ScrollStitchOptions,
+  onDiagnostic: ReportDiagnostic = () => {}
+): Promise<void> {
+  const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report: onDiagnostic };
+  await scrollPage(win, opts, (deadline) => win.document
+    ? waitForImageElements(win.document, undefined, state, true, deadline)
+    : Promise.resolve(), state.report);
+}
+
+/** Wait for every discovered image, within bounded concurrency and time. */
 export async function waitForImages(
   doc: Document,
-  opts?: { timeoutMs?: number; maxImages?: number }
+  opts?: ImageReadinessOptions,
+  onDiagnostic: ReportDiagnostic = () => {}
 ): Promise<number> {
-  const timeoutMs = opts?.timeoutMs ?? 2500;
-  const maxImages = opts?.maxImages ?? 60;
-  if (typeof doc.querySelectorAll !== 'function') return 0;
-  const imgs = Array.from(doc.querySelectorAll('img')).slice(0, maxImages);
-  if (imgs.length === 0) return 0;
+  return waitForImageElements(doc, opts, { sources: new Map(), considered: 0, pending: 0, report: onDiagnostic });
+}
 
-  let decoded = 0;
-  await Promise.all(
-    imgs.map(async (img) => {
-      try {
-        const el = img as HTMLImageElement;
-        if (el.complete && el.naturalWidth > 0) {
-          decoded += 1;
-          return;
-        }
-        if (typeof el.decode === 'function') {
-          await Promise.race([
-            el.decode().then(() => {
-              decoded += 1;
-            }),
-            delay(timeoutMs),
-          ]);
-        }
-      } catch {
-        // broken image or decode rejection: keep placeholder
-      }
-    })
-  );
-  return decoded;
+async function waitForFonts(doc: Document, timeoutMs: number | undefined, report: ReportDiagnostic): Promise<void> {
+  if (!doc.fonts) return;
+  try {
+    if (doc.fonts.ready) await withTimeout(doc.fonts.ready, boundedNumber(timeoutMs, 2500));
+    if (typeof doc.fonts.forEach === 'function') {
+      doc.fonts.forEach((font) => {
+        if (font.status === 'error') warning(report, 'font_failed', `Font failed to load: ${font.family}`);
+      });
+    }
+  } catch (error) {
+    warning(report, error instanceof CaptureTimeout ? 'fonts_timeout' : 'font_failed',
+      error instanceof CaptureTimeout ? 'Font readiness timed out; text may use fallback metrics.' : 'Font readiness failed; text may use fallback metrics.');
+  }
+}
+
+async function prepareCapture(
+  root: Document | Element,
+  doc: Document,
+  opts: SerializeOptions | undefined,
+  scroll: boolean
+): Promise<CaptureDiagnostic[]> {
+  const diagnostics: CaptureDiagnostic[] = [];
+  const seen = new Set<string>();
+  const report: ReportDiagnostic = (diagnostic) => {
+    const key = `${diagnostic.code}|${diagnostic.nodeId ?? ''}|${diagnostic.message}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      diagnostics.push(diagnostic);
+    }
+  };
+  const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
+  if (scroll && doc.defaultView) {
+    try {
+      await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => Promise.all([
+        waitForImageElements(root, opts?.imageOptions, state, true, deadline),
+        waitForFonts(doc, Math.min(boundedNumber(opts?.fontTimeoutMs, 2500), Math.max(0, deadline - Date.now())), report),
+      ]), report);
+    } catch (error) {
+      warning(report, 'scroll_failed', `Page scrolling failed; lazy content may be incomplete: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  await Promise.all([
+    waitForImageElements(root, opts?.imageOptions, state),
+    waitForFonts(doc, opts?.fontTimeoutMs, report),
+  ]);
+  return diagnostics;
+}
+
+async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
+  const controller = new AbortController();
+  try {
+    return await withTimeout((async () => {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.blob();
+    })(), timeoutMs);
+  } finally {
+    controller.abort();
+  }
 }
 export interface ElementPickerOptions {
   onSelect: (el: Element) => void;
@@ -1125,11 +1321,14 @@ async function extractWebFonts(
   doc: Document,
   baseURI: string,
   assets: Record<string, Asset>,
-  nextAssetId: () => string
+  nextAssetId: () => string,
+  report: ReportDiagnostic,
+  timeoutMs: number
 ): Promise<Font[]> {
   const fonts: Font[] = [];
   const seenFamilies = new Set<string>();
   const defaultView = doc.defaultView ?? window;
+  const deadline = Date.now() + timeoutMs;
 
   // 1. Inspect doc.fonts (FontFaceSet API)
   if (doc.fonts && typeof doc.fonts.forEach === 'function') {
@@ -1146,7 +1345,7 @@ async function extractWebFonts(
         }
       });
     } catch {
-      // FontFaceSet access ignored
+      warning(report, 'asset_unavailable', 'Loaded font metadata could not be inspected.');
     }
   }
 
@@ -1160,6 +1359,7 @@ async function extractWebFonts(
         try {
           rules = sheet.cssRules;
         } catch {
+          warning(report, 'asset_unavailable', 'A stylesheet could not be inspected for embedded font assets.');
           continue;
         }
 
@@ -1196,28 +1396,31 @@ async function extractWebFonts(
                     base64: dataMatch[2],
                   };
                   assetRef = assetKey;
+                } else {
+                  warning(report, 'asset_failed', `Font data could not be read: ${family}`);
                 }
               } else {
                 try {
                   const resolved = new URL(fontUrl, baseURI);
                   const isSameOrigin = resolved.origin === defaultView.location?.origin;
                   if (isSameOrigin || resolved.protocol === 'blob:') {
-                    const res = await fetch(resolved.href);
-                    if (res.ok) {
-                      const blob = await res.blob();
-                      const buffer = await blob.arrayBuffer();
-                      const base64 = await arrayBufferToBase64(buffer);
-                      const assetKey = nextAssetId();
-                      assets[assetKey] = {
-                        kind: 'font',
-                        mimeType: blob.type || 'font/woff2',
-                        base64,
-                      };
-                      assetRef = assetKey;
-                    }
+                    if (Date.now() >= deadline) throw new CaptureTimeout('Font asset budget exhausted');
+                    const blob = await fetchAssetBlob(resolved.href, Math.max(0, deadline - Date.now()));
+                    const buffer = await withTimeout(blob.arrayBuffer(), Math.max(0, deadline - Date.now()));
+                    const base64 = await arrayBufferToBase64(buffer);
+                    const assetKey = nextAssetId();
+                    assets[assetKey] = {
+                      kind: 'font',
+                      mimeType: blob.type || 'font/woff2',
+                      base64,
+                    };
+                    assetRef = assetKey;
+                  } else {
+                    warning(report, 'asset_unavailable', `Cross-origin font bytes were not embedded: ${resolved.href}`);
                   }
-                } catch {
-                  // Ignore font fetch failure
+                } catch (error) {
+                  warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+                    `Font asset could not be embedded: ${family} (${fontUrl})`);
                 }
               }
             }
@@ -1237,7 +1440,7 @@ async function extractWebFonts(
       }
     }
   } catch {
-    // StyleSheets access fallback
+    warning(report, 'asset_unavailable', 'Stylesheets could not be inspected for font assets.');
   }
 
   return fonts;
@@ -1249,33 +1452,45 @@ async function extractWebFonts(
  * an offscreen canvas. Returns null when no transcode is needed or possible,
  * in which case the caller keeps the original bytes.
  */
-async function transcodeToPng(blob: Blob): Promise<Blob | null> {
+async function transcodeToPng(
+  blob: Blob,
+  report: ReportDiagnostic,
+  nodeId: string,
+  timeoutMs: number
+): Promise<Blob | null> {
   const t = (blob.type || '').toLowerCase();
   if (t === 'image/png' || t === 'image/jpeg' || t === 'image/gif' || t === 'image/svg+xml') {
     return null;
   }
+  let bitmap: ImageBitmap | undefined;
+  let expired = false;
   try {
-    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
-    const bmp = await Promise.race([
-      createImageBitmap(blob),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
-    ]);
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, bmp.width);
-    canvas.height = Math.max(1, bmp.height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      if (typeof bmp.close === 'function') bmp.close();
-      return null;
+    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') {
+      throw new Error('Image conversion is unavailable');
     }
-    ctx.drawImage(bmp, 0, 0);
-    if (typeof bmp.close === 'function') bmp.close();
-    const out: Blob | null = await new Promise((resolve) => {
-      canvas.toBlob((b) => resolve(b), 'image/png');
-    });
+    const decoded = await withTimeout(createImageBitmap(blob).then((value) => {
+      if (expired) value.close();
+      return value;
+    }), timeoutMs);
+    bitmap = decoded;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, decoded.width);
+    canvas.height = Math.max(1, decoded.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas context is unavailable');
+    ctx.drawImage(decoded, 0, 0);
+    const { promise, resolve } = Promise.withResolvers<Blob | null>();
+    canvas.toBlob(resolve, 'image/png');
+    const out = await withTimeout(promise, timeoutMs);
+    if (!out) throw new Error('Canvas returned no image bytes');
     return out;
-  } catch {
+  } catch (error) {
+    expired = true;
+    warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_unavailable',
+      `Image could not be converted to PNG; original ${t || 'unknown-format'} bytes were retained.`, nodeId);
     return null;
+  } finally {
+    bitmap?.close();
   }
 }
 
@@ -1283,8 +1498,11 @@ async function serializeSubtree(
   root: Element,
   doc: Document,
   frameRect: { originX: number; originY: number; width: number; height: number },
-  opts?: SerializeOptions
+  opts?: SerializeOptions,
+  diagnostics: CaptureDiagnostic[] = []
 ): Promise<Capture> {
+  const report: ReportDiagnostic = (diagnostic) => diagnostics.push(diagnostic);
+  const assetTimeoutMs = boundedNumber(opts?.assetTimeoutMs, 2500);
   const defaultView = doc.defaultView ?? window;
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
@@ -1322,7 +1540,7 @@ async function serializeSubtree(
 
   const elementToIdMap = new Map<Element, string>();
   const urlToAssetKeyCache = new Map<string, string>();
-  const pendingAssetFetches: Array<{ url: string; assetKey: string }> = [];
+  const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string }> = [];
   const hiddenAncestors = new Set<Element>();
 
   const elements: Element[] = [];
@@ -1554,7 +1772,7 @@ async function serializeSubtree(
             assetRef: assetKey,
             opacity: 1,
           });
-        }
+        } else warning(report, 'asset_failed', 'Background image data could not be read.', nodeId);
       } else {
         try {
           const resolvedUrl = new URL(bgImageUrl, baseURI);
@@ -1566,12 +1784,14 @@ async function serializeSubtree(
             } else {
               const assetKey = `asset-${nextAssetId++}`;
               urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-              pendingAssetFetches.push({ url: resolvedUrl.href, assetKey });
+              pendingAssetFetches.push({ url: resolvedUrl.href, assetKey, nodeId });
               fills.push({ type: 'image', assetRef: assetKey, opacity: 1 });
             }
+          } else {
+            warning(report, 'asset_unavailable', `Cross-origin background image bytes were not embedded: ${resolvedUrl.href}`, nodeId);
           }
         } catch {
-          // Cross-origin or network error ignored
+          warning(report, 'asset_failed', `Background image URL could not be resolved: ${bgImageUrl}`, nodeId);
         }
       }
     }
@@ -1622,7 +1842,7 @@ async function serializeSubtree(
         const canvasEl = el as HTMLCanvasElement;
         if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
           const dataUrl = canvasEl.toDataURL('image/png');
-          if (dataUrl && dataUrl.startsWith('data:image/png;base64,')) {
+          if (dataUrl && dataUrl.startsWith('data:image/png;base64,') && dataUrl.length > 'data:image/png;base64,'.length) {
             const base64 = dataUrl.slice('data:image/png;base64,'.length);
             const assetKey = `asset-${nextAssetId++}`;
             assets[assetKey] = {
@@ -1634,8 +1854,9 @@ async function serializeSubtree(
           }
         }
       } catch {
-        // Tainted canvas fallback
+        // Report the unavailable snapshot below, including tainted canvases.
       }
+      if (!assetRef) warning(report, 'canvas_unavailable', 'Canvas pixels could not be captured; the image layer has no embedded snapshot.', nodeId);
 
       nodes.push({
         id: nodeId,
@@ -1743,7 +1964,7 @@ async function serializeSubtree(
           assetRef = assetKey;
         }
       } catch {
-        // Fallback placeholder rect
+        warning(report, 'asset_failed', 'Inline SVG bytes could not be captured.', nodeId);
       }
 
        // Sprite <use> refs keep their shapes in a <symbol> elsewhere: query
@@ -1830,7 +2051,7 @@ async function serializeSubtree(
               base64: parsed.base64,
             };
             assetRef = assetKey;
-          }
+          } else warning(report, 'asset_failed', 'Image data could not be read.', nodeId);
         } else {
           try {
             const resolvedUrl = new URL(src, baseURI);
@@ -1843,14 +2064,18 @@ async function serializeSubtree(
               } else {
                 const assetKey = `asset-${nextAssetId++}`;
                 urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-                pendingAssetFetches.push({ url: resolvedUrl.href, assetKey });
+                pendingAssetFetches.push({ url: resolvedUrl.href, assetKey, nodeId });
                 assetRef = assetKey;
               }
+            } else {
+              warning(report, 'asset_unavailable', `Cross-origin image bytes were not embedded: ${resolvedUrl.href}`, nodeId);
             }
           } catch {
-            // Fetch failure ignored gracefully
+            warning(report, 'asset_failed', `Image URL could not be resolved: ${src}`, nodeId);
           }
         }
+      } else {
+        warning(report, 'asset_unavailable', 'Image has no available source bytes.', nodeId);
       }
 
       const fit = computed.objectFit as Node['objectFit'] | undefined;
@@ -1892,6 +2117,7 @@ async function serializeSubtree(
         const iframeDoc = iframeEl.contentDocument;
         if (iframeDoc && (iframeDoc.body || iframeDoc.documentElement)) {
           const iframeRoot = iframeDoc.body || iframeDoc.documentElement;
+          const iframeDiagnostics = await prepareCapture(iframeRoot, iframeDoc, opts, false);
           const iframeCapture = await serializeSubtree(
             iframeRoot,
             iframeDoc,
@@ -1901,7 +2127,8 @@ async function serializeSubtree(
               width: w,
               height: h,
             },
-            opts
+            opts,
+            iframeDiagnostics
           );
 
           for (const childNode of iframeCapture.nodes) {
@@ -1912,9 +2139,12 @@ async function serializeSubtree(
           }
 
           Object.assign(assets, iframeCapture.assets);
+          for (const diagnostic of iframeCapture.diagnostics ?? []) report({ ...diagnostic, nodeId });
+        } else {
+          warning(report, 'asset_unavailable', 'Embedded document is unavailable or cross-origin; its content was not captured.', nodeId);
         }
       } catch {
-        // Cross-origin iframe or inaccessible document ignored gracefully
+        warning(report, 'asset_unavailable', 'Embedded document content could not be captured.', nodeId);
       }
       continue;
     }
@@ -1951,6 +2181,7 @@ async function serializeSubtree(
           }
         }
       }
+      if (!assetRef) warning(report, 'asset_unavailable', 'Video frame pixels could not be captured.', nodeId);
 
       nodes.push({
         id: nodeId,
@@ -2342,36 +2573,41 @@ async function serializeSubtree(
     // frozen inline styles are visible to the user's live page.
     for (const [el, frozen] of measure.frozen) thawTransform(el, frozen);
   }
-  // Concurrent parallel asset resolution
-  if (pendingAssetFetches.length > 0) {
-    await Promise.all(
-      pendingAssetFetches.map(async ({ url, assetKey }) => {
-        try {
-          const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const blob = await res.blob();
-          const transcoded = await transcodeToPng(blob);
-          const finalBlob = transcoded ?? blob;
-          const buffer = await finalBlob.arrayBuffer();
-          const base64 = await arrayBufferToBase64(buffer);
-          assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
-        } catch {
-          const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
-          const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
-          if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
-            try {
-              const bg = (await runtime.sendMessage({ action: 'fetch-asset', url })) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
-              if (bg?.success && bg.base64) {
-                assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
-              }
-            } catch {
-              // ignore
+  // Resolve assets with bounded concurrency, including the extension fallback.
+  let nextFetch = 0;
+  const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
+  await Promise.all(Array.from({ length: Math.min(assetConcurrency, pendingAssetFetches.length) }, async () => {
+    while (nextFetch < pendingAssetFetches.length) {
+      const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
+      let failure: unknown;
+      try {
+        const blob = await fetchAssetBlob(url, assetTimeoutMs);
+        const transcoded = await transcodeToPng(blob, report, nodeId, assetTimeoutMs);
+        const finalBlob = transcoded ?? blob;
+        const buffer = await withTimeout(finalBlob.arrayBuffer(), assetTimeoutMs);
+        const base64 = await arrayBufferToBase64(buffer);
+        assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
+      } catch (error) {
+        failure = error;
+        const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+        const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+        if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
+          try {
+            const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), assetTimeoutMs)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+            if (bg?.success && bg.base64) {
+              assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
             }
+          } catch (error) {
+            failure = error;
           }
         }
-      })
-    );
-  }
+      }
+      if (!assets[assetKey]) {
+        warning(report, failure instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+          `Image asset could not be embedded: ${url}${failure instanceof Error ? ` (${failure.message})` : ''}`, nodeId);
+      }
+    }
+  }));
 
   for (const n of nodes) {
     n.box.x = round2(n.box.x);
@@ -2381,7 +2617,8 @@ async function serializeSubtree(
   }
   capture.nodes = nodes;
   capture.assets = assets;
-  capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`);
+  capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`, report, assetTimeoutMs);
+  if (diagnostics.length) capture.diagnostics = diagnostics;
   return capture;
 }
 
@@ -2391,12 +2628,7 @@ export async function serializeDocument(
 ): Promise<Capture> {
   const defaultView = doc.defaultView ?? window;
 
-  if (opts?.scrollStitch && defaultView) {
-    await triggerPageScroll(defaultView, opts.scrollOptions);
-  }
-  // Lazy images never decode on their own: wait briefly so above-fold and
-  // scroll-revealed images have bytes before assets are inlined.
-  await waitForImages(doc);
+  const diagnostics = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -2418,6 +2650,7 @@ export async function serializeDocument(
     return emptyCapture({
       url: defaultView.location?.href || 'about:blank',
       version: '0.2.2',
+      ...(diagnostics.length ? { diagnostics } : {}),
     });
   }
 
@@ -2430,7 +2663,8 @@ export async function serializeDocument(
       width: frameWidth,
       height: frameHeight,
     },
-    opts
+    opts,
+    diagnostics
   );
 }
 
@@ -2440,6 +2674,7 @@ export async function serializeElement(
 ): Promise<Capture> {
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
+  const diagnostics = await prepareCapture(el, doc, opts, false);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -2458,7 +2693,8 @@ export async function serializeElement(
       width,
       height,
     },
-    opts
+    opts,
+    diagnostics
   );
 }
 
