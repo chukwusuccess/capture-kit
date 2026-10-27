@@ -74,9 +74,14 @@ declare const chrome: {
   };
   storage: {
     local: {
-      get(keys: string | string[]): Promise<Record<string, unknown>>;
+      get(keys: string | string[] | null): Promise<Record<string, unknown>>;
       set(items: Record<string, unknown>): Promise<void>;
       remove(keys: string | string[]): Promise<void>;
+    };
+    onChanged: {
+      addListener(
+        callback: (changes: Record<string, { oldValue?: unknown; newValue?: unknown }>, areaName: string) => void
+      ): void;
     };
   };
 };

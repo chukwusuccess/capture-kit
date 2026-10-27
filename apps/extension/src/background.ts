@@ -1,19 +1,22 @@
 import { CaptureSchema, type Capture } from '@capture-kit/model';
+import { CaptureSessionStore, type CaptureSession, type SessionInput } from './sessions';
 
 interface CaptureResponse {
   success: boolean;
   accepted?: boolean;
-  capture?: Capture;
-  captures?: Capture[];
+  session?: CaptureSession;
+  sessions?: CaptureSession[];
   urls?: string[];
   count?: number;
-  skipped?: string[];
   error?: string;
+  mimeType?: string;
+  base64?: string;
 }
 
 interface WindowWithCaptureKit {
   __captureKitSerialize?: (opts?: { scrollStitch?: boolean }) => Promise<unknown>;
   __captureKitPickElement?: () => Promise<unknown>;
+  __captureKitCancelPick?: () => void;
 }
 
 async function getActiveTabId(): Promise<number> {
@@ -34,33 +37,20 @@ async function getActiveTabId(): Promise<number> {
   throw new Error('No active web tab found');
 }
 
-// ponytail: hard cap — the popup must stay open for the whole crawl
+// Captures and job checkpoints are durable; popup delivery only announces changes.
 const MAX_SITE_PAGES = 50;
-
-// Stream to the popup instead of replying on the message channel: a whole
-// run's captures in one sendResponse exceeds Chrome's message size limit,
-// and holding the channel open across a multi-minute crawl lets the
-// service worker get terminated mid-run (both silently dropped the reply).
+const sessionStore = new CaptureSessionStore(chrome.storage.local);
+const sessionsReady = sessionStore.initialize();
+void sessionsReady.catch(() => undefined);
 function sendToPopup(message: unknown): void {
   void chrome.runtime.sendMessage(message).catch(() => {
     /* popup closed */
   });
 }
 
-function reportProgress(done: number, total: number, url: string): void {
-  sendToPopup({ type: 'progress', done, total, url });
+function announceSession(sessionId: string): void {
+  sendToPopup({ type: 'session-updated', sessionId });
 }
-async function deliverCaptureToPopup(capture: Capture, index: number): Promise<void> {
-  const key = `run-capture:${Date.now()}:${index}`;
-  try {
-    await chrome.storage.local.set({ [key]: capture });
-    sendToPopup({ type: 'capture-ready', key });
-  } catch {
-    sendToPopup({ type: 'capture', capture });
-  }
-}
-
-
 
 function extractSitemapLocs(xmlText: string): string[] {
   const locs: string[] = [];
@@ -334,7 +324,13 @@ async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme
     await waitForLayout(tabId);
     const alt = await runSerializer(tabId, scrollStitch);
     return [primary, alt];
-  } catch {
+  } catch (error) {
+    primary.diagnostics ??= [];
+    primary.diagnostics.push({
+      code: 'alternate_theme_failed',
+      severity: 'warning',
+      message: `Only the original theme was captured. Alternate theme failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
     return [primary];
   } finally {
     await chrome.scripting.executeScript({
@@ -353,8 +349,7 @@ async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme
   }
 }
 
-async function handlePickCapture(): Promise<Capture> {
-  const tabId = await getActiveTabId();
+async function handlePickCapture(tabId: number): Promise<Capture> {
 
   await chrome.scripting.executeScript({
     target: { tabId },
@@ -475,199 +470,244 @@ function samePage(a: string, b: string): boolean {
   const strip = (u: string): string => u.replace(/#.*$/, '').replace(/\/+$/, '');
   return strip(a) === strip(b);
 }
-let cancelRunRequested = false;
+interface ActiveRun { id: string; cancelled: boolean; pickerTabId?: number }
+let activeRun: ActiveRun | undefined;
 
-async function handleCaptureRun(
-  rawUrls: unknown,
-  rawWidths: unknown,
-  scrollStitch: boolean,
-  passedTabId?: number,
-  passedOrigin?: string,
-  dualTheme = false
-): Promise<{ count: number; skipped: string[] }> {
-  let targetOrigin = passedOrigin || '';
-  let activeTabUrl = '';
-  let activeTabWidth = 1280;
-
-  if (passedTabId) {
-    const tab = await chrome.tabs.get(passedTabId).catch(() => null);
-    if (tab?.url) {
-      activeTabUrl = tab.url;
-      try {
-        targetOrigin = targetOrigin || new URL(tab.url).origin;
-      } catch {
-        // ignore
-      }
-    }
-    if (typeof tab?.width === 'number') activeTabWidth = tab.width;
-  }
-
-  if (!targetOrigin) {
-    const activeId = await getActiveTabId();
-    const active = await chrome.tabs.get(activeId);
-    if (!active.url) throw new Error('Cannot read the current tab');
-    activeTabUrl = active.url;
-    targetOrigin = new URL(active.url).origin;
-    if (typeof active.width === 'number') activeTabWidth = active.width;
-  }
-
-  const urls = sameOriginUrls(rawUrls, targetOrigin).slice(0, MAX_SITE_PAGES);
+async function prepareSession(message: Record<string, unknown>, pick = false): Promise<SessionInput> {
+  const tabId = typeof message.tabId === 'number' && message.tabId > 0 ? message.tabId : await getActiveTabId();
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.url || !/^https?:/.test(tab.url)) throw new Error('Open a website to capture it');
+  const origin = new URL(tab.url).origin;
+  const viewport = await measure(tabId);
+  const currentWidth = viewport.inner || tab.width || 1280;
+  const urls = pick ? [tab.url] : [...new Set(sameOriginUrls(message.urls, origin))];
   if (urls.length === 0) throw new Error('No pages selected');
-  const widths = Array.isArray(rawWidths)
-    ? [...new Set(rawWidths.filter((w): w is number => Number.isInteger(w) && w >= 240 && w <= 7680))]
+  if (urls.length > MAX_SITE_PAGES) throw new Error(`Select no more than ${MAX_SITE_PAGES} pages per run`);
+  const widths = pick ? [currentWidth] : Array.isArray(message.widths)
+    ? [...new Set(message.widths.filter((width): width is number => Number.isInteger(width) && width >= 240 && width <= 7680))]
     : [];
-  const sizes = (widths.length ? widths : [activeTabWidth]).slice(0, MAX_SIZES);
-
-  // Just this tab at its own width: capture in place, keeping its live state.
-  if (urls.length === 1 && activeTabUrl && samePage(urls[0], activeTabUrl) && sizes.length === 1 && sizes[0] === activeTabWidth) {
-    const activeId = passedTabId ?? (await getActiveTabId());
-    const caps = await captureWithThemes(activeId, scrollStitch, dualTheme);
-    for (const [idx, c] of caps.entries()) await deliverCaptureToPopup(c, idx);
-    return { count: caps.length, skipped: [] };
-  }
-  // Everything else runs in one unfocused window, so the user's window never resizes.
-  const win = await chrome.windows.create({
-    url: 'about:blank',
-    focused: false,
-    type: 'popup',
-    width: 1280,
-    height: 900,
-  });
-  let tabId = win.tabs?.[0]?.id;
-  if (typeof tabId !== 'number' && typeof win.id === 'number') {
-    const tabs = await chrome.tabs.query({ windowId: win.id });
-    tabId = tabs[0]?.id;
-  }
-  if (typeof win.id !== 'number' || typeof tabId !== 'number') {
-    throw new Error('Could not open a capture window');
-  }
-
-  const skipped: string[] = [];
-  const total = urls.length * sizes.length;
-  let count = 0;
-  cancelRunRequested = false;
-  try {
-    for (const [i, url] of urls.entries()) {
-      if (cancelRunRequested) {
-        skipped.push('Run cancelled by user');
-        break;
-      }
-      try {
-        await loadInTab(tabId, url);
-        if (cancelRunRequested) {
-          skipped.push('Run cancelled by user');
-          break;
-        }
-        await injectSerializer(tabId);
-        for (const [j, width] of sizes.entries()) {
-          if (cancelRunRequested) break;
-          reportProgress(i * sizes.length + j, total, url);
-          await fitViewport(win.id, tabId, width);
-          const caps = await captureWithThemes(tabId, scrollStitch, dualTheme);
-          for (const cap of caps) {
-            await deliverCaptureToPopup(cap, count);
-            count += 1;
-          }
-        }
-      } catch (err: unknown) {
-        // Keep going — one broken page shouldn't kill the whole run.
-        skipped.push(`${url}: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-  } finally {
-    await chrome.windows.remove(win.id).catch(() => undefined);
-  }
-
-  reportProgress(total, total, '');
-  if (count === 0) throw new Error(`Captured 0 pages — ${skipped[0] ?? 'the site may block scripts'}`);
-  return { count, skipped };
+  if (!widths.length) widths.push(currentWidth);
+  if (widths.length > MAX_SIZES) throw new Error(`Select no more than ${MAX_SIZES} viewport widths`);
+  return {
+    origin, tabId, urls, widths,
+    mode: pick ? 'pick' : urls.length === 1 && samePage(urls[0], tab.url) && widths.length === 1 && widths[0] === currentWidth ? 'live' : 'window',
+    scrollStitch: Boolean(message.scrollStitch), dualTheme: Boolean(message.dualTheme),
+    format: typeof message.format === 'string' ? message.format : 'figma',
+    includeDesignSystem: Boolean(message.includeDesignSystem),
+  };
 }
 
-chrome.runtime.onMessage.addListener(
-  (
-    message: unknown,
-    _sender: unknown,
-    sendResponse: (response: CaptureResponse) => void
-  ) => {
-    if (message && typeof message === 'object' && 'action' in message) {
-      const action = message.action;
-      const fail = (error: unknown) => {
-        const msg = error instanceof Error ? error.message : String(error);
-        sendResponse({ success: false, error: msg });
-      };
+async function createAndLaunchSession(message: Record<string, unknown>, pick = false): Promise<CaptureSession> {
+  const session = await sessionStore.create(await prepareSession(message, pick));
+  launchSession(session);
+  return session;
+}
 
-      if (action === 'capture-run') {
-        const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
-        const dualTheme = 'dualTheme' in message && Boolean(message.dualTheme);
-        const urls = 'urls' in message ? message.urls : undefined;
-        const widths = 'widths' in message ? message.widths : undefined;
-        const tabId = 'tabId' in message && typeof message.tabId === 'number' ? message.tabId : undefined;
-        const origin = 'origin' in message && typeof message.origin === 'string' ? message.origin : undefined;
-        sendResponse({ success: true, accepted: true });
-        handleCaptureRun(urls, widths, scrollStitch, tabId, origin, dualTheme).then(
-          ({ count, skipped }) => sendToPopup({ type: 'run-done', count, skipped }),
-          (error: unknown) =>
-            sendToPopup({
-              type: 'run-error',
-              error: error instanceof Error ? error.message : String(error),
-            })
-        );
-        return false;
-      }
+function launchSession(session: CaptureSession): void {
+  const control: ActiveRun = { id: session.id, cancelled: false };
+  activeRun = control;
+  announceSession(session.id);
+  void executeSession(session, control).finally(() => {
+    if (activeRun === control) activeRun = undefined;
+  });
+}
 
-      if (action === 'discover-site') {
-        const getTab =
-          'tabId' in message && typeof message.tabId === 'number' && message.tabId > 0
-            ? Promise.resolve(message.tabId)
-            : getActiveTabId();
-        const origin =
-          'origin' in message && typeof message.origin === 'string'
-            ? message.origin
-            : '';
-        const pageUrl =
-          'url' in message && typeof message.url === 'string'
-            ? message.url
-            : '';
-
-        getTab
-          .then((tabId) => discoverSiteUrls(tabId, origin, pageUrl))
-          .then(
-            (urls) => sendResponse({ success: true, urls, count: urls.length }),
-            fail
-          );
-        return true;
+async function executeSession(session: CaptureSession, control: ActiveRun): Promise<void> {
+  let captureWindowId: number | undefined;
+  let captureTabId: number | undefined;
+  let loadedUrl = '';
+  try {
+    for (const job of session.jobs) {
+      if (job.status === 'completed') continue;
+      if (control.cancelled) break;
+      await sessionStore.startJob(session.id, job.id);
+      announceSession(session.id);
+      let captures: Capture[];
+      try {
+        if (session.mode === 'pick') {
+          const tab = await chrome.tabs.get(session.tabId);
+          if (!tab.url || !samePage(tab.url, job.url)) throw new Error('The original page is no longer open. Reopen it before resuming element selection.');
+          control.pickerTabId = session.tabId;
+          captures = [await handlePickCapture(session.tabId)];
+          control.pickerTabId = undefined;
+        } else {
+          // Keep the live page only when it is still the intended page at the
+          // saved viewport. A resumed session must not depend on its source tab.
+          let liveTabId: number | undefined;
+          let liveStateUnavailable = false;
+          if (session.mode === 'live') {
+            try {
+              const tab = await chrome.tabs.get(session.tabId);
+              if (tab.url && samePage(tab.url, job.url)) {
+                const viewport = await measure(session.tabId);
+                if (viewport.inner === job.width) liveTabId = session.tabId;
+                else liveStateUnavailable = true;
+              } else {
+                liveStateUnavailable = true;
+              }
+            } catch {
+              liveStateUnavailable = true;
+            }
+          }
+          if (liveTabId !== undefined) {
+            captures = await captureWithThemes(liveTabId, session.scrollStitch, session.dualTheme);
+          } else {
+            if (captureWindowId === undefined) {
+              const win = await chrome.windows.create({ url: 'about:blank', focused: false, type: 'popup', width: 1280, height: 900 });
+              captureWindowId = win.id;
+              captureTabId = win.tabs?.[0]?.id;
+              if (captureTabId === undefined && captureWindowId !== undefined) {
+                captureTabId = (await chrome.tabs.query({ windowId: captureWindowId }))[0]?.id;
+              }
+              if (captureWindowId === undefined || captureTabId === undefined) throw new Error('Could not open a capture window');
+            }
+            if (captureTabId === undefined) throw new Error('Capture tab is unavailable');
+            if (loadedUrl !== job.url) {
+              await loadInTab(captureTabId, job.url);
+              loadedUrl = job.url;
+            }
+            if (control.cancelled) break;
+            await fitViewport(captureWindowId, captureTabId, job.width);
+            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme);
+            if (liveStateUnavailable) {
+              for (const capture of captures) {
+                capture.diagnostics ??= [];
+                capture.diagnostics.push({
+                  code: 'live_state_unavailable',
+                  severity: 'warning',
+                  message: 'The original live page state was unavailable when this session resumed. This result was recaptured in an isolated window from the saved URL and viewport.',
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        control.pickerTabId = undefined;
+        if (control.cancelled) break;
+        await sessionStore.failJob(session.id, job.id, error instanceof Error ? error.message : String(error));
+        announceSession(session.id);
+        continue;
       }
-
-      if (action === 'pick') {
-        handlePickCapture().then(
-          (capture) => sendResponse({ success: true, capture }),
-          fail
-        );
-        return true;
-      }
-
-      if (action === 'cancel-run') {
-        cancelRunRequested = true;
-        sendResponse({ success: true });
-        return true;
-      }
-      if (action === 'fetch-asset' && 'url' in message && typeof message.url === 'string') {
-        const assetUrl = message.url;
-        fetch(assetUrl, { signal: AbortSignal.timeout(6000) })
-          .then(async (res) => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const blob = await res.blob();
-            if (blob.size > 8 * 1024 * 1024) throw new Error('Asset over 8 MB cap');
-            const buffer = await blob.arrayBuffer();
-            let binary = '';
-            const bytes = new Uint8Array(buffer);
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-            sendResponse({ success: true, mimeType: blob.type || 'image/png', base64: btoa(binary) });
-          })
-          .catch(fail);
-        return true;
-      }
+      // Persistence failures stop the run. Never substitute an ephemeral message
+      // for a saved result, and never mark a job complete before this resolves.
+      await sessionStore.completeJob(session.id, job.id, captures);
+      announceSession(session.id);
     }
-    return false;
+    const finished = await sessionStore.finish(session.id);
+    sendToPopup({ type: 'run-done', sessionId: finished.id });
+  } catch (error) {
+    let message = error instanceof Error ? error.message : String(error);
+    try {
+      await sessionStore.interrupt(session.id, message);
+    } catch (persistError) {
+      message += `; could not persist interruption: ${persistError instanceof Error ? persistError.message : String(persistError)}`;
+    }
+    sendToPopup({ type: 'run-error', sessionId: session.id, error: message });
+  } finally {
+    if (captureWindowId !== undefined) await chrome.windows.remove(captureWindowId).catch(() => undefined);
   }
-);
+}
+
+async function cancelActiveRun(): Promise<void> {
+  const control = activeRun;
+  if (!control) throw new Error('No capture run is active');
+  control.cancelled = true;
+  let checkpointFailed = false;
+  let checkpointError: unknown;
+  try {
+    await sessionStore.requestCancel(control.id);
+  } catch (error) {
+    checkpointFailed = true;
+    checkpointError = error;
+  }
+  if (control.pickerTabId !== undefined) {
+    await chrome.scripting.executeScript({
+      target: { tabId: control.pickerTabId },
+      func: () => (window as unknown as WindowWithCaptureKit).__captureKitCancelPick?.(),
+    }).catch(() => undefined);
+  }
+  announceSession(control.id);
+  if (checkpointFailed) throw checkpointError;
+}
+
+chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendResponse: (response: CaptureResponse) => void) => {
+  if (!message || typeof message !== 'object' || !('action' in message)) return false;
+  const request = message as Record<string, unknown>;
+  const action = request.action;
+  const fail = (error: unknown) => {
+    sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+  };
+
+  if (action === 'capture-run' || action === 'pick-run') {
+    createAndLaunchSession(request, action === 'pick-run').then(
+      (session) => sendResponse({ success: true, accepted: true, session }),
+      fail
+    );
+    return true;
+  }
+
+  if (action === 'list-sessions') {
+    sessionStore.list().then(
+      (sessions) => sendResponse({ success: true, sessions }),
+      fail
+    );
+    return true;
+  }
+
+  if (action === 'resume-session' && typeof request.sessionId === 'string') {
+    sessionStore.resume(request.sessionId).then(
+      (session) => {
+        launchSession(session);
+        sendResponse({ success: true, accepted: true, session });
+      },
+      fail
+    );
+    return true;
+  }
+
+  if (action === 'discard-session' && typeof request.sessionId === 'string') {
+    sessionStore.discard(request.sessionId).then(
+      () => sendResponse({ success: true }),
+      fail
+    );
+    return true;
+  }
+
+  if (action === 'discover-site') {
+    const getTab = typeof request.tabId === 'number' && request.tabId > 0
+      ? Promise.resolve(request.tabId)
+      : getActiveTabId();
+    const origin = typeof request.origin === 'string' ? request.origin : '';
+    const pageUrl = typeof request.url === 'string' ? request.url : '';
+    getTab.then((tabId) => discoverSiteUrls(tabId, origin, pageUrl)).then(
+      (urls) => sendResponse({ success: true, urls, count: urls.length }),
+      fail
+    );
+    return true;
+  }
+
+  if (action === 'cancel-run') {
+    cancelActiveRun().then(
+      () => sendResponse({ success: true }),
+      fail
+    );
+    return true;
+  }
+
+  if (action === 'fetch-asset' && typeof request.url === 'string') {
+    fetch(request.url, { signal: AbortSignal.timeout(6000) })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (blob.size > 8 * 1024 * 1024) throw new Error('Asset over 8 MB cap');
+        const buffer = await blob.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        sendResponse({ success: true, mimeType: blob.type || 'image/png', base64: btoa(binary) });
+      })
+      .catch(fail);
+    return true;
+  }
+  return false;
+});
