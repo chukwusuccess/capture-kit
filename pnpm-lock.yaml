@@ -61,6 +61,25 @@ importers:
         specifier: ^6.2.0
         version: 6.4.5(tsx@4.23.15)
 
+  apps/figma-plugin:
+    dependencies:
+      '@capture-kit/destination-figma':
+        specifier: workspace:*
+        version: link:../../packages/destinations/figma
+      '@capture-kit/model':
+        specifier: workspace:*
+        version: link:../../packages/model
+    devDependencies:
+      '@figma/plugin-typings':
+        specifier: 1.142.0
+        version: 1.142.0
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.2.0
+        version: 6.4.5(tsx@4.23.15)
+
   apps/playground:
     dependencies:
       '@capture-kit/destination-figma':
@@ -491,6 +510,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@figma/plugin-typings@1.142.0':
+    resolution: {integrity: sha512-Loa9P4bUZi/pQejic8OYQSU4Zz9izJdIiDUkkKddq5Bfc5JPRV6pCeg3C8owovbX9lKshaFym86PlMhKZgLeBw==}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -942,6 +964,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@figma/plugin-typings@1.142.0': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
