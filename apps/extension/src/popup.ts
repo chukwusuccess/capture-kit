@@ -1,4 +1,4 @@
-import type { Capture } from '@capture-kit/model';
+import { CaptureSchema, type Capture } from '@capture-kit/model';
 import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
 import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
@@ -6,31 +6,25 @@ import { modelToHtml } from '@capture-kit/destination-html';
 import { modelToMarkdown } from '@capture-kit/destination-markdown';
 import { modelToReact } from '@capture-kit/destination-react';
 import JSZip from 'jszip';
+import { isSessionActive, sessionResultKey, SESSION_INDEX_KEY, type CaptureSession } from './sessions';
 import { groupPages, pagePath } from './pages';
 
 interface CaptureMessageResponse {
   success: boolean;
   accepted?: boolean;
-  capture?: Capture;
-  captures?: Capture[];
+  session?: CaptureSession;
+  sessions?: CaptureSession[];
   urls?: string[];
-  skipped?: string[];
   error?: string;
 }
 
-interface ProgressMessage {
-  type: 'progress' | 'capture' | 'capture-ready' | 'run-done' | 'run-error';
-  done?: number;
-  total?: number;
-  url?: string;
-  capture?: Capture;
-  key?: string;
-  count?: number;
-  skipped?: string[];
+interface SessionNotification {
+  type: 'session-updated' | 'run-done' | 'run-error';
+  sessionId?: string;
   error?: string;
 }
 
-// Mirror the caps in background.ts — the popup has to stay open for the run.
+// Mirror background caps so the popup selection matches worker validation.
 const MAX_PAGES = 50;
 const MAX_SIZES = 6;
 // Sections bigger than this start collapsed unless they hold the current page.
@@ -43,10 +37,12 @@ let currentTabId = 0;
 let browserWidth = 0;
 let discovered = false;
 let latestCaptures: Capture[] = [];
-// Captures stream in from the background one message at a time — one giant
-// response exceeded Chrome's message size limit and silently vanished.
-let streamedCaptures: Capture[] = [];
 let runBusy = false;
+let knownSessions: CaptureSession[] = [];
+let activeSessionId: string | undefined;
+let requestedSessionId: string | undefined;
+let progressSessionId: string | undefined;
+let diagnosticsVersion = '';
 const selected = new Set<string>();
 const collapsed = new Set<string>();
 
@@ -65,12 +61,20 @@ const sizesTally = $('#sizes-tally');
 const optScrollStitch = $<HTMLInputElement>('#opt-scroll-stitch');
 const optDesignSystem = $<HTMLInputElement>('#opt-design-system');
 const optDualTheme = $<HTMLInputElement>('#opt-dual-theme');
+const nativeHelp = $('#native-help');
 const progressWrap = $('#progress-wrap');
 const progressFill = $('#progress-fill');
 const progressPct = $('#progress-pct');
 const cancelBtn = $<HTMLButtonElement>('#cancel-btn');
+const sessionsList = $('#sessions-list');
+const sessionsEmpty = $('#sessions-empty');
+const sessionFeedback = $('#session-feedback');
+const captureDiagnostics = $<HTMLDetailsElement>('#capture-diagnostics');
+const diagnosticsList = $('#diagnostics-list');
 const pageGroups = $('#page-groups');
 const pageSearch = $<HTMLInputElement>('#page-search');
+const selectAllPages = $<HTMLButtonElement>('#sel-all');
+const selectNoPages = $<HTMLButtonElement>('#sel-none');
 const sizeButtons = [...document.querySelectorAll<HTMLButtonElement>('.size')];
 const formatRadios = [...document.querySelectorAll<HTMLInputElement>('input[name="format"]')];
 
@@ -222,6 +226,9 @@ function syncUI(): void {
   updateCaptureButton();
 }
 
+function updateFormatHelp(): void {
+  if (nativeHelp) nativeHelp.hidden = getFormat() !== 'figma-native';
+}
 function updateCaptureButton(): void {
   if (!captureBtn || !captureTitle || !captureSub) return;
   const pages = pickedUrls().length;
@@ -234,8 +241,8 @@ function updateCaptureButton(): void {
   if (!discovered && siteUrls.length === 0) sub = 'Finding pages…';
   else if (pages === 0) sub = 'Tick at least one page';
   else if (sizes === 0) sub = 'Pick at least one size';
-  else if (pages > MAX_PAGES) sub = `Untick ${pages - MAX_PAGES} — up to ${MAX_PAGES} pages per run`;
   else if (sizes > MAX_SIZES) sub = `Up to ${MAX_SIZES} sizes per run`;
+  else if (getFormat() === 'figma-native') sub = `${plural(frames, 'capture')} downloaded for the Figma plugin`;
   else if (getFormat() === 'figma') sub = `${plural(frames, 'frame')}, copied for Figma`;
   else if (getFormat() === 'react') sub = `${plural(frames, 'component')}, copied as React TSX`;
   else if (getFormat() === 'md') sub = `${plural(frames, 'spec')}, copied as Markdown for AI`;
@@ -497,79 +504,79 @@ function fileName(capture: Capture, withWidth: boolean): string {
   }
 }
 
-async function exportCaptures(captures: Capture[]): Promise<string> {
-  const format = getFormat();
+async function exportCaptures(
+  captures: Capture[],
+  format = getFormat(),
+  includeDesignSystem = optDesignSystem?.checked ?? false
+): Promise<string> {
+  if (captures.length === 0) throw new Error('No saved captures are available to export');
   if (format === 'figma') {
-    const includeDesignSystem = optDesignSystem?.checked ?? false;
     await copyToFigmaClipboard(captures, { includeDesignSystem });
-    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — paste into Figma with ⌘V`;
+    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — paste into Figma`;
+  }
+  let host = 'site';
+  try {
+    host = new URL(captures[0].url).hostname.replace(/[^a-z0-9.-]/gi, '-');
+  } catch {
+    // The capture file name falls back to a generic site label.
+  }
+  if (format === 'figma-native') {
+    const baseName = captures.length === 1 ? fileName(captures[0], false) : `${host}-captures`;
+    const payload: Capture | Capture[] = captures.length === 1 ? captures[0] : captures;
+    triggerDownload(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `${baseName}.capture.json`);
+    return `Downloaded ${baseName}.capture.json for the Capture Kit Figma plugin`;
   }
   if (format === 'react' && captures.length === 1) {
-    const tsx = modelToReact(captures[0]);
-    await navigator.clipboard.writeText(tsx);
-    return `Copied React component — paste into your codebase!`;
+    await navigator.clipboard.writeText(modelToReact(captures[0]));
+    return 'Copied React component';
   }
   if (format === 'md' && captures.length === 1) {
-    const md = modelToMarkdown(captures[0]);
-    await navigator.clipboard.writeText(md);
-    return `Copied Markdown component spec — paste into Claude/ChatGPT!`;
+    await navigator.clipboard.writeText(modelToMarkdown(captures[0]));
+    return 'Copied Markdown component spec';
   }
-  const withWidth = new Set(captures.map((c) => c.frame.width)).size > 1;
-  const host = siteOrigin ? new URL(siteOrigin).hostname.replace(/[^a-z0-9.-]/gi, '-') : 'site';
+  const withWidth = new Set(captures.map((capture) => capture.frame.width)).size > 1;
 
-  // If multiple captures, bundle into one zip to avoid multiple browser download prompts
   if (captures.length > 1) {
     const zip = new JSZip();
     const fileLinks: Array<{ name: string; file: string }> = [];
-
     for (const capture of captures) {
       const name = fileName(capture, withWidth);
       if (format === 'sketch') {
-        const blob = await modelToSketch(capture);
-        const buffer = await blob.arrayBuffer();
+        const buffer = await (await modelToSketch(capture)).arrayBuffer();
         zip.file(`${name}.sketch`, buffer);
         fileLinks.push({ name, file: `${name}.sketch` });
       } else if (format === 'svg') {
-        const svg = modelToSvg(capture);
-        zip.file(`${name}.svg`, svg);
+        zip.file(`${name}.svg`, modelToSvg(capture));
         fileLinks.push({ name, file: `${name}.svg` });
       } else if (format === 'html') {
-        const html = modelToHtml(capture);
-        zip.file(`${name}.html`, html);
+        zip.file(`${name}.html`, modelToHtml(capture));
         fileLinks.push({ name, file: `${name}.html` });
       } else if (format === 'react') {
-        const tsx = modelToReact(capture);
-        zip.file(`${name}.tsx`, tsx);
+        zip.file(`${name}.tsx`, modelToReact(capture));
         fileLinks.push({ name, file: `${name}.tsx` });
       } else if (format === 'md') {
-        const md = modelToMarkdown(capture);
-        zip.file(`${name}.md`, md);
+        zip.file(`${name}.md`, modelToMarkdown(capture));
         fileLinks.push({ name, file: `${name}.md` });
       } else {
-        const json = JSON.stringify(capture, null, 2);
-        zip.file(`${name}.json`, json);
+        zip.file(`${name}.json`, JSON.stringify(capture, null, 2));
         fileLinks.push({ name, file: `${name}.json` });
       }
     }
-
-    // Add an index.html navigation page in the zip
     const indexHtml = [
       '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Captured Pages</title>',
       '<style>body{font-family:system-ui,sans-serif;padding:24px;max-width:800px;margin:auto;}ul{line-height:2;}a{color:#0d99ff;text-decoration:none;}a:hover{text-decoration:underline;}</style>',
       '</head><body>',
       `<h1>${host} captures (${captures.length} files)</h1>`,
       '<ul>',
-      ...fileLinks.map((l) => `  <li><a href="${l.file}">${l.name}</a></li>`),
+      ...fileLinks.map((link) => `  <li><a href="${link.file}">${link.name}</a></li>`),
       '</ul></body></html>',
     ].join('\n');
     zip.file('index.html', indexHtml);
-
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     triggerDownload(zipBlob, `${host}-captures.zip`);
     return `Downloaded ${captures.length} files bundled in ${host}-captures.zip`;
   }
 
-  // Single capture direct download
   const capture = captures[0];
   const name = fileName(capture, withWidth);
   if (format === 'sketch') triggerDownload(await modelToSketch(capture), `${name}.sketch`);
@@ -580,156 +587,338 @@ async function exportCaptures(captures: Capture[]): Promise<string> {
   else triggerDownload(new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' }), `${name}.json`);
   return `Downloaded ${name}.${format === 'react' ? 'tsx' : format}`;
 }
-async function finish(response: CaptureMessageResponse | undefined): Promise<void> {
-  if (progressWrap) progressWrap.hidden = true;
-  const captures = response?.captures ?? (response?.capture ? [response.capture] : []);
-  if (!response?.success || captures.length === 0) {
-    const errorText =
-      response?.error ||
-      (response?.skipped?.length ? response.skipped[0] : 'Nothing was captured');
-    setStatus(errorText, 'error');
-    if (statusText && response?.skipped?.length) {
-      statusText.title = response.skipped.join('\n');
+
+async function readSessionCaptures(session: CaptureSession): Promise<Capture[]> {
+  const jobs = session.jobs.filter((job) => job.status === 'completed');
+  if (jobs.length === 0) throw new Error('This session has no completed captures yet');
+  const keys = jobs.map((job) => sessionResultKey(session.id, job.id));
+  const stored = await chrome.storage.local.get(keys);
+  const captures: Capture[] = [];
+  for (const job of jobs) {
+    const result = stored[sessionResultKey(session.id, job.id)] as { captures?: unknown } | undefined;
+    if (!result || !Array.isArray(result.captures) || result.captures.length === 0) {
+      throw new Error('A saved capture is missing. No export was produced; resume this session to recover the job.');
     }
-    return;
+    for (const raw of result.captures) captures.push(CaptureSchema.parse(raw));
   }
-  latestCaptures = captures;
-  const done = await exportCaptures(captures);
-  const skipped = response.skipped?.length ?? 0;
-  setStatus(skipped ? `${done} · ${skipped} skipped` : done, 'ok');
-  if (statusText && skipped) statusText.title = response.skipped?.join('\n') ?? '';
-  if (figmaBtn) figmaBtn.hidden = getFormat() !== 'figma';
+  if (captures.length === 0) throw new Error('This session has no saved capture data');
+  return captures;
 }
 
-// Finalize a streamed multi-page run.
-async function finishRun(skipped: string[], error?: string): Promise<void> {
-  runBusy = false;
-  if (progressWrap) progressWrap.hidden = true;
-  updateCaptureButton();
-  const captures = streamedCaptures;
-  if (statusText && skipped.length) statusText.title = skipped.join('\n');
-  const skipNote = skipped.length ? ` · ${skipped.length} skipped` : '';
+function renderDiagnostics(diagnostics: Array<{ code: string; message: string; severity: 'warning' | 'info' }>): void {
+  diagnosticsList?.replaceChildren();
+  for (const diagnostic of diagnostics) {
+    const item = el('li', undefined, diagnostic.message);
+    item.title = diagnostic.code;
+    item.dataset.severity = diagnostic.severity;
+    diagnosticsList?.append(item);
+  }
+  if (captureDiagnostics) {
+    captureDiagnostics.hidden = diagnostics.length === 0;
+    captureDiagnostics.open = diagnostics.some((diagnostic) => diagnostic.severity === 'warning');
+  }
+}
 
-  if (captures.length === 0) {
-    setStatus(error ?? skipped[0] ?? 'Nothing was captured', 'error');
+async function loadSessionDiagnostics(session: CaptureSession): Promise<void> {
+  const version = `${session.id}:${session.updatedAt}`;
+  diagnosticsVersion = version;
+  const jobs = session.jobs.filter((job) => job.status === 'completed');
+  try {
+    const keys = jobs.map((job) => sessionResultKey(session.id, job.id));
+    const stored = keys.length ? await chrome.storage.local.get(keys) : {};
+    if (diagnosticsVersion !== version) return;
+    const diagnostics: Array<{ code: string; message: string; severity: 'warning' | 'info' }> = [];
+    for (const job of jobs) {
+      const result = stored[sessionResultKey(session.id, job.id)] as { captures?: unknown } | undefined;
+      if (!Array.isArray(result?.captures)) continue;
+      for (const capture of result.captures) {
+        if (!capture || typeof capture !== 'object' || !('diagnostics' in capture) || !Array.isArray(capture.diagnostics)) continue;
+        for (const item of capture.diagnostics) {
+          if (!item || typeof item !== 'object' || !('message' in item) || typeof item.message !== 'string') continue;
+          diagnostics.push({
+            code: 'code' in item && typeof item.code === 'string' ? item.code : 'capture_note',
+            message: item.message,
+            severity: 'severity' in item && item.severity === 'warning' ? 'warning' : 'info',
+          });
+        }
+      }
+    }
+    renderDiagnostics(diagnostics);
+  } catch (error) {
+    if (diagnosticsVersion !== version) return;
+    renderDiagnostics([]);
+    setSessionFeedback(`Could not read capture notes: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function setSessionFeedback(text: string): void {
+  if (sessionFeedback) sessionFeedback.textContent = text;
+}
+
+function sessionActionButton(session: CaptureSession, action: string, label: string, disabled = false): HTMLButtonElement {
+  const button = el('button', 'session-action', label);
+  button.type = 'button';
+  button.dataset.action = action;
+  button.dataset.sessionId = session.id;
+  button.disabled = disabled;
+  return button;
+}
+
+function renderSessions(records: CaptureSession[]): void {
+  knownSessions = records;
+  sessionsList?.replaceChildren();
+  if (sessionsEmpty) sessionsEmpty.hidden = records.length > 0;
+  const active = records.find(isSessionActive);
+  activeSessionId = active?.id;
+  runBusy = Boolean(active);
+  const progressSession = active ?? records.find((session) => session.id === progressSessionId)
+    ?? records.find((session) => session.id === requestedSessionId) ?? records[0];
+  progressSessionId = progressSession?.id;
+  if (progressSession) {
+    const completed = progressSession.jobs.filter((job) => job.status === 'completed').length;
+    const total = progressSession.jobs.length;
+    const percent = total ? Math.round(completed * 100 / total) : 0;
+    if (progressWrap) progressWrap.hidden = false;
+    if (progressFill) progressFill.style.width = `${percent}%`;
+    if (progressPct) progressPct.textContent = `${completed}/${total} (${percent}%)`;
+    if (cancelBtn) cancelBtn.hidden = !active;
+    if (active) {
+      const currentJob = active.jobs.find((job) => job.status === 'running');
+      setStatus(currentJob ? `Capturing ${pagePath(currentJob.url)} at ${currentJob.width}px - ${completed} of ${total} jobs saved` : `Capture run active: ${completed} of ${total} jobs saved`, 'busy');
+    } else {
+      const status = progressSession.status === 'completed' ? 'complete'
+        : progressSession.status === 'interrupted' ? 'interrupted'
+          : progressSession.status === 'cancelled' ? 'cancelled'
+            : progressSession.status === 'failed' ? 'failed' : progressSession.status;
+      setStatus(`Most recent capture run ${status}: ${completed} of ${total} jobs saved`, progressSession.status === 'failed' ? 'error' : 'idle');
+    }
+  } else {
+    if (progressWrap) progressWrap.hidden = true;
+    if (cancelBtn) cancelBtn.hidden = true;
+  }
+
+  for (const session of records) {
+    const completed = session.jobs.filter((job) => job.status === 'completed').length;
+    const pending = session.jobs.length - completed;
+    const row = el('div', 'session-row');
+    row.dataset.sessionId = session.id;
+    const info = el('div', 'session-info');
+    let hostname = session.origin;
+    try {
+      hostname = new URL(session.origin).hostname;
+    } catch {
+      // The stored origin remains visible if it cannot be parsed.
+    }
+    const title = el('strong', undefined, hostname);
+    const date = new Date(session.createdAt).toLocaleString();
+    const pageCount = new Set(session.jobs.map((job) => job.url)).size;
+    const widths = [...new Set(session.jobs.map((job) => job.width))].join(', ');
+    const theme = session.dualTheme ? 'dual theme' : 'single theme';
+    const summary = el('p', undefined, `${session.status} - ${completed}/${session.jobs.length} jobs saved - ${pageCount} pages at ${widths}px - ${theme} - ${session.format} - ${date}`);
+    info.append(title, summary);
+    if (session.error) info.append(el('p', undefined, `Warning: ${session.error}`));
+    const actions = el('div', 'session-actions');
+    if (completed > 0) {
+      actions.append(
+        sessionActionButton(session, 'export', 'Export'),
+        sessionActionButton(session, 'export-current', 'Export current format')
+      );
+    }
+    if (!isSessionActive(session) && pending > 0) actions.append(sessionActionButton(session, 'resume', 'Resume', Boolean(active)));
+    if (!isSessionActive(session)) actions.append(sessionActionButton(session, 'delete', 'Discard'));
+    row.append(info, actions);
+    sessionsList?.append(row);
+  }
+
+  const completedSessions = records.filter((session) => !isSessionActive(session) && session.jobs.some((job) => job.status === 'completed'));
+  const diagnosticsSession = completedSessions.find((session) => session.id === progressSessionId) ?? completedSessions[0];
+  if (diagnosticsSession) {
+    const version = `${diagnosticsSession.id}:${diagnosticsSession.updatedAt}`;
+    if (version !== diagnosticsVersion) void loadSessionDiagnostics(diagnosticsSession);
+  } else {
+    diagnosticsVersion = '';
+    renderDiagnostics([]);
+  }
+  updateCaptureButton();
+  if (pickBtn) pickBtn.disabled = runBusy;
+
+}
+
+async function refreshSessions(): Promise<CaptureSession[]> {
+  const response = await chrome.runtime.sendMessage({ action: 'list-sessions' }) as CaptureMessageResponse | undefined;
+  if (!response?.success) throw new Error(response?.error ?? 'Could not read saved capture sessions');
+  const records = response.sessions ?? [];
+  renderSessions(records);
+  return records;
+}
+
+async function finishSessionRun(sessionId: string | undefined): Promise<void> {
+  const records = await refreshSessions();
+  if (!sessionId) return;
+  const session = records.find((item) => item.id === sessionId);
+  if (!session) return;
+  if (requestedSessionId !== session.id) return;
+  requestedSessionId = undefined;
+  if (session.status !== 'completed') {
+    const warning = session.error ?? (session.status === 'cancelled' ? 'Capture cancelled. Completed results remain saved.' : 'Capture run stopped before all jobs completed.');
+    setSessionFeedback(warning);
+    setStatus(warning, session.status === 'failed' ? 'error' : 'idle');
     return;
   }
-  latestCaptures = captures;
   try {
-    // Provenance first: the serializer stamps its version into every
-    // capture, so a stale content script shows up here before pasting.
-    const versions = [...new Set(captures.map((c) => c.version))];
-    const done = await exportCaptures(captures);
-    const stamp = `capture-kit v${versions.join(', v')}`;
-    setStatus(error ? `${done}${skipNote} · ${stamp} — run stopped: ${error}` : `${done}${skipNote} · ${stamp}`, 'ok');
-    if (figmaBtn) figmaBtn.hidden = getFormat() !== 'figma';
-  } catch (err: unknown) {
-    setStatus(err instanceof Error ? err.message : String(err), 'error');
+    const captures = await readSessionCaptures(session);
+    latestCaptures = captures;
+    const output = await exportCaptures(captures, session.format, session.includeDesignSystem);
+    if (figmaBtn) figmaBtn.hidden = session.format !== 'figma';
+    setStatus(output, 'ok');
+    setSessionFeedback(`Saved results exported using ${session.format}.`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setSessionFeedback(message);
+    setStatus(message, 'error');
+  }
+}
+
+async function startSession(action: 'capture-run' | 'pick-run', payload: Record<string, unknown>): Promise<void> {
+  if (runBusy) return;
+  runBusy = true;
+  let accepted = false;
+  updateCaptureButton();
+  if (figmaBtn) figmaBtn.hidden = true;
+  setStatus(action === 'pick-run' ? 'Choose an element on the page' : 'Saving capture run', 'busy');
+  try {
+    const response = await chrome.runtime.sendMessage({ action, ...payload }) as CaptureMessageResponse | undefined;
+    if (!response?.success || !response.session) throw new Error(response?.error ?? 'Could not start the capture run');
+    requestedSessionId = response.session.id;
+    progressSessionId = response.session.id;
+    setSessionFeedback('Capture run saved. Its progress and results are available after reopening this popup.');
+    await refreshSessions();
+  } catch (error) {
+    if (!accepted) runBusy = false;
+    const message = error instanceof Error ? error.message : String(error);
+    setSessionFeedback(message);
+    setStatus(message, 'error');
+  } finally {
+    updateCaptureButton();
+  }
+}
+
+async function handleSessionAction(event: Event): Promise<void> {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.session-action');
+  const action = button?.dataset.action;
+  const sessionId = button?.dataset.sessionId;
+  const session = knownSessions.find((item) => item.id === sessionId);
+  if (!button || !action || !sessionId || !session) return;
+  button.disabled = true;
+  try {
+    if (action === 'export' || action === 'export-current') {
+      const captures = await readSessionCaptures(session);
+      latestCaptures = captures;
+      const format = action === 'export' ? session.format : getFormat();
+      const includeDesignSystem = action === 'export' ? session.includeDesignSystem : optDesignSystem?.checked ?? false;
+      const output = await exportCaptures(captures, format, includeDesignSystem);
+      if (figmaBtn) figmaBtn.hidden = format !== 'figma';
+      setSessionFeedback(`${output}${action === 'export-current' ? ' (current format)' : ' (saved format)'}`);
+      setStatus(output, 'ok');
+      void loadSessionDiagnostics(session);
+      return;
+    }
+    if (action === 'resume') {
+      requestedSessionId = sessionId;
+      const response = await chrome.runtime.sendMessage({ action: 'resume-session', sessionId }) as CaptureMessageResponse | undefined;
+      if (!response?.success || !response.session) {
+        if (requestedSessionId === sessionId) requestedSessionId = undefined;
+        throw new Error(response?.error ?? 'Could not resume this session');
+      }
+      progressSessionId = sessionId;
+      setSessionFeedback('Resuming saved run. Completed jobs will be skipped.');
+      setSessionFeedback('Resuming saved run. Completed jobs will be skipped.');
+      await refreshSessions();
+      return;
+    }
+    if (action === 'delete') {
+      const response = await chrome.runtime.sendMessage({ action: 'discard-session', sessionId }) as CaptureMessageResponse | undefined;
+      if (!response?.success) throw new Error(response?.error ?? 'Could not discard this session');
+      setSessionFeedback('Saved session and its captures were discarded.');
+      await refreshSessions();
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setSessionFeedback(message);
+    setStatus(message, 'error');
+  } finally {
+    button.disabled = false;
   }
 }
 
 // ---- actions ----
 
 chrome.runtime?.onMessage?.addListener((message: unknown) => {
-  const p = message as ProgressMessage;
-  if (p?.type === 'progress' && p.total && p.total > 0) {
-    if (progressWrap) progressWrap.hidden = false;
-    const pct = Math.min(100, Math.round(((p.done ?? 0) / p.total) * 100));
-    if (progressFill) progressFill.style.width = `${pct}%`;
-    if (progressPct) progressPct.textContent = `${p.done}/${p.total} (${pct}%)`;
-    if (p.url) {
-      setStatus(`Capturing ${(p.done ?? 0) + 1} of ${p.total} — ${pagePath(p.url)}`, 'busy');
-    }
-    return;
-  }
-  if (p?.type === 'capture' && p.capture) {
-    streamedCaptures.push(p.capture);
-    return;
-  }
-  if (p?.type === 'capture-ready' && p.key) {
-    const key = p.key;
-    chrome.storage?.local?.get([key]).then((data) => {
-      const cap = data[key] as Capture | undefined;
-      if (cap) {
-        streamedCaptures.push(cap);
-        void chrome.storage?.local?.remove([key]);
-      }
+  if (!message || typeof message !== 'object' || !('type' in message)) return;
+  const notification = message as SessionNotification;
+  if (notification.type === 'session-updated') {
+    void refreshSessions().catch((error: unknown) => {
+      const text = error instanceof Error ? error.message : String(error);
+      setSessionFeedback(text);
+      setStatus(text, 'error');
     });
-    return;
+  } else if (notification.type === 'run-done') {
+    void finishSessionRun(notification.sessionId).catch((error: unknown) => {
+      const text = error instanceof Error ? error.message : String(error);
+      setSessionFeedback(text);
+      setStatus(text, 'error');
+    });
+  } else if (notification.type === 'run-error') {
+    void refreshSessions().catch(() => undefined).finally(() => {
+      const text = notification.error ?? 'Capture run was interrupted';
+      setSessionFeedback(text);
+      setStatus(text, 'error');
+    });
   }
-  if (p?.type === 'run-done') {
-    const expected = p.count ?? 0;
-    const waitAndFinish = async () => {
-      for (let attempt = 0; attempt < 25; attempt++) {
-        if (streamedCaptures.length >= expected || (expected === 0 && attempt > 0)) break;
-        await new Promise((r) => setTimeout(r, 120));
-      }
-      void finishRun(p.skipped ?? []);
-    };
-    void waitAndFinish();
-    return;
-  }
-  if (p?.type === 'run-error') {
-    void finishRun([], p.error);
-  }
+});
+
+sessionsList?.addEventListener('click', (event) => {
+  void handleSessionAction(event);
 });
 
 cancelBtn?.addEventListener('click', async () => {
-  setStatus('Cancelling capture run…', 'busy');
+  setStatus('Cancelling capture run', 'busy');
   try {
-    await chrome.runtime.sendMessage({ action: 'cancel-run' });
-  } catch {
-    // ignore
+    const response = await chrome.runtime.sendMessage({ action: 'cancel-run' }) as CaptureMessageResponse | undefined;
+    if (!response?.success) throw new Error(response?.error ?? 'Could not cancel the capture run');
+    setSessionFeedback('Cancellation requested. Completed jobs remain saved.');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setSessionFeedback(message);
+    setStatus(message, 'error');
   }
 });
 
-captureBtn?.addEventListener('click', async () => {
-  if (!captureBtn || runBusy) return;
+captureBtn?.addEventListener('click', () => {
   const urls = pickedUrls();
-  const widths = pickedWidths();
-  streamedCaptures = [];
-  runBusy = true;
-  captureBtn.disabled = true;
-  if (figmaBtn) figmaBtn.hidden = true;
-  setStatus(
-    urls.length * widths.length > 1 ? 'Opening a capture window — keep this popup open' : 'Capturing…',
-    'busy'
-  );
-  try {
-    const response = (await chrome.runtime.sendMessage({
-      action: 'capture-run',
-      urls,
-      widths,
-      scrollStitch: optScrollStitch?.checked ?? false,
-      dualTheme: optDualTheme?.checked ?? false,
-      tabId: currentTabId,
-      origin: siteOrigin,
-    })) as CaptureMessageResponse | undefined;
-    // The background acks immediately; captures stream back and run-done finalizes.
-    if (!response?.success) {
-      runBusy = false;
-      setStatus(response?.error ?? 'Could not start the capture run', 'error');
-    }
-  } catch (err: unknown) {
-    runBusy = false;
-    setStatus(err instanceof Error ? err.message : String(err), 'error');
-  } finally {
-    updateCaptureButton();
-    if (!runBusy && progressWrap) progressWrap.hidden = true;
-  }
+  const widths = pickedWidths().map(Number);
+  void startSession('capture-run', {
+    urls,
+    widths,
+    scrollStitch: optScrollStitch?.checked ?? false,
+    dualTheme: optDualTheme?.checked ?? false,
+    format: getFormat(),
+    includeDesignSystem: optDesignSystem?.checked ?? false,
+    tabId: currentTabId,
+  });
 });
 
-pickBtn?.addEventListener('click', async () => {
-  if (!pickBtn) return;
-  pickBtn.disabled = true;
-  setStatus('Click an element on the page — Esc cancels', 'busy');
-  try {
-    await finish((await chrome.runtime.sendMessage({ action: 'pick' })) as CaptureMessageResponse | undefined);
-  } catch (err: unknown) {
-    setStatus(err instanceof Error ? err.message : String(err), 'error');
-  } finally {
-    pickBtn.disabled = false;
-  }
+pickBtn?.addEventListener('click', () => {
+  if (pickBtn) pickBtn.disabled = true;
+  void startSession('pick-run', {
+    tabId: currentTabId,
+    format: getFormat(),
+    includeDesignSystem: optDesignSystem?.checked ?? false,
+    scrollStitch: optScrollStitch?.checked ?? false,
+    dualTheme: optDualTheme?.checked ?? false,
+  }).finally(() => {
+    if (pickBtn) pickBtn.disabled = runBusy;
+  });
 });
 
 figmaBtn?.addEventListener('click', async () => {
@@ -743,7 +932,12 @@ figmaBtn?.addEventListener('click', async () => {
   }
 });
 
+
 // ---- wiring ----
+
+pageSearch?.addEventListener('input', renderPages);
+selectAllPages?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), true));
+selectNoPages?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), false));
 
 pageGroups?.addEventListener('change', (event) => {
   const box = event.target as HTMLInputElement;
@@ -760,28 +954,41 @@ pageGroups?.addEventListener('click', (event) => {
   else collapsed.add(key);
   syncUI();
 });
-pageSearch?.addEventListener('input', renderPages);
-$('#sel-all')?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), true));
-$('#sel-none')?.addEventListener('click', () => setSelected(visibleUrls(siteUrls), false));
-
-for (const b of sizeButtons) {
-  b.addEventListener('click', () => {
-    b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
-    syncUI();
-    saveSettings();
-  });
-}
 formatRadios.forEach((r) =>
   r.addEventListener('change', () => {
     saveSettings();
     updateCaptureButton();
+    updateFormatHelp();
   })
 );
+sizeButtons.forEach((button) => button.addEventListener('click', () => {
+  button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
+  syncUI();
+  saveSettings();
+}));
+
+chrome.storage?.onChanged?.addListener((changes, areaName) => {
+  if (areaName === 'local' && SESSION_INDEX_KEY in changes) {
+    void refreshSessions().catch((error: unknown) => {
+      const text = error instanceof Error ? error.message : String(error);
+      setSessionFeedback(text);
+      setStatus(text, 'error');
+    });
+  }
+});
+
 optScrollStitch?.addEventListener('change', saveSettings);
 optDesignSystem?.addEventListener('change', saveSettings);
 optDualTheme?.addEventListener('change', saveSettings);
 
+void refreshSessions().catch((error: unknown) => {
+  const text = error instanceof Error ? error.message : String(error);
+  setSessionFeedback(text);
+  setStatus(text, 'error');
+});
+
 void Promise.all([loadSettings(), loadTabInfo()]).then(() => {
+  updateFormatHelp();
   syncUI();
   return discoverSite();
 });

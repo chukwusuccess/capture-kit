@@ -5,39 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>capture-kit</title>
     <style>
-      /* Design-tool sidebar: one flat surface, sections split by hairlines,
-         blue selection like a layers panel. Orange is the brand mark only. */
       :root {
         --surface: #ffffff;
-        --canvas: #f5f5f5;
-        --hover: #f0f0f0;
-        --line: #e6e6e6;
-        --ink: #1e1e1e;
-        --ink-2: #4d4d4d;
-        --muted: #8c8c8c;
-        --select: #0d99ff;
-        --select-ink: #0a7fd6;
-        --select-soft: #e5f4ff;
-        --brand: #ff5a26;
-        --danger: #e03e1a;
-        --ok: #14ae5c;
+        --canvas: #f4f5f6;
+        --hover: #eceef0;
+        --line: #dfe3e7;
+        --ink: #20252b;
+        --ink-2: #505b66;
+        --muted: #63707d;
+        --select: #0867c8;
+        --select-ink: #075aaf;
+        --select-soft: #edf5ff;
+        --brand: #e8491c;
+        --brand-ink: #ffffff;
+        --danger: #b42e23;
+        --ok: #177445;
+        --control: #f4f5f6;
         --ease: cubic-bezier(0.23, 1, 0.32, 1);
         color-scheme: light;
       }
       @media (prefers-color-scheme: dark) {
         :root {
-          --surface: #2c2c2c;
-          --canvas: #383838;
-          --hover: #353535;
-          --line: #444444;
-          --ink: #f5f5f5;
-          --ink-2: #cfcfcf;
-          --muted: #9a9a9a;
-          --select: #0c8ce9;
-          --select-ink: #5cb8ff;
-          --select-soft: rgba(12, 140, 233, 0.22);
-          --danger: #ff7a5c;
-          --ok: #3ccf7f;
+          --surface: #22262b;
+          --canvas: #1b1f23;
+          --hover: #30363d;
+          --line: #3a424b;
+          --ink: #f1f3f5;
+          --ink-2: #c4ccd5;
+          --muted: #a4afbb;
+          --select: #66b1ff;
+          --select-ink: #94c9ff;
+          --select-soft: #293d54;
+          --brand: #f05a2b;
+          --danger: #ff9d92;
+          --ok: #7dd8a5;
+          --control: #1b1f23;
           color-scheme: dark;
         }
       }
@@ -47,165 +49,215 @@
       [hidden] {
         display: none !important;
       }
+      html {
+        width: 420px;
+        max-width: 100vw;
+        background: var(--surface);
+      }
       body {
-        width: 360px;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 600px;
+        max-height: 100dvh;
         margin: 0;
+        overflow: hidden;
         background: var(--surface);
         color: var(--ink);
-        font: 400 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        font: 400 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
-      button {
+      button,
+      input {
         font: inherit;
         color: inherit;
       }
+      button {
+        touch-action: manipulation;
+      }
+      button:disabled,
+      input:disabled {
+        cursor: not-allowed;
+      }
       :focus-visible {
         outline: 2px solid var(--select);
-        outline-offset: 1px;
-        border-radius: 4px;
+        outline-offset: 2px;
       }
-
-      /* ---- header ---- */
       header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
+        flex: none;
+        gap: 12px;
+        min-height: 68px;
+        padding: 12px 16px;
         border-bottom: 1px solid var(--line);
       }
       .logo {
         display: grid;
         place-items: center;
         flex: none;
-        width: 28px;
-        height: 28px;
-        color: #fff;
+        width: 32px;
+        height: 32px;
+        color: var(--brand-ink);
         background: var(--brand);
-        border-radius: 7px;
+        border-radius: 8px;
       }
       .who {
         flex: 1;
         min-width: 0;
       }
       h1 {
-        margin: 0;
-        font-size: 13px;
-        font-weight: 600;
-        line-height: 1.25;
+        margin: 0 0 2px;
+        font-size: 15px;
+        font-weight: 650;
+        letter-spacing: -0.3px;
+        line-height: 1.3;
       }
       .site {
         margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 11.5px;
+        font-size: 12px;
         color: var(--muted);
       }
       .icon-btn {
-        display: grid;
-        place-items: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         flex: none;
-        width: 30px;
-        height: 30px;
-        padding: 0;
+        gap: 6px;
+        min-height: 36px;
+        padding: 8px;
         color: var(--ink-2);
-        background: none;
-        border: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
         border-radius: 6px;
         cursor: pointer;
-        transition: background 0.12s ease, color 0.12s ease;
       }
-      .icon-btn:hover:not(:disabled) {
+      .icon-btn span {
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .icon-btn:hover:not(:disabled),
+      .text-btn:hover:not(:disabled),
+      .session-action:hover:not(:disabled) {
         color: var(--ink);
         background: var(--hover);
       }
-      .icon-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
+      .icon-btn:disabled,
+      .text-btn:disabled,
+      .size:disabled,
+      .session-action:disabled {
+        opacity: 0.5;
       }
-
-      /* ---- sections ---- */
+      .workbench {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
+      }
       section.part {
-        padding: 2px 14px 12px;
+        padding: 12px 16px 16px;
         border-bottom: 1px solid var(--line);
       }
       .part-head {
         display: flex;
         align-items: center;
-        gap: 6px;
-        height: 30px;
+        flex-wrap: wrap;
+        gap: 4px;
+        min-height: 32px;
+        margin-bottom: 8px;
       }
       h2 {
         flex: 1;
         margin: 0;
-        font-size: 11.5px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 1.4;
+      }
+      .step {
+        margin-right: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
       }
       .text-btn {
-        height: 24px;
-        padding: 0 6px;
-        font-size: 11.5px;
+        min-height: 32px;
+        padding: 4px 8px;
+        font-size: 12px;
         color: var(--ink-2);
         background: none;
         border: 0;
-        border-radius: 5px;
+        border-radius: 4px;
         cursor: pointer;
       }
-      .text-btn:hover {
-        color: var(--ink);
-        background: var(--hover);
-      }
       .tally {
-        font-size: 11.5px;
+        max-width: 62%;
+        font-size: 11px;
         font-variant-numeric: tabular-nums;
         color: var(--muted);
+        text-align: right;
+        overflow-wrap: anywhere;
       }
-
-      /* ---- pages: search + layers-style list ---- */
+      .section-note {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
       .search {
         display: flex;
         align-items: center;
-        gap: 7px;
-        height: 28px;
-        padding: 0 9px;
+        gap: 8px;
+        min-height: 36px;
+        padding: 0 12px;
         color: var(--muted);
-        background: var(--canvas);
-        border: 1px solid transparent;
+        background: var(--control);
+        border: 1px solid var(--line);
         border-radius: 6px;
       }
       .search:focus-within {
-        border-color: var(--select);
+        outline: 2px solid var(--select);
+        outline-offset: 2px;
       }
       .search input {
         flex: 1;
         min-width: 0;
-        padding: 0;
-        font: inherit;
-        color: var(--ink);
+        min-height: 34px;
+        padding: 4px 0;
         background: none;
         border: 0;
         outline: none;
       }
       .search input::placeholder {
         color: var(--muted);
-      }
-      .search input::-webkit-search-cancel-button {
-        display: none;
+        opacity: 1;
       }
       .groups {
-        height: 134px;
-        margin: 6px -14px 0;
+        min-height: 108px;
+        max-height: 180px;
+        margin-top: 8px;
+        padding: 4px;
         overflow-y: auto;
         overscroll-behavior: contain;
+        border: 1px solid var(--line);
+        border-radius: 6px;
         scrollbar-width: thin;
+      }
+      .grp + .grp {
+        margin-top: 4px;
       }
       .grp-head,
       .pg {
         display: flex;
         align-items: center;
         gap: 8px;
-        height: 26px;
-        padding: 0 14px;
+        min-height: 36px;
+        padding: 4px 8px;
+        border-radius: 4px;
       }
       .grp-head:hover,
       .pg:hover {
@@ -213,20 +265,28 @@
       }
       .pg:has(.cb:checked) {
         background: var(--select-soft);
+        box-shadow: inset 2px 0 var(--select);
+      }
+      .grp-head:focus-within,
+      .pg:focus-within {
+        outline: 2px solid var(--select);
+        outline-offset: -2px;
       }
       .grp-toggle {
         display: grid;
         place-items: center;
         flex: none;
-        width: 14px;
-        height: 14px;
-        margin-left: -4px;
+        width: 28px;
+        height: 28px;
         padding: 0;
-        color: var(--muted);
+        color: var(--ink-2);
         background: none;
         border: 0;
-        border-radius: 3px;
+        border-radius: 4px;
         cursor: pointer;
+      }
+      .grp-toggle:hover {
+        background: var(--line);
       }
       .grp-toggle svg {
         transition: transform 0.15s var(--ease);
@@ -245,7 +305,7 @@
         gap: 8px;
         flex: 1;
         min-width: 0;
-        height: 100%;
+        align-self: stretch;
       }
       .grp-name {
         overflow: hidden;
@@ -254,6 +314,7 @@
         font-weight: 600;
       }
       .grp-count {
+        flex: none;
         font-size: 11px;
         font-variant-numeric: tabular-nums;
         color: var(--muted);
@@ -264,7 +325,7 @@
         list-style: none;
       }
       .grp-list .pg {
-        padding-left: 32px;
+        padding-left: 44px;
       }
       .pg-path {
         flex: 1;
@@ -282,77 +343,39 @@
       }
       .here {
         flex: none;
-        padding: 1px 6px;
-        font-size: 10.5px;
-        font-weight: 600;
+        padding: 2px 4px;
+        font-size: 11px;
+        font-weight: 500;
         color: var(--select-ink);
         background: var(--select-soft);
-        border-radius: 4px;
-      }
-      .pg:has(.cb:checked) .here {
-        color: #fff;
-        background: var(--select);
+        border-radius: 3px;
       }
       .cb {
-        appearance: none;
         flex: none;
-        display: grid;
-        place-content: center;
-        width: 14px;
-        height: 14px;
+        width: 16px;
+        height: 16px;
         margin: 0;
-        background: var(--surface);
-        border: 1px solid var(--muted);
-        border-radius: 3px;
+        accent-color: var(--select);
         cursor: pointer;
-      }
-      .cb::before {
-        content: "";
-        width: 7px;
-        height: 3.5px;
-        margin-top: -2px;
-        border: solid #fff;
-        border-width: 0 0 1.75px 1.75px;
-        transform: rotate(-45deg) scale(0.5);
-        opacity: 0;
-        transition: transform 0.14s var(--ease), opacity 0.1s ease;
-      }
-      .cb:checked,
-      .cb:indeterminate {
-        background: var(--select);
-        border-color: var(--select);
-      }
-      .cb:checked::before {
-        transform: rotate(-45deg) scale(1);
-        opacity: 1;
-      }
-      .cb:indeterminate::before {
-        width: 7px;
-        height: 0;
-        margin: 0;
-        border-width: 0 0 1.75px;
-        transform: none;
-        opacity: 1;
       }
       .note {
         margin: 0;
-        padding: 18px 14px;
+        padding: 24px 12px;
         text-align: center;
         color: var(--muted);
+        font-size: 12px;
       }
       .spin {
         display: inline-block;
-        width: 10px;
-        height: 10px;
-        margin-right: 6px;
+        width: 12px;
+        height: 12px;
+        margin-right: 8px;
         vertical-align: -1px;
-        border: 1.5px solid var(--line);
+        border: 2px solid var(--line);
         border-top-color: var(--select);
         border-radius: 50%;
-        animation: spin 0.6s linear infinite;
+        animation: spin 0.8s linear infinite;
       }
-
-      /* ---- sizes: device frames drawn to their real proportions ---- */
       .sizes {
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -362,47 +385,49 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2px;
-        padding: 5px 0 4px;
-        background: none;
-        border: 1px solid transparent;
+        justify-content: center;
+        gap: 4px;
+        min-height: 80px;
+        min-width: 0;
+        padding: 8px 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
         border-radius: 6px;
         cursor: pointer;
-        transition: background 0.12s ease, border-color 0.12s ease;
       }
-      .size:hover {
+      .size:hover:not(:disabled) {
         background: var(--hover);
       }
       .size[aria-pressed="true"] {
         background: var(--select-soft);
         border-color: var(--select);
+        box-shadow: inset 0 0 0 1px var(--select);
       }
       .device {
         display: grid;
         place-items: end center;
         height: 24px;
-        margin-bottom: 2px;
       }
       .device i {
         display: block;
         border: 1.5px solid var(--muted);
         border-radius: 2px;
-        transition: border-color 0.12s ease, background 0.12s ease;
       }
       .size[aria-pressed="true"] .device i {
         border-color: var(--select);
-        background: color-mix(in srgb, var(--select) 14%, transparent);
+        background: var(--select-soft);
       }
       .device .tab-now {
         border-style: dashed;
       }
       .size b {
-        font-size: 11px;
-        font-weight: 500;
+        font-size: 12px;
+        font-weight: 600;
         color: var(--ink-2);
       }
       .size small {
-        font-size: 10.5px;
+        font-size: 11px;
+        line-height: 1.2;
         font-variant-numeric: tabular-nums;
         color: var(--muted);
       }
@@ -410,113 +435,242 @@
       .size[aria-pressed="true"] small {
         color: var(--select-ink);
       }
-
-      /* ---- export ---- */
       .formats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 2px;
-        padding: 2px;
-        background: var(--canvas);
-        border-radius: 6px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
       }
       .formats label {
+        position: relative;
         min-width: 0;
         cursor: pointer;
       }
       .formats input {
         position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
         opacity: 0;
-        pointer-events: none;
       }
       .formats span {
-        display: grid;
-        place-items: center;
-        height: 24px;
-        font-size: 11.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        height: 100%;
+        padding: 6px 4px;
+        font-size: 13px;
+        line-height: 1.25;
+        text-align: center;
         color: var(--ink-2);
-        border-radius: 4px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
       }
       .formats label:hover span {
         color: var(--ink);
+        background: var(--hover);
       }
       .formats input:checked + span {
         font-weight: 600;
-        color: var(--ink);
-        background: var(--surface);
-        box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(0, 0, 0, 0.08);
+        color: var(--select-ink);
+        background: var(--select-soft);
+        border-color: var(--select);
+        box-shadow: inset 0 0 0 1px var(--select);
       }
       .formats input:focus-visible + span {
         outline: 2px solid var(--select);
+        outline-offset: 2px;
+      }
+      .formats input:disabled + span {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .native-help {
+        margin: 12px 0 0;
+        padding: 12px;
+        color: var(--ink-2);
+        background: var(--canvas);
+        border-left: 2px solid var(--select);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      .native-help strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ink);
+      }
+      .options {
+        display: grid;
+        gap: 4px;
+        margin-top: 12px;
       }
       .opt {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 9px;
+        min-height: 36px;
         color: var(--ink-2);
         cursor: pointer;
         user-select: none;
       }
-
-      /* ---- run ---- */
+      .opt .cb {
+        align-self: flex-start;
+        margin-top: 10px;
+      }
+      .session-empty {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .session-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+      }
+      .session-info {
+        flex: 1 1 180px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      .session-info strong {
+        display: block;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .session-info p {
+        margin: 4px 0;
+      }
+      .session-info label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 32px;
+      }
+      .session-info input[type="checkbox"] {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        accent-color: var(--select);
+      }
+      .session-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .session-action {
+        min-height: 32px;
+        padding: 4px 8px;
+        color: var(--ink-2);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .session-action[data-action="delete"] {
+        color: var(--danger);
+      }
+      #session-feedback {
+        margin: 8px 0 0;
+        color: var(--ink-2);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      #session-feedback:empty {
+        display: none;
+      }
+      #capture-diagnostics {
+        margin-top: 12px;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      #capture-diagnostics summary {
+        padding: 8px 0;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      #diagnostics-list {
+        margin: 4px 0 0;
+        padding-left: 20px;
+        overflow-wrap: anywhere;
+      }
+      #diagnostics-list li + li {
+        margin-top: 8px;
+      }
       .run {
-        padding: 10px 14px;
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        flex: none;
+        max-height: 50%;
+        padding: 12px 16px;
+        overflow-y: auto;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
       }
       .cta {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 2px;
         width: 100%;
-        height: 44px;
-        padding: 0 12px;
-        color: #fff;
+        min-height: 52px;
+        padding: 8px 12px;
+        color: var(--surface);
         background: var(--select);
-        border: 0;
-        border-radius: 8px;
+        border: 1px solid transparent;
+        border-radius: 6px;
         cursor: pointer;
-        transition: transform 0.12s var(--ease), filter 0.12s ease;
+        transition: transform 0.12s var(--ease);
       }
       .cta:hover:not(:disabled) {
-        filter: brightness(1.08);
+        box-shadow: inset 0 0 0 2px currentColor;
       }
       .cta:active:not(:disabled) {
-        transform: scale(0.98);
+        transform: scale(0.99);
       }
       .cta:disabled {
         color: var(--muted);
         background: var(--canvas);
+        border-color: var(--line);
         cursor: not-allowed;
       }
       .cta-title {
-        font-size: 13px;
-        font-weight: 600;
+        font-size: 14px;
+        font-weight: 650;
+        text-align: center;
       }
       .cta-sub {
         font-size: 11px;
-        opacity: 0.8;
+        text-align: center;
       }
       .status {
         display: flex;
-        align-items: center;
-        gap: 7px;
-        min-height: 18px;
-        margin-top: 7px;
-        font-size: 11.5px;
+        align-items: flex-start;
+        gap: 8px;
+        min-height: 20px;
+        margin-top: 8px;
+        font-size: 12px;
         color: var(--muted);
       }
       .status-text {
         flex: 1;
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
       }
       .dot {
         flex: none;
         width: 6px;
         height: 6px;
+        margin-top: 6px;
         background: var(--muted);
         border-radius: 50%;
       }
@@ -532,46 +686,46 @@
       .progress-wrap {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        margin-top: 6px;
+        gap: 4px;
+        margin-top: 8px;
       }
       .progress-bar {
         width: 100%;
-        height: 5px;
+        height: 4px;
         background: var(--line);
-        border-radius: 3px;
+        border-radius: 2px;
         overflow: hidden;
       }
       .progress-fill {
         height: 100%;
         width: 0%;
         background: var(--select);
-        border-radius: 3px;
-        transition: width 0.2s ease;
+        border-radius: 2px;
       }
       .progress-info {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 11px;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
         color: var(--muted);
       }
       .text-btn.danger {
         color: var(--danger);
       }
-      .text-btn.danger:hover {
-        text-decoration: underline;
-      }
       .status.busy .dot {
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
+        margin-top: 3px;
         background: none;
-        border: 1.5px solid var(--line);
+        border: 2px solid var(--line);
         border-top-color: var(--select);
-        animation: spin 0.6s linear infinite;
+        animation: spin 0.8s linear infinite;
       }
       .status .text-btn {
-        height: 20px;
+        flex: none;
+        min-height: 28px;
+        margin-top: -4px;
         color: var(--select-ink);
       }
       @keyframes spin {
@@ -580,9 +734,11 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        * {
+        *,
+        *::before,
+        *::after {
           transition: none !important;
-          animation-duration: 1.5s !important;
+          animation: none !important;
         }
       }
     </style>
@@ -598,20 +754,22 @@
       </span>
       <div class="who">
         <h1>capture-kit</h1>
-        <p class="site" id="site-line">Reading this tab…</p>
+        <p class="site" id="site-line">Reading this tab...</p>
       </div>
-      <button type="button" class="icon-btn" id="pick-btn" title="Pick one element on this page" aria-label="Pick one element on this page">
+      <button type="button" class="icon-btn" id="pick-btn" title="Pick one element on this page" aria-label="Pick element on this page">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M3 1.5h-.5a1 1 0 0 0-1 1V3M13 1.5h.5a1 1 0 0 1 1 1V3M1.5 13v.5a1 1 0 0 0 1 1H3M6 1.5h4M1.5 6v4M14.5 6v1"
             stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
           <path d="m8 8 6.5 2.3-2.8 1.1-1.1 2.8L8 8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
         </svg>
+        <span>Pick element</span>
       </button>
     </header>
 
+    <main class="workbench" aria-label="Capture setup">
     <section class="part" aria-labelledby="pages-h">
       <div class="part-head">
-        <h2 id="pages-h">Pages</h2>
+        <h2 id="pages-h"><span class="step" aria-hidden="true">01</span>Select pages</h2>
         <button type="button" class="text-btn" id="sel-all">All</button>
         <button type="button" class="text-btn" id="sel-none">None</button>
       </div>
@@ -620,37 +778,37 @@
           <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4" />
           <path d="m8.5 8.5 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
         </svg>
-        <input type="search" id="page-search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" />
+        <input type="search" id="page-search" placeholder="Find a page by path" aria-label="Filter pages by path" autocomplete="off" />
       </label>
       <div class="groups" id="page-groups" role="group" aria-label="Pages to capture">
-        <p class="note"><span class="spin"></span>Finding pages on this site…</p>
+        <p class="note"><span class="spin" aria-hidden="true"></span>Finding pages on this site...</p>
       </div>
     </section>
 
     <section class="part" aria-labelledby="sizes-h">
       <div class="part-head">
-        <h2 id="sizes-h">Sizes</h2>
+        <h2 id="sizes-h"><span class="step" aria-hidden="true">02</span>Viewport widths</h2>
         <span class="tally" id="sizes-tally"></span>
       </div>
       <div class="sizes" role="group" aria-labelledby="sizes-h">
         <button type="button" class="size" data-size="current" aria-pressed="true">
-          <span class="device"><i class="tab-now" style="width: 30px; height: 19px"></i></span>
-          <b>This tab</b><small id="current-w">—</small>
+          <span class="device" aria-hidden="true"><i class="tab-now" style="width: 30px; height: 19px"></i></span>
+          <b>This tab</b><small id="current-w">--</small>
         </button>
         <button type="button" class="size" data-size="1920" aria-pressed="false">
-          <span class="device"><i style="width: 36px; height: 22px"></i></span>
+          <span class="device" aria-hidden="true"><i style="width: 36px; height: 22px"></i></span>
           <b>Desktop</b><small>1920</small>
         </button>
         <button type="button" class="size" data-size="1440" aria-pressed="false">
-          <span class="device"><i style="width: 30px; height: 19px"></i></span>
+          <span class="device" aria-hidden="true"><i style="width: 30px; height: 19px"></i></span>
           <b>Laptop</b><small>1440</small>
         </button>
         <button type="button" class="size" data-size="768" aria-pressed="false">
-          <span class="device"><i style="width: 17px; height: 23px"></i></span>
+          <span class="device" aria-hidden="true"><i style="width: 17px; height: 23px"></i></span>
           <b>Tablet</b><small>768</small>
         </button>
         <button type="button" class="size" data-size="390" aria-pressed="false">
-          <span class="device"><i style="width: 11px; height: 23px"></i></span>
+          <span class="device" aria-hidden="true"><i style="width: 11px; height: 23px"></i></span>
           <b>Mobile</b><small>390</small>
         </button>
       </div>
@@ -658,10 +816,11 @@
 
     <section class="part" aria-labelledby="export-h">
       <div class="part-head">
-        <h2 id="export-h">Export as</h2>
+        <h2 id="export-h"><span class="step" aria-hidden="true">03</span>Handoff format</h2>
       </div>
       <div class="formats" role="radiogroup" aria-labelledby="export-h">
-        <label><input type="radio" name="format" value="figma" checked /><span>Figma</span></label>
+        <label><input type="radio" name="format" value="figma" checked /><span>Figma SVG</span></label>
+        <label><input type="radio" name="format" value="figma-native" aria-describedby="native-help" /><span>Figma native</span></label>
         <label><input type="radio" name="format" value="react" /><span>React</span></label>
         <label><input type="radio" name="format" value="md" /><span>Markdown</span></label>
         <label><input type="radio" name="format" value="sketch" /><span>Sketch</span></label>
@@ -669,27 +828,49 @@
         <label><input type="radio" name="format" value="html" /><span>HTML</span></label>
         <label><input type="radio" name="format" value="json" /><span>JSON</span></label>
       </div>
+      <p class="native-help" id="native-help" hidden>
+        <strong>Import with the Capture Kit Figma plugin</strong>
+        Capture downloads a .capture.json file. Open the plugin in Figma and choose that file.
+        Supported layers become editable; import warnings explain unsupported features.
+      </p>
+      <div class="options" role="group" aria-label="Capture options">
       <label class="opt">
         <input type="checkbox" class="cb" id="opt-scroll-stitch" />
-        Scroll each page first to load lazy images
+        <span>Scroll pages to load lazy images</span>
       </label>
       <label class="opt">
         <input type="checkbox" class="cb" id="opt-design-system" />
-        Include Design System / Brand Kit frame
+        <span>Include a Design System / Brand Kit frame</span>
       </label>
       <label class="opt">
         <input type="checkbox" class="cb" id="opt-dual-theme" />
-        Capture Light + Dark themes side by side
+        <span>Capture both light and dark themes</span>
       </label>
+      </div>
     </section>
 
-    <div class="run">
+    <section class="part" id="sessions-panel" aria-labelledby="sessions-h">
+      <div class="part-head">
+        <h2 id="sessions-h">Saved captures</h2>
+      </div>
+      <p class="section-note">Re-export results or resume unfinished work. Up to 8 sessions kept. Discard removes saved results.</p>
+      <p class="session-empty" id="sessions-empty">No saved captures yet. Your capture sessions will appear here.</p>
+      <div id="sessions-list"></div>
+      <p id="session-feedback" role="status" aria-live="polite"></p>
+      <details id="capture-diagnostics" hidden>
+        <summary>Capture notes</summary>
+        <ul id="diagnostics-list"></ul>
+      </details>
+    </section>
+    </main>
+
+    <footer class="run" aria-label="Capture action and status">
       <button type="button" id="capture-btn" class="cta" disabled>
         <span class="cta-title" id="capture-title">Capture</span>
-        <span class="cta-sub" id="capture-sub">Finding pages…</span>
+        <span class="cta-sub" id="capture-sub">Finding pages...</span>
       </button>
       <div class="status" id="status" role="status">
-        <span class="dot"></span>
+        <span class="dot" aria-hidden="true"></span>
         <span class="status-text" id="status-text">Ready</span>
         <button type="button" class="text-btn" id="figma-btn" hidden>Copy again</button>
       </div>
@@ -702,7 +883,7 @@
           <button type="button" class="text-btn danger" id="cancel-btn">Cancel</button>
         </div>
       </div>
-    </div>
+    </footer>
 
     <script type="module" src="./src/popup.ts"></script>
   </body>
