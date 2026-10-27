@@ -51,7 +51,7 @@
       }
       html {
         width: 420px;
-        max-width: 100vw;
+        max-width: 100%;
         background: var(--surface);
       }
       body {
@@ -731,6 +731,87 @@
       @keyframes spin {
         to {
           transform: rotate(360deg);
+        }
+      }
+      @media (max-width: 340px) {
+        header {
+          gap: 8px;
+          padding: 8px 12px;
+        }
+        .logo {
+          width: 28px;
+          height: 28px;
+        }
+        h1 {
+          overflow-wrap: anywhere;
+        }
+        .icon-btn {
+          flex: 0 1 auto;
+          min-width: 0;
+          max-width: 42%;
+          gap: 4px;
+          padding: 6px 4px;
+        }
+        .icon-btn span {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          text-align: center;
+        }
+        .run {
+          padding: 8px 12px;
+        }
+      }
+      @media (max-width: 180px), (max-height: 180px) {
+        .sizes,
+        .formats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        header {
+          min-height: 0;
+          padding: 4px 8px;
+        }
+        .site {
+          display: none;
+        }
+        .logo {
+          width: 24px;
+          height: 24px;
+        }
+        .icon-btn {
+          min-height: 32px;
+          padding: 4px;
+        }
+        .icon-btn span {
+          display: none;
+        }
+        .run {
+          padding: 4px 8px;
+        }
+        .cta {
+          flex-direction: row;
+          flex-wrap: wrap;
+          min-height: 44px;
+          padding: 4px 6px;
+        }
+      }
+      @media (max-height: 400px) {
+        body {
+          height: auto;
+          min-height: 100dvh;
+          max-height: none;
+          overflow: visible;
+        }
+        .workbench {
+          flex: none;
+          min-height: auto;
+          overflow: visible;
+          overscroll-behavior: auto;
+          scrollbar-gutter: auto;
+        }
+        .run {
+          position: static;
+          max-height: none;
+          overflow: visible;
         }
       }
       @media (prefers-reduced-motion: reduce) {

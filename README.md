@@ -25,6 +25,8 @@ pnpm -r build
 
 To load the unpacked Chrome extension, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `apps/extension/dist`.
 
+At high browser zoom or in a short popup, scroll the popup document to reach page setup and the Capture action.
+
 ## Capture readiness, budgets, and diagnostics
 
 Capture waits are bounded; pages that keep changing cannot hold the capture open indefinitely. Full-page scroll stitching defaults to at most 100 passes, 15 seconds, 100,000 pixels of scroll height, and two stable bottom passes. These limits can be changed through the serializer options. Image readiness defaults to a 2.5-second per-image deadline, a 5-second discovery-pass deadline, and concurrency of 8. Font readiness and asset processing default to 2.5 seconds; asset fetch concurrency defaults to 8.
