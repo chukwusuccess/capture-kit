@@ -93,7 +93,7 @@ export class CaptureSessionStore {
       await this.storage.set({ [SESSION_INDEX_KEY]: index });
       this.volatileSessions.clear();
     } catch (error) {
-      throw new Error(`Session checkpoint was not saved: ${errorMessage(error)}. Saved captures are retained; free extension storage or discard an older session.`);
+      throw new Error(`Session checkpoint was not saved: ${errorMessage(error)}. Saved captures are retained; check extension storage availability.`);
     }
   }
 

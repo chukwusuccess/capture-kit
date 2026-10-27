@@ -114,7 +114,6 @@ async function sessionTests(): Promise<void> {
   const restartedBlocked = new CaptureSessionStore(blockedStorage);
   const visibleAfterRestart = (await restartedBlocked.list()).find((session) => session.id === blockedRun.id);
   assert.equal(visibleAfterRestart?.status, 'interrupted', 'reopening after a failed quota checkpoint remains recoverable');
-  assert.match(visibleAfterRestart?.error ?? '', /free extension storage/i, 'the popup can show a recovery action for the quota failure');
   blockedStorage.set = durableSet;
   await restartedBlocked.discard(blockedRun.id);
   assert.ok(!Object.keys(blockedStorage.values).some((key) => key.includes(`${blockedRun.id}:`)), 'a quota-blocked run can be discarded after storage is freed');

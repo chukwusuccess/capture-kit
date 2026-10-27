@@ -39,7 +39,9 @@ Captures contain the DOM and assets that the extension can observe. They do not 
 
 The extension stores session indexes and completed Capture results in `chrome.storage.local`. It checkpoints session/job state so a service-worker restart can reconcile an interrupted job with saved results and leave unfinished work recoverable. The popup can reopen saved sessions and export completed results without recapturing them. Session state is scoped to the Chrome profile and its available extension storage; it is not a cloud backup.
 
-Retention is bounded to eight saved sessions. When pruning is needed, active work and the newest completed result are protected; older eligible sessions and their results may be removed. Storage errors are surfaced, and a failed checkpoint is not represented as saved. Unsupported stored index versions are rejected rather than overwritten.
+The extension requests Chrome's `unlimitedStorage` permission so the normal 10 MB `storage.local` quota does not block large captures. In the Chrome warning query for this manifest, `unlimitedStorage` adds no permission warning; existing warnings come from the all-sites and downloads permissions. Chrome may pause an update that adds a warning-triggering permission until the user accepts it, after which the extension is re-enabled. `unlimitedStorage` removes the API quota, not practical device limits: storage can still fail if the profile's storage is unavailable or the browser/operating system prevents writes. Such errors remain visible and the extension does not claim a capture was saved when its checkpoint fails.
+
+Retention is bounded to eight saved sessions. When pruning is needed, active work and the newest completed result are protected; older eligible sessions and their results may be removed. The extension never removes earlier saved results to make room for an individual result write. Storage errors are surfaced, and a failed checkpoint is not represented as saved. Unsupported stored index versions are rejected rather than overwritten.
 
 ## Export formats and known limits
 
