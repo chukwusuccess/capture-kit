@@ -283,15 +283,17 @@ async function waitForLayout(tabId: number): Promise<void> {
     target: { tabId },
     func: () =>
       new Promise<void>((resolve) => {
-        // rAF never fires in hidden tabs; the timeout stops the crawl hanging there.
-        const settle = (): void => void setTimeout(resolve, 80);
-        const fallback = setTimeout(settle, 180);
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            clearTimeout(fallback);
-            settle();
-          })
-        );
+        // Wait for two rendered frames after a resize/reflow. Hidden tabs may
+        // suspend rAF, so retain a bounded fallback rather than hanging a run.
+        let settled = false;
+        const finish = (): void => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(fallback);
+          resolve();
+        };
+        const fallback = setTimeout(finish, 1000);
+        requestAnimationFrame(() => requestAnimationFrame(finish));
       }),
   });
 }
@@ -387,38 +389,74 @@ async function measure(tabId: number): Promise<{ inner: number; frame: number }>
 
 // Size the capture window so the page's CSS viewport is exactly `width`.
 async function fitViewport(windowId: number, tabId: number, width: number): Promise<void> {
-  try {
-    await chrome.tabs.setZoomSettings(tabId, { scope: 'per-tab' });
-    await chrome.tabs.setZoom(tabId, 1);
-    await waitForLayout(tabId);
-    const { frame } = await measure(tabId);
+  await chrome.tabs.setZoomSettings(tabId, { scope: 'per-tab' });
+  await chrome.tabs.setZoom(tabId, 1);
+  await waitForLayout(tabId);
+
+  let { inner, frame } = await measure(tabId);
+  if (inner <= 0) throw new Error('Could not measure the page viewport before resizing.');
+
+  // Re-measure browser chrome after each resize: frame decorations and OS
+  // clamping can make the initial outer-width estimate inaccurate.
+  let resizeError: unknown;
+  for (let attempt = 0; attempt < 3 && inner !== width; attempt++) {
     try {
-      await chrome.windows.update(windowId, { width: Math.max(1, width + frame) });
-    } catch {
-      // OS window clamped to screen resolution; zoom fallback below scales viewport
+      const window = await chrome.windows.get(windowId);
+      const outerWidth = window.width ?? inner + frame;
+      await chrome.windows.update(windowId, { width: Math.max(1, outerWidth + width - inner) });
+    } catch (error) {
+      resizeError = error;
+      break;
     }
     await waitForLayout(tabId);
-    const { inner } = await measure(tabId);
-    if (inner > 0 && Math.abs(inner - width) > 1) {
-      await chrome.tabs.setZoom(tabId, inner / width);
-      await waitForLayout(tabId);
+    ({ inner, frame } = await measure(tabId));
+    if (inner <= 0) throw new Error('Could not measure the page viewport after resizing.');
+  }
+
+  // If the OS window-size limit prevented an exact resize, use page zoom to
+  // request the remaining CSS viewport width, then verify the actual result.
+  if (inner !== width) {
+    let zoom = Math.min(5, Math.max(0.25, inner / width));
+    try {
+      for (let attempt = 0; attempt < 4 && inner !== width; attempt++) {
+        await chrome.tabs.setZoom(tabId, zoom);
+        await waitForLayout(tabId);
+        ({ inner } = await measure(tabId));
+        if (inner > 0 && inner !== width) {
+          zoom = Math.min(5, Math.max(0.25, zoom * inner / width));
+        }
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Could not set the ${width}px viewport: browser zoom failed (${reason}).`);
     }
-  } catch {
-    // fallback
+  }
+
+  if (inner <= 0 || inner !== width) {
+    const limitedBy = resizeError
+      ? `window resizing failed (${resizeError instanceof Error ? resizeError.message : String(resizeError)})`
+      : 'the operating system or browser window/zoom limits';
+    throw new Error(`Could not capture the requested ${width}px CSS viewport; the page measured ${inner}px after resizing and zoom. ${limitedBy}. Close other windows or choose a width closer to ${inner}px.`);
   }
 }
 
 async function loadInTab(tabId: number, targetUrl: string, maxWaitMs = 12000): Promise<void> {
-  const { promise, resolve } = Promise.withResolvers<void>();
+  const currentTab = await chrome.tabs.get(tabId);
+  if (currentTab.url && samePage(currentTab.url, targetUrl)) return;
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
   let settled = false;
+  let pollTimer: ReturnType<typeof setInterval> = setInterval(() => undefined, 0);
   const targetClean = targetUrl.replace(/#.*$/, '').replace(/\/+$/, '');
 
-  const finish = (): void => {
-    if (settled) return;
-    settled = true;
+  const cleanup = (): void => {
     chrome.tabs.onUpdated.removeListener(onUpdate);
     clearTimeout(timeoutTimer);
     clearInterval(pollTimer);
+  };
+  const finish = (): void => {
+    if (settled) return;
+    settled = true;
+    cleanup();
     resolve();
   };
 
@@ -426,46 +464,47 @@ async function loadInTab(tabId: number, targetUrl: string, maxWaitMs = 12000): P
     if (_id !== tabId) return;
     if (info.status === 'complete') {
       const cur = (tab?.url || '').replace(/#.*$/, '').replace(/\/+$/, '');
-      if (cur && (cur === targetClean || cur.startsWith(targetClean))) {
-        finish();
-      }
+      if (cur && (cur === targetClean || cur.startsWith(targetClean))) finish();
     }
   };
 
   chrome.tabs.onUpdated.addListener(onUpdate);
-  const timeoutTimer = setTimeout(finish, maxWaitMs);
-
-  await chrome.tabs.update(tabId, { url: targetUrl });
-
-  const pollTimer = setInterval(async () => {
-    try {
-      const [res] = await chrome.scripting.executeScript<{ ready: boolean; href: string }>({
-        target: { tabId },
-        func: () => ({
-          ready:
-            document.readyState === 'interactive' ||
-            document.readyState === 'complete',
-          href: location.href,
-        }),
-      });
-      const currentLoc = (res?.result?.href || '').replace(/#.*$/, '').replace(/\/+$/, '');
-      if (
-        res?.result?.ready &&
-        currentLoc &&
-        currentLoc !== 'about:blank' &&
-        (currentLoc === targetClean || currentLoc.startsWith(targetClean))
-      ) {
-        finish();
-      }
-    } catch {
-      // navigation pending
+  const timeoutTimer = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    reject(new Error(`Timed out waiting for ${targetUrl} to finish loading.`));
+  }, maxWaitMs);
+  try {
+    await chrome.tabs.update(tabId, { url: targetUrl });
+    if (!settled) {
+      pollTimer = setInterval(async () => {
+        try {
+          const [res] = await chrome.scripting.executeScript<{ ready: boolean; href: string }>({
+            target: { tabId },
+            func: () => ({
+              ready: document.readyState === 'interactive' || document.readyState === 'complete',
+              href: location.href,
+            }),
+          });
+          const currentLoc = (res?.result?.href || '').replace(/#.*$/, '').replace(/\/+$/, '');
+          if (res?.result?.ready && currentLoc && currentLoc !== 'about:blank' &&
+            (currentLoc === targetClean || currentLoc.startsWith(targetClean))) finish();
+        } catch {
+          // navigation pending
+        }
+      }, 250);
     }
-  }, 250);
+    await promise;
+  } catch (error) {
+    if (!settled) {
+      settled = true;
+      cleanup();
+    }
+    throw error;
+  }
 
-  await promise;
-  await new Promise((r) => setTimeout(r, 250));
 }
-
 function samePage(a: string, b: string): boolean {
   const strip = (u: string): string => u.replace(/#.*$/, '').replace(/\/+$/, '');
   return strip(a) === strip(b);
@@ -580,6 +619,10 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
               }
             }
           }
+        }
+        if (captures.some((capture) => capture.frame.width !== job.width)) {
+          const measuredWidths = [...new Set(captures.map((capture) => capture.frame.width))].join(', ');
+          throw new Error(`Capture output did not retain the requested ${job.width}px CSS viewport (serialized width: ${measuredWidths || 'none'}px). No result was saved for this job.`);
         }
       } catch (error) {
         control.pickerTabId = undefined;

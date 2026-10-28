@@ -88,6 +88,12 @@ async function sessionTests(): Promise<void> {
     await recovered.completeJob(run.id, job.id, [capture(job.url, job.width)]);
   }
   assert.equal((await recovered.finish(run.id)).status, 'completed');
+  const recoveredCaptures = await recovered.getCaptures(run.id);
+  assert.deepEqual(
+    recoveredCaptures.map((item) => [item.url, item.frame.width]),
+    run.jobs.map((job) => [job.url, job.width]),
+    'each persisted page/width job exports the matching measured viewport width',
+  );
   await assert.rejects(recovered.resume(run.id), /already complete/);
   assert.equal((await recovered.getCaptures(run.id, [run.jobs[1].id])).length, 1, 'selected jobs export independently');
 
