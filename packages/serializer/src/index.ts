@@ -80,6 +80,11 @@ interface ImageReadinessState {
   pending: number;
   report: ReportDiagnostic;
 }
+interface FontReadinessState {
+  ready: Promise<FontFaceSet> | null;
+  waited: boolean;
+}
+
 
 async function waitForImageElements(
   root: Document | Element,
@@ -224,6 +229,7 @@ export async function triggerPageScroll(
   await scrollPage(win, opts, (deadline) => win.document
     ? waitForImageElements(win.document, undefined, state, true, deadline)
     : Promise.resolve(), state.report);
+
 }
 
 /** Wait for every discovered image, within bounded concurrency and time. */
@@ -235,10 +241,23 @@ export async function waitForImages(
   return waitForImageElements(doc, opts, { sources: new Map(), considered: 0, pending: 0, report: onDiagnostic });
 }
 
-async function waitForFonts(doc: Document, timeoutMs: number | undefined, report: ReportDiagnostic): Promise<void> {
+async function waitForFonts(
+  doc: Document,
+  timeoutMs: number | undefined,
+  report: ReportDiagnostic,
+  state: FontReadinessState
+): Promise<void> {
   if (!doc.fonts) return;
   try {
-    if (doc.fonts.ready) await withTimeout(doc.fonts.ready, boundedNumber(timeoutMs, 2500));
+    const ready = doc.fonts.ready;
+    if (ready && state.ready !== ready) {
+      state.ready = ready;
+      state.waited = false;
+    }
+    if (ready && !state.waited) {
+      state.waited = true;
+      await withTimeout(ready, boundedNumber(timeoutMs, 2500));
+    }
     if (typeof doc.fonts.forEach === 'function') {
       doc.fonts.forEach((font) => {
         if (font.status === 'error') warning(report, 'font_failed', `Font failed to load: ${font.family}`);
@@ -266,11 +285,12 @@ async function prepareCapture(
     }
   };
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
+  const fontState: FontReadinessState = { ready: null, waited: false };
   if (scroll && doc.defaultView) {
     try {
       await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => Promise.all([
         waitForImageElements(root, opts?.imageOptions, state, true, deadline),
-        waitForFonts(doc, Math.min(boundedNumber(opts?.fontTimeoutMs, 2500), Math.max(0, deadline - Date.now())), report),
+        waitForFonts(doc, Math.min(boundedNumber(opts?.fontTimeoutMs, 2500), Math.max(0, deadline - Date.now())), report, fontState),
       ]), report);
     } catch (error) {
       warning(report, 'scroll_failed', `Page scrolling failed; lazy content may be incomplete: ${error instanceof Error ? error.message : String(error)}`);
@@ -278,7 +298,7 @@ async function prepareCapture(
   }
   await Promise.all([
     waitForImageElements(root, opts?.imageOptions, state),
-    waitForFonts(doc, opts?.fontTimeoutMs, report),
+    waitForFonts(doc, opts?.fontTimeoutMs, report, fontState),
   ]);
   return diagnostics;
 }

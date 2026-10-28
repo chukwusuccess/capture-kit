@@ -146,7 +146,6 @@ class MockElement extends MockNode {
   contains(_el: unknown): boolean {
     return false;
   }
-  dAttr = '';
   pointsAttr = '';
   getAttribute(attr: string): string | null {
     if (attr === 'src') return this.src;
@@ -481,6 +480,38 @@ async function runReadinessTests() {
     assert.strictEqual(doc.defaultView.scrollX, 17, 'Original horizontal scroll must be restored');
     assert.strictEqual(doc.defaultView.scrollY, 123, 'Original vertical scroll must be restored');
     assert.ok(!capture.diagnostics?.some((d) => d.code.startsWith('scroll_')));
+  }
+
+
+  // A timed-out FontFaceSet promise is only waited once; a new readiness
+  // promise after lazy content appears still gets its own bounded wait.
+  {
+    const { doc } = createMockDocument();
+    let firstWaits = 0;
+    let secondWaits = 0;
+    const neverReady = (waited: () => void) => ({
+      then(_resolve: (value: FontFaceSet) => void, _reject: (reason: unknown) => void) {
+        waited();
+      },
+    }) as unknown as Promise<FontFaceSet>;
+    const first = neverReady(() => firstWaits++);
+    const second = neverReady(() => secondWaits++);
+    let ready: Promise<FontFaceSet> = first;
+    Object.defineProperty(doc.fonts, 'ready', { get: () => ready });
+    Object.defineProperty(doc.documentElement, 'scrollHeight', { value: 1600 });
+    const scroll = doc.defaultView.scrollTo;
+    doc.defaultView.scrollTo = (x, y) => {
+      scroll(x, y);
+      if (y >= 400) ready = second;
+    };
+    const capture = await serializeDocument(doc as unknown as Document, {
+      scrollStitch: true,
+      fontTimeoutMs: 1,
+      scrollOptions: { step: 400, delayMs: 0, maxPasses: 8 },
+    });
+    assert.strictEqual(firstWaits, 1, 'An unchanged timed-out font promise must not be awaited again');
+    assert.strictEqual(secondWaits, 1, 'A changed font readiness promise must be awaited');
+    assert.ok(capture.diagnostics?.some((diagnostic) => diagnostic.code === 'fonts_timeout'));
   }
 
   // An infinite feed has an explicit completion boundary and a visible warning.
