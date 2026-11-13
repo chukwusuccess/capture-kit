@@ -9,6 +9,8 @@ interface CaptureResponse {
   count?: number;
   skipped?: string[];
   error?: string;
+  mimeType?: string;
+  base64?: string;
 }
 
 interface WindowWithCaptureKit {
