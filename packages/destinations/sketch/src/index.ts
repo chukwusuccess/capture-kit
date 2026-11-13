@@ -14,7 +14,7 @@
  */
 
 import JSZip from 'jszip';
-import type { Capture, Fill, Node, Shadow, Stroke } from '@capture-kit/model';
+import type { Capture, CornerRadius, Fill, Node, Shadow, Stroke } from '@capture-kit/model';
 
 interface SketchColor {
   _class: 'color';
@@ -70,48 +70,16 @@ function parseCssColor(colorStr: string): SketchColor {
   return { _class: 'color', red: 0, green: 0, blue: 0, alpha: 1 };
 }
 
-function makeRectPoints(radius: number) {
+function makeRectPoints(r: CornerRadius | number, maxR = Infinity) {
+  const tl = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.topLeft, maxR);
+  const tr = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.topRight, maxR);
+  const br = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.bottomRight, maxR);
+  const bl = typeof r === 'number' ? Math.min(r, maxR) : Math.min(r.bottomLeft, maxR);
   return [
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{0, 0}',
-      curveMode: 1,
-      curveTo: '{0, 0}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{0, 0}',
-    },
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{1, 0}',
-      curveMode: 1,
-      curveTo: '{1, 0}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{1, 0}',
-    },
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{1, 1}',
-      curveMode: 1,
-      curveTo: '{1, 1}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{1, 1}',
-    },
-    {
-      _class: 'curvePoint',
-      cornerRadius: radius,
-      curveFrom: '{0, 1}',
-      curveMode: 1,
-      curveTo: '{0, 1}',
-      hasCurveFrom: false,
-      hasCurveTo: false,
-      point: '{0, 1}',
-    },
+    { _class: 'curvePoint', cornerRadius: tl, curveFrom: '{0, 0}', curveMode: 1, curveTo: '{0, 0}', hasCurveFrom: false, hasCurveTo: false, point: '{0, 0}' },
+    { _class: 'curvePoint', cornerRadius: tr, curveFrom: '{1, 0}', curveMode: 1, curveTo: '{1, 0}', hasCurveFrom: false, hasCurveTo: false, point: '{1, 0}' },
+    { _class: 'curvePoint', cornerRadius: br, curveFrom: '{1, 1}', curveMode: 1, curveTo: '{1, 1}', hasCurveFrom: false, hasCurveTo: false, point: '{1, 1}' },
+    { _class: 'curvePoint', cornerRadius: bl, curveFrom: '{0, 1}', curveMode: 1, curveTo: '{0, 1}', hasCurveFrom: false, hasCurveTo: false, point: '{0, 1}' },
   ];
 }
 
@@ -124,6 +92,7 @@ function convertStrokes(strokes: Stroke[]): {
 
   for (const stroke of strokes) {
     if (stroke.width <= 0) continue;
+    if (stroke.side && stroke.side !== 'all') continue;
     borders.push({
       _class: 'border',
       isEnabled: true,
@@ -272,6 +241,62 @@ function convertFills(
   return fillList;
 }
 
+function edgeLineLayers(node: Node, offsetX: number, offsetY: number): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const b = node.box;
+  for (const s of node.style.strokes ?? []) {
+    if (!s.side || s.side === 'all' || s.width <= 0) continue;
+    const w = s.width;
+    const frame =
+      s.side === 'top'
+        ? { x: b.x - offsetX, y: b.y - offsetY, width: b.w, height: w }
+        : s.side === 'bottom'
+        ? { x: b.x - offsetX, y: b.y + b.h - w - offsetY, width: b.w, height: w }
+        : s.side === 'left'
+        ? { x: b.x - offsetX, y: b.y - offsetY, width: w, height: b.h }
+        : { x: b.x + b.w - w - offsetX, y: b.y - offsetY, width: w, height: b.h };
+    out.push({
+      _class: 'rectangle',
+      do_objectID: `${node.id}-edge-${s.side}`,
+      booleanOperation: -1,
+      isFixedToViewport: false,
+      isFlippedHorizontal: false,
+      isFlippedVertical: false,
+      isLocked: false,
+      isVisible: true,
+      layerListExpandedType: 0,
+      name: `Border ${s.side} ${node.name || node.id}`,
+      nameIsFixed: false,
+      resizingConstraint: 63,
+      resizingType: 0,
+      rotation: 0,
+      shouldBreakMaskChain: false,
+      hasClippingMask: false,
+      clippingMaskMode: 0,
+      isTemplate: false,
+      frame: { _class: 'rect', constrainProportions: false, ...frame },
+      style: {
+        _class: 'style',
+        endMarkerType: 0,
+        miterLimit: 10,
+        startMarkerType: 0,
+        windingRule: 1,
+        fills: [{ _class: 'fill', isEnabled: true, fillType: 0, color: parseCssColor(s.color), contextSettings: { _class: 'graphicsContextSettings', blendMode: 0, opacity: 1 } }],
+        borders: [],
+        shadows: [],
+        innerShadows: [],
+      },
+      edited: false,
+      isClosed: true,
+      pointRadiusBehaviour: 1,
+      points: makeRectPoints(0),
+      fixedRadius: 0,
+      needsConvertionToNewRoundCorners: false,
+    });
+  }
+  return out;
+}
+
 function convertNodeToSketchLayer(
   node: Node,
   assets: Capture['assets'],
@@ -290,6 +315,8 @@ function convertNodeToSketchLayer(
   const { borders, borderOptions } = convertStrokes(node.style.strokes ?? []);
   const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
 
+  const blurMatch = node.style.backdropFilter?.match(/blur\(([\d.]+)px\)/);
+  const blur = blurMatch ? { _class: 'blur', isEnabled: true, radius: parseFloat(blurMatch[1]), type: 1 } : undefined;
   if (node.type === 'text') {
     const textProps = node.text ?? {
       content: '',
@@ -315,7 +342,7 @@ function convertNodeToSketchLayer(
       isLocked: false,
       isVisible: true,
       layerListExpandedType: 0,
-      name: content.slice(0, 32) || `Text ${node.id}`,
+      name: node.name || content.slice(0, 32) || `Text ${node.id}`,
       nameIsFixed: false,
       resizingConstraint: 63,
       resizingType: 0,
@@ -416,7 +443,7 @@ function convertNodeToSketchLayer(
         isLocked: false,
         isVisible: true,
         layerListExpandedType: 0,
-        name: node.type === 'vector' ? `Vector ${node.id}` : `Image ${node.id}`,
+        name: node.name || (node.type === 'vector' ? `Vector ${node.id}` : `Image ${node.id}`),
         nameIsFixed: false,
         resizingConstraint: 63,
         resizingType: 0,
@@ -497,7 +524,7 @@ function convertNodeToSketchLayer(
       edited: false,
       isClosed: true,
       pointRadiusBehaviour: 1,
-      points: makeRectPoints(node.style.radius?.topLeft ?? 0),
+      points: makeRectPoints(node.style.radius ?? 0, Math.min(node.box.w / 2, node.box.h / 2)),
       fixedRadius: node.style.radius?.topLeft ?? 0,
       needsConvertionToNewRoundCorners: false,
     };
@@ -506,7 +533,8 @@ function convertNodeToSketchLayer(
   // Handle frame and rect
   const fillList = convertFills(node.style.fills ?? [], assets);
 
-  const radius = node.style.radius?.topLeft ?? 0;
+  const rawRadius = node.style.radius?.topLeft ?? 0;
+  const radius = Math.min(rawRadius, node.box.w / 2, node.box.h / 2);
 
   return {
     _class: 'rectangle',
@@ -518,7 +546,7 @@ function convertNodeToSketchLayer(
     isLocked: false,
     isVisible: true,
     layerListExpandedType: 0,
-    name: `${node.type} ${node.id}`,
+    name: node.name || `${node.type} ${node.id}`,
     nameIsFixed: false,
     resizingConstraint: 63,
     resizingType: 0,
@@ -539,12 +567,13 @@ function convertNodeToSketchLayer(
       ...(borderOptions ? { borderOptions } : {}),
       shadows: outerShadows,
       innerShadows,
+        ...(blur ? { blur } : {}),
     },
     edited: false,
     isClosed: true,
     pointRadiusBehaviour: 1,
-    points: makeRectPoints(radius),
-    fixedRadius: radius,
+    points: makeRectPoints(node.style.radius ?? 0, Math.min(node.box.w / 2, node.box.h / 2)),
+    fixedRadius: node.style.radius?.topLeft ?? 0,
     needsConvertionToNewRoundCorners: false,
   };
 }
@@ -574,12 +603,12 @@ function buildSketchLayerTree(
     node: Node,
     parentOffsetX: number,
     parentOffsetY: number
-  ): Record<string, unknown> {
+  ): Array<Record<string, unknown>> {
     const children = childrenMap.get(node.id);
 
-    // Leaf node: render standard Sketch layer
+    // Leaf node: render standard Sketch layer plus per-edge border lines
     if (!children || children.length === 0) {
-      return convertNodeToSketchLayer(node, assets, parentOffsetX, parentOffsetY);
+      return [convertNodeToSketchLayer(node, assets, parentOffsetX, parentOffsetY), ...edgeLineLayers(node, parentOffsetX, parentOffsetY)];
     }
 
     // Node with children: emit Sketch group layer
@@ -617,8 +646,9 @@ function buildSketchLayerTree(
 
     // Process children relative to container origin
     for (const child of children) {
-      groupLayers.push(processNode(child, node.box.x, node.box.y));
+      groupLayers.push(...processNode(child, node.box.x, node.box.y));
     }
+    groupLayers.push(...edgeLineLayers(node, node.box.x, node.box.y));
 
     const groupLayout =
       node.style.layout && node.style.layout.mode !== 'none'
@@ -629,7 +659,7 @@ function buildSketchLayerTree(
           }
         : { _class: 'MSImmutableFreeformGroupLayout' };
 
-    return {
+    return [{
       _class: 'group',
       do_objectID: node.id,
       booleanOperation: -1,
@@ -639,7 +669,7 @@ function buildSketchLayerTree(
       isLocked: false,
       isVisible: true,
       layerListExpandedType: 0,
-      name: `Group ${node.id}`,
+      name: node.name || `Group ${node.id}`,
       nameIsFixed: false,
       resizingConstraint: 63,
       resizingType: 0,
@@ -659,10 +689,10 @@ function buildSketchLayerTree(
       hasClickThrough: false,
       groupLayout,
       layers: groupLayers,
-    };
+    }];
   }
 
-  return rootNodes.map((root) => processNode(root, 0, 0));
+  return rootNodes.flatMap((root) => processNode(root, 0, 0));
 }
 
 

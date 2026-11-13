@@ -20,12 +20,16 @@ export const FillSchema = z.object({
   gradientType: z.enum(['linear', 'radial']).optional(),
   angle: z.number().optional(),
   stops: z.array(GradientStopSchema).optional(),
+  cx: z.number().min(0).max(1).optional(),
+  cy: z.number().min(0).max(1).optional(),
 });
 
 export const StrokeSchema = z.object({
   color: z.string(),
   width: z.number().gte(0),
   style: z.enum(['solid', 'dashed', 'dotted']).optional(),
+  side: z.enum(['all', 'top', 'right', 'bottom', 'left']).optional(),
+  offset: z.number().optional(),
 });
 
 export const CornerRadiusSchema = z.object({
@@ -74,6 +78,22 @@ export const StyleSchema = z.object({
   clip: z.boolean().optional().default(false),
   clipPath: z.string().optional(),
   layout: LayoutSchema.optional(),
+  // Pixel-fidelity fields: only present when they differ from the CSS default,
+  // so captures stay small and older consumers ignore them.
+  transform: z.string().optional(),
+  transformOrigin: z.string().optional(),
+  filter: z.string().optional(),
+  backdropFilter: z.string().optional(),
+  mixBlendMode: z.string().optional(),
+  backgroundSize: z.string().optional(),
+  backgroundPosition: z.string().optional(),
+  backgroundRepeat: z.string().optional(),
+  backgroundClip: z.string().optional(),
+  // CSS mask-image (e.g. radial fade on glow washes): capture the raw value;
+  // destinations render it as an SVG mask so masked nodes don't paint solid.
+  maskImage: z.string().optional(),
+  interactiveClasses: z.array(z.string()).optional(),
+  hoverStyle: z.record(z.string(), z.string()).optional(),
 });
 
 export const TextRunSchema = z.object({
@@ -84,6 +104,9 @@ export const TextRunSchema = z.object({
   color: z.string().optional(),
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().optional(),
 });
 
 export const TextPropsSchema = z.object({
@@ -94,7 +117,16 @@ export const TextPropsSchema = z.object({
   lineHeight: z.union([z.string(), z.number()]),
   letterSpacing: z.union([z.string(), z.number()]),
   align: z.enum(['left', 'center', 'right', 'justify']),
+  wordSpacing: z.union([z.string(), z.number()]).optional(),
+  textStroke: z.string().optional(),
+  writingMode: z.string().optional(),
+  direction: z.string().optional(),
   color: z.string(),
+  italic: z.boolean().optional(),
+  decoration: z.string().optional(),
+  textTransform: z.string().optional(),
+  textShadow: z.string().optional(),
+  overflow: z.string().optional(),
   runs: z.array(TextRunSchema).optional(),
 });
 
@@ -108,12 +140,14 @@ export const FontSchema = z.object({
   family: z.string(),
   weight: z.union([z.string(), z.number()]).optional(),
   style: z.string().optional(),
+  assetRef: z.string().optional(),
 });
 
 export const FrameSchema = z.object({
   width: z.number().gte(0),
   height: z.number().gte(0),
   baseURI: z.string(),
+  background: z.string().optional(),
 });
 
 export const VectorPathSchema = z.object({
@@ -123,8 +157,14 @@ export const VectorPathSchema = z.object({
   strokeWidth: z.number().optional(),
 });
 
+export const VectorViewBoxSchema = z.object({
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
 export const NodeSchema = z.object({
   id: z.string(),
+  name: z.string().optional(),
   parentId: z.string().optional(),
   type: z.enum(['frame', 'text', 'rect', 'image', 'vector']),
   box: BoxSchema,
@@ -132,6 +172,10 @@ export const NodeSchema = z.object({
   text: TextPropsSchema.optional(),
   assetRef: z.string().optional(),
   vectorPaths: z.array(VectorPathSchema).optional(),
+  // Intrinsic svg viewBox size: lets destinations scale paths into box.
+  vectorViewBox: VectorViewBoxSchema.optional(),
+  objectFit: z.enum(['fill', 'contain', 'cover', 'none', 'scale-down']).optional(),
+  objectPosition: z.string().optional(),
 });
 
 export const CaptureSchema = z.object({
@@ -173,6 +217,7 @@ export type Asset = z.infer<typeof AssetSchema>;
 export type Font = z.infer<typeof FontSchema>;
 export type Frame = z.infer<typeof FrameSchema>;
 export type VectorPath = z.infer<typeof VectorPathSchema>;
+export type VectorViewBox = z.infer<typeof VectorViewBoxSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type Capture = z.infer<typeof CaptureSchema>;
 export type SitePageCapture = z.infer<typeof SitePageCaptureSchema>;
@@ -181,7 +226,7 @@ export type SiteCapture = z.infer<typeof SiteCaptureSchema>;
 export function emptyCapture(opts: Partial<Capture> = {}): Capture {
   return {
     url: opts.url ?? 'about:blank',
-    version: opts.version ?? '0.1.0',
+    version: opts.version ?? '0.2.2',
     frame: opts.frame ?? {
       width: 1200,
       height: 800,

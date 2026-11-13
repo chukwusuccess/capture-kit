@@ -46,20 +46,18 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.clipPath) {
     styles.push(`clip-path: ${style.clipPath}`);
   }
-  // Layout
-  if (style.layout && style.layout.mode !== 'none') {
-    if (style.layout.mode === 'grid') {
-      styles.push('display: grid');
-    } else {
-      styles.push(
-        'display: flex',
-        `flex-direction: ${style.layout.mode === 'vertical' ? 'column' : 'row'}`
-      );
-    }
-    if (style.layout.gap) styles.push(`gap: ${style.layout.gap}px`);
+  // Pixel-fidelity fields (only set when non-default)
+  if (style.transform) styles.push(`transform: ${style.transform}`);
+  if (style.transformOrigin) styles.push(`transform-origin: ${style.transformOrigin}`);
+  if (style.filter) styles.push(`filter: ${style.filter}`);
+  if (style.backdropFilter) styles.push(`backdrop-filter: ${style.backdropFilter}`);
+  if (style.mixBlendMode) styles.push(`mix-blend-mode: ${style.mixBlendMode}`);
+  if (style.backgroundSize) styles.push(`background-size: ${style.backgroundSize}`);
+  if (style.backgroundPosition) styles.push(`background-position: ${style.backgroundPosition}`);
+  if (style.backgroundRepeat) styles.push(`background-repeat: ${style.backgroundRepeat}`);
+  if (style.backgroundClip) {
+    styles.push(`background-clip: ${style.backgroundClip}`, `-webkit-background-clip: ${style.backgroundClip}`);
   }
-
-
 
   // Radius
   const r = style.radius;
@@ -91,20 +89,23 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     const stopsStr = gradFill.stops
       .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
       .join(', ');
-    styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+    if (gradFill.gradientType === 'radial') {
+      styles.push(`background-image: radial-gradient(circle, ${stopsStr})`);
+    } else {
+      styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+    }
   }
 
 
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
-    styles.push(
-      `background-image: url('data:${asset.mimeType};base64,${asset.base64}')`,
-      'background-size: cover',
-      'background-position: center'
-    );
+    styles.push(`background-image: url('data:${asset.mimeType};base64,${asset.base64}')`);
+    // Defaults only when the capture didn't record a real value (CSS last-wins).
+    if (!style.backgroundSize) styles.push('background-size: cover');
+    if (!style.backgroundPosition) styles.push('background-position: center');
   }
 
-  const styleAttr = ` style="${styles.join('; ')}"`;
+  const styleAttr = ` style="${escapeHtml(styles.join('; '))}"`;
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     const paths = node.vectorPaths
       .map((p) => {
@@ -114,15 +115,19 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
         return `      <path d="${escapeHtml(p.d)}"${fill}${stroke}${sw} />`;
       })
       .join('\n');
-    return `    <svg id="${escapeHtml(node.id)}"${styleAttr} viewBox="0 0 ${box.w} ${box.h}">\n${paths}\n    </svg>`;
+    const vb2 = node.vectorViewBox;
+    const vbAttr = vb2 ? `0 0 ${vb2.width} ${vb2.height}` : `0 0 ${box.w} ${box.h}`;
+    return `    <svg id="${escapeHtml(node.id)}"${styleAttr} viewBox="${vbAttr}">\n${paths}\n    </svg>`;
   }
 
 
-  if (type === 'image') {
+    if (type === 'image') {
     if (assetRef && assets[assetRef]) {
       const asset = assets[assetRef];
       const src = `data:${asset.mimeType};base64,${asset.base64}`;
-      return `    <img id="${escapeHtml(node.id)}"${styleAttr} src="${src}" alt="Captured image" style="${styles.join('; ')}; object-fit: cover;" />`;
+      const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
+      const posStyle = node.objectPosition ? `; object-position: ${escapeHtml(node.objectPosition)}` : '';
+      return `    <img id="${escapeHtml(node.id)}" src="${src}" alt="Captured image" width="${box.w}" height="${box.h}" style="${escapeHtml(`${styles.join('; ')}; object-fit: ${fit}${posStyle}`)}" />`;
     }
     return `    <div id="${escapeHtml(node.id)}"${styleAttr}></div>`;
   }
@@ -134,7 +139,7 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
       `font-size: ${text.fontSize}px`,
       `font-weight: ${text.fontWeight}`,
       `line-height: ${typeof text.lineHeight === 'number' ? `${text.lineHeight}px` : text.lineHeight}`,
-      `color: ${text.color}`,
+      `color: ${style.backgroundClip === 'text' ? 'transparent' : text.color}`,
       `text-align: ${text.align}`,
       'white-space: pre-wrap',
       'word-break: break-word',
@@ -142,8 +147,15 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     if (text.letterSpacing) {
       textStyles.push(`letter-spacing: ${typeof text.letterSpacing === 'number' ? `${text.letterSpacing}px` : text.letterSpacing}`);
     }
+    if (text.italic) textStyles.push('font-style: italic');
+    if (text.decoration) textStyles.push(`text-decoration: ${text.decoration}`);
+    if (text.textTransform) textStyles.push(`text-transform: ${text.textTransform}`);
+    if (text.textShadow) textStyles.push(`text-shadow: ${text.textShadow}`);
+    if (text.overflow === 'ellipsis') {
+      textStyles.push('overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap');
+    }
 
-    return `    <div id="${escapeHtml(node.id)}" style="${textStyles.join('; ')}">${escapeHtml(text.content)}</div>`;
+    return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${escapeHtml(text.content)}</div>`;
   }
 
   return `    <div id="${escapeHtml(node.id)}"${styleAttr}></div>`;
@@ -153,13 +165,14 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
   const standalone = opts?.standalone ?? true;
   const title = opts?.title ?? 'Captured Document';
   const { width, height } = capture.frame;
+  const frameBg = capture.frame.background || '#ffffff';
 
   const renderedNodes = capture.nodes
     .map((node) => renderNodeToHtml(node, capture.assets))
     .join('\n');
 
   const canvasHtml = [
-    `  <div class="capture-canvas" style="position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: #ffffff;">`,
+  `  <div class="capture-canvas" style="position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: ${escapeHtml(frameBg)};">`,
     renderedNodes,
     '  </div>',
   ].join('\n');
@@ -167,6 +180,14 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
   if (!standalone) {
     return canvasHtml;
   }
+
+  const fontFaceRules = capture.fonts
+    .map((f) => {
+      if (!f.assetRef || !capture.assets[f.assetRef]) return '';
+      const asset = capture.assets[f.assetRef];
+      return `    @font-face { font-family: '${escapeHtml(f.family)}'; font-weight: ${f.weight || '400'}; font-style: ${f.style || 'normal'}; src: url('data:${asset.mimeType};base64,${asset.base64}'); }`;
+    })
+    .filter(Boolean);
 
   return [
     '<!DOCTYPE html>',
@@ -176,6 +197,7 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
     '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
     `  <title>${escapeHtml(title)}</title>`,
     '  <style>',
+    ...fontFaceRules,
     '    body { margin: 0; padding: 0; background-color: #f1f5f9; display: flex; justify-content: center; }',
     '    .capture-canvas { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin: 24px auto; }',
     '  </style>',

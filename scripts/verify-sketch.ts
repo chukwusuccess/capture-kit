@@ -26,7 +26,7 @@ interface SketchPage {
 async function runSketchVerification(): Promise<void> {
   const sampleCapture: Capture = emptyCapture({
     url: 'https://test.capture-kit.local',
-    version: '0.1.0',
+    version: '0.1.1',
     frame: {
       width: 1440,
       height: 900,

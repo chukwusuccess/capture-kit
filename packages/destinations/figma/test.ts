@@ -61,6 +61,56 @@ function runFigmaDestinationTests() {
         },
         assetRef: 'img-thumb',
       },
+      {
+        id: 'node-nav-border',
+        type: 'frame',
+        box: { x: 0, y: 0, w: 1200, h: 64 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
+          strokes: [{ color: 'rgba(255, 255, 255, 0.1)', width: 1, style: 'solid', side: 'bottom' }],
+          opacity: 1,
+          radius: { topLeft: 16, topRight: 16, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'node-skip-offscreen',
+        type: 'text',
+        box: { x: 637, y: 24, w: 117, h: 18 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+          transform: 'matrix(1, 0, 0, 1, 0, -84)',
+          transformOrigin: '0 0',
+        },
+        text: {
+          content: 'Skip to content',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 16,
+          fontWeight: 400,
+          lineHeight: 24,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgba(255, 255, 255, 1)',
+        },
+      },
+      {
+        id: 'node-shifted-pill',
+        type: 'rect',
+        box: { x: 200, y: 100, w: 120, h: 40 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 8, topRight: 8, bottomRight: 8, bottomLeft: 8 },
+          shadows: [],
+          transform: 'matrix(1, 0, 0, 1, -60, 0)',
+          transformOrigin: '0 0',
+        },
+      },
     ],
     assets: {
       'img-thumb': {
@@ -118,6 +168,22 @@ function runFigmaDestinationTests() {
     'Font size missing on text node'
   );
 
+  assert.ok(
+    !payload.svg.includes('dominant-baseline="text-before-edge"'),
+    'Should not emit dominant-baseline="text-before-edge" (ignored by Figma)'
+  );
+  assert.ok(
+    payload.svg.includes('x="70" y="92.6"'),
+    'Text baseline y should be placed inside the text box (70 + 32/2 + 20*0.33 = 92.6)'
+  );
+  assert.ok(
+    !payload.svg.includes('Skip to content'),
+    'Off-screen transformed nodes (y + ty < 0) should be omitted from Figma paste'
+  );
+  assert.ok(
+    payload.svg.includes('id="node-shifted-pill"') && payload.svg.includes('transform="matrix(1 0 0 1 -60 0)"'),
+    'Transforms must be emitted as native SVG transform attributes, not CSS inline styles'
+  );
   // 6. Assert embedded image data URI
   assert.ok(
     payload.svg.includes('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA'),
@@ -138,7 +204,62 @@ function runFigmaDestinationTests() {
   assert.ok(multi.includes('transform="translate(1320 0)"'), 'Second size not beside the first');
   assert.ok(multi.includes('transform="translate(0 1020)"'), 'Second page not on its own row');
   assert.ok(multi.includes('id="/pricing @ 1200"'), 'Capture group not labelled');
+  const withDs = modelToFigma(sampleCapture, { includeDesignSystem: true }).svg;
+  assert.ok(withDs.includes('id="Design System"'), 'Design System frame missing when includeDesignSystem is true');
+  assert.ok(withDs.includes('COLOR TOKENS') && withDs.includes('TYPOGRAPHY SCALE'), 'Design System sections missing');
 
+  assert.ok(payload.svg.includes('<line x1="0" y1="63.5" x2="1200" y2="63.5"'), 'Single-side border-bottom missing as crisp line');
+  assert.ok(payload.svg.includes('d="M 16 0 H 1184 A 16 16 0 0 1 1200 16 V 64 A 0 0 0 0 1 1200 64 H 0 A 0 0 0 0 1 0 64 V 16 A 16 16 0 0 1 16 0 Z"'), 'Asymmetric corner radius missing as exact path');
+  const glass = modelToFigma({
+    ...sampleCapture,
+    nodes: [{
+      id: 'glass-nav',
+      type: 'frame',
+      box: { x: 0, y: 0, w: 1200, h: 64 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(255,255,255,0.08)' }],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+        shadows: [],
+        backdropFilter: 'blur(12px) saturate(1.4)',
+      },
+    }],
+  }).svg;
+  assert.ok(glass.includes('filter="url(#fx-glass-nav)"'), 'Backdrop blur glass missing filter reference');
+  assert.ok(glass.includes('in="BackgroundImage" stdDeviation="12"'), 'Backdrop blur amount missing from filter def');
+  const roundedLine = modelToFigma({
+    ...sampleCapture,
+    nodes: [{
+      id: 'node-pill-line',
+      type: 'frame',
+      box: { x: 10, y: 10, w: 200, h: 40 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 1)' }],
+        strokes: [{ color: 'rgba(255,255,255,0.2)', width: 2, style: 'solid', side: 'top' }],
+        radius: { topLeft: 20, topRight: 20, bottomRight: 20, bottomLeft: 20 },
+        shadows: [],
+      },
+    }],
+  }).svg;
+  assert.ok(roundedLine.includes('<line x1="30" y1="11" x2="190" y2="11"'), 'Per-edge line must inset by corner radii on rounded pill');
+  const clipped = modelToFigma({
+    ...sampleCapture,
+    nodes: [{
+      id: 'node-clipped-circle',
+      type: 'frame',
+      box: { x: 0, y: 0, w: 100, h: 100 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(255, 0, 0, 1)' }],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+        shadows: [],
+        clipPath: 'circle(50% at 50% 50%)',
+      },
+    }],
+  }).svg;
+  assert.ok(clipped.includes('<clipPath id="clip-node-clipped-circle">') && clipped.includes('r="50"'), 'circle() clipPath with at-position must emit centered circle');
   console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }
 

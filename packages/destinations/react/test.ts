@@ -31,6 +31,7 @@ function runReactDestinationTests(): void {
           opacity: 1,
           radius: { topLeft: 6, topRight: 6, bottomRight: 6, bottomLeft: 6 },
           shadows: [],
+          interactiveClasses: ['hover:opacity-80', 'transition-all', 'cursor-pointer'],
         },
       },
       {
@@ -84,6 +85,10 @@ function runReactDestinationTests(): void {
   assert.ok(
     tsx.includes('Pro Tier Subscription &amp; Benefits'),
     'JSX text escaping missing'
+  );
+  assert.ok(
+    tsx.includes('hover:opacity-80') && tsx.includes('transition-all') && tsx.includes('cursor-pointer'),
+    'Interactive Tailwind classes missing from React output'
   );
 
   console.log('packages/destinations/react tests passed: 4/4 assertions verified');
