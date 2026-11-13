@@ -9,6 +9,7 @@ interface CaptureResponse {
   count?: number;
   skipped?: string[];
   error?: string;
+  data?: string | null;
   mimeType?: string;
   base64?: string;
 }
@@ -268,7 +269,7 @@ async function injectSerializer(tabId: number): Promise<void> {
   });
 }
 
-async function runSerializer(tabId: number, scrollStitch: boolean): Promise<Capture> {
+async function runSerializer(tabId: number, scrollStitch: boolean, replica = false): Promise<Capture> {
   await injectSerializer(tabId);
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
@@ -287,7 +288,44 @@ async function runSerializer(tabId: number, scrollStitch: boolean): Promise<Capt
     throw new Error('Serializer returned empty execution result');
   }
 
-  return CaptureSchema.parse(execResult.result);
+  const capture = CaptureSchema.parse(execResult.result);
+  if (replica) capture.replica = await runReplica(tabId);
+  return capture;
+}
+
+async function runReplica(tabId: number): Promise<string> {
+  const [res] = await chrome.scripting.executeScript<string>({
+    target: { tabId },
+    func: () => {
+      const w = window as unknown as { __captureKitReplica?: () => Promise<string> };
+      if (!w.__captureKitReplica) throw new Error('Capture-kit replica is not available on page');
+      return w.__captureKitReplica();
+    },
+  });
+  if (typeof res?.result !== 'string') throw new Error('Replica capture returned nothing');
+  return res.result;
+}
+
+const MAX_ASSET_BYTES = 15 * 1024 * 1024;
+
+// Replica assets come through here: host permissions make CORS a non-issue.
+async function fetchAsset(url: string, as: unknown): Promise<string | null> {
+  if (!/^https?:/i.test(url)) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return null;
+    if (as === 'text') return await res.text();
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > MAX_ASSET_BYTES) return null;
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    let type = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
+    // <img> refuses SVG served as octet-stream (S3 and friends).
+    if (/\.svg(\?|#|$)/i.test(url) && type !== 'image/svg+xml') type = 'image/svg+xml';
+    return `data:${type};base64,${btoa(bin)}`;
+  } catch {
+    return null;
+  }
 }
 
 async function waitForLayout(tabId: number): Promise<void> {
@@ -308,8 +346,8 @@ async function waitForLayout(tabId: number): Promise<void> {
   });
 }
 
-async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean): Promise<Capture[]> {
-  const primary = await runSerializer(tabId, scrollStitch);
+async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean, replica = false): Promise<Capture[]> {
+  const primary = await runSerializer(tabId, scrollStitch, replica);
   if (!dualTheme) return [primary];
   try {
     await chrome.scripting.executeScript({
@@ -334,7 +372,7 @@ async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme
       },
     });
     await waitForLayout(tabId);
-    const alt = await runSerializer(tabId, scrollStitch);
+    const alt = await runSerializer(tabId, scrollStitch, replica);
     return [primary, alt];
   } catch {
     return [primary];
@@ -483,6 +521,7 @@ async function handleCaptureRun(
   rawUrls: unknown,
   rawWidths: unknown,
   scrollStitch: boolean,
+  replica: boolean,
   passedTabId?: number,
   passedOrigin?: string,
   dualTheme = false
@@ -523,7 +562,7 @@ async function handleCaptureRun(
   // Just this tab at its own width: capture in place, keeping its live state.
   if (urls.length === 1 && activeTabUrl && samePage(urls[0], activeTabUrl) && sizes.length === 1 && sizes[0] === activeTabWidth) {
     const activeId = passedTabId ?? (await getActiveTabId());
-    const caps = await captureWithThemes(activeId, scrollStitch, dualTheme);
+    const caps = await captureWithThemes(activeId, scrollStitch, dualTheme, replica);
     for (const [idx, c] of caps.entries()) await deliverCaptureToPopup(c, idx);
     return { count: caps.length, skipped: [] };
   }
@@ -565,7 +604,7 @@ async function handleCaptureRun(
           if (cancelRunRequested) break;
           reportProgress(i * sizes.length + j, total, url);
           await fitViewport(win.id, tabId, width);
-          const caps = await captureWithThemes(tabId, scrollStitch, dualTheme);
+          const caps = await captureWithThemes(tabId, scrollStitch, dualTheme, replica);
           for (const cap of caps) {
             await deliverCaptureToPopup(cap, count);
             count += 1;
@@ -600,13 +639,14 @@ chrome.runtime.onMessage.addListener(
 
       if (action === 'capture-run') {
         const scrollStitch = 'scrollStitch' in message && Boolean(message.scrollStitch);
+        const replica = 'replica' in message && Boolean(message.replica);
         const dualTheme = 'dualTheme' in message && Boolean(message.dualTheme);
         const urls = 'urls' in message ? message.urls : undefined;
         const widths = 'widths' in message ? message.widths : undefined;
         const tabId = 'tabId' in message && typeof message.tabId === 'number' ? message.tabId : undefined;
         const origin = 'origin' in message && typeof message.origin === 'string' ? message.origin : undefined;
         sendResponse({ success: true, accepted: true });
-        handleCaptureRun(urls, widths, scrollStitch, tabId, origin, dualTheme).then(
+        handleCaptureRun(urls, widths, scrollStitch, replica, tabId, origin, dualTheme).then(
           ({ count, skipped }) => sendToPopup({ type: 'run-done', count, skipped }),
           (error: unknown) =>
             sendToPopup({
@@ -645,6 +685,13 @@ chrome.runtime.onMessage.addListener(
           (capture) => sendResponse({ success: true, capture }),
           fail
         );
+        return true;
+      }
+
+      if (action === 'fetch-asset') {
+        const url = 'url' in message && typeof message.url === 'string' ? message.url : '';
+        const as = 'as' in message ? message.as : 'data-url';
+        fetchAsset(url, as).then((data) => sendResponse({ success: data !== null, data }));
         return true;
       }
 
