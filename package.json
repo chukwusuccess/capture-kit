@@ -18,10 +18,12 @@
     "test:fidelity:cli": "tsx tools/fidelity/cli.test.ts",
     "test:markdown": "tsx packages/destinations/markdown/test.ts",
     "test:react": "tsx packages/destinations/react/test.ts",
-    "test:extension": "tsx apps/extension/test.ts"
+    "test:extension": "tsx apps/extension/test.ts",
+    "fidelity:replica": "node tools/fidelity/replica.ts"
   },
   "devDependencies": {
     "jszip": "^3.10.1",
+    "playwright-core": "^1.64.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vite": "^6.2.0",

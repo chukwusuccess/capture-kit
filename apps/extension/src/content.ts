@@ -1,6 +1,7 @@
 import {
   serializeDocument,
   serializeElement,
+  replicateDocument,
   startElementPicker,
 } from '@capture-kit/serializer';
 
@@ -8,6 +9,7 @@ interface WindowWithCaptureKit {
   __captureKitSerialize?: (opts?: { scrollStitch?: boolean }) => Promise<unknown>;
   __captureKitPickElement?: () => Promise<unknown>;
   __captureKitCancelPick?: () => void;
+  __captureKitReplica?: () => Promise<string>;
 }
 
 const customWindow = window as unknown as WindowWithCaptureKit;
@@ -17,6 +19,23 @@ customWindow.__captureKitCancelPick = () => cancelPick?.();
 customWindow.__captureKitSerialize = async (opts?: { scrollStitch?: boolean }): Promise<unknown> => {
   return await serializeDocument(document, opts);
 };
+
+customWindow.__captureKitReplica = () =>
+  replicateDocument(document, {
+    // The background fetches: it has host permissions, so CORS can't block fonts or CSS.
+    fetch: (url, as) =>
+      chrome.runtime.sendMessage({ action: 'fetch-asset', url, as }).then(
+        (r) => (r as { data?: string | null } | undefined)?.data ?? null,
+        () => null
+      ),
+    shadowRootOf: (el) => {
+      try {
+        return chrome.dom?.openOrClosedShadowRoot(el) ?? null;
+      } catch {
+        return el.shadowRoot; // throws on non-HTML (SVG) elements
+      }
+    },
+  });
 
 customWindow.__captureKitPickElement = async (): Promise<unknown> => {
   const { promise, resolve, reject } = Promise.withResolvers<unknown>();

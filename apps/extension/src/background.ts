@@ -9,6 +9,7 @@ interface CaptureResponse {
   urls?: string[];
   count?: number;
   error?: string;
+  data?: string | null;
   mimeType?: string;
   base64?: string;
 }
@@ -256,7 +257,7 @@ async function injectSerializer(tabId: number): Promise<void> {
   });
 }
 
-async function runSerializer(tabId: number, scrollStitch: boolean): Promise<Capture> {
+async function runSerializer(tabId: number, scrollStitch: boolean, replica = false): Promise<Capture> {
   await injectSerializer(tabId);
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
@@ -275,7 +276,44 @@ async function runSerializer(tabId: number, scrollStitch: boolean): Promise<Capt
     throw new Error('Serializer returned empty execution result');
   }
 
-  return CaptureSchema.parse(execResult.result);
+  const capture = CaptureSchema.parse(execResult.result);
+  if (replica) capture.replica = await runReplica(tabId);
+  return capture;
+}
+
+async function runReplica(tabId: number): Promise<string> {
+  const [res] = await chrome.scripting.executeScript<string>({
+    target: { tabId },
+    func: () => {
+      const w = window as unknown as { __captureKitReplica?: () => Promise<string> };
+      if (!w.__captureKitReplica) throw new Error('Capture-kit replica is not available on page');
+      return w.__captureKitReplica();
+    },
+  });
+  if (typeof res?.result !== 'string') throw new Error('Replica capture returned nothing');
+  return res.result;
+}
+
+const MAX_ASSET_BYTES = 15 * 1024 * 1024;
+
+// Replica assets come through here: host permissions make CORS a non-issue.
+async function fetchAsset(url: string, as: unknown): Promise<string | null> {
+  if (!/^https?:/i.test(url)) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return null;
+    if (as === 'text') return await res.text();
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > MAX_ASSET_BYTES) return null;
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    let type = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
+    // <img> refuses SVG served as octet-stream (S3 and friends).
+    if (/\.svg(\?|#|$)/i.test(url) && type !== 'image/svg+xml') type = 'image/svg+xml';
+    return `data:${type};base64,${btoa(bin)}`;
+  } catch {
+    return null;
+  }
 }
 
 async function waitForLayout(tabId: number): Promise<void> {
@@ -298,8 +336,8 @@ async function waitForLayout(tabId: number): Promise<void> {
   });
 }
 
-async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean): Promise<Capture[]> {
-  const primary = await runSerializer(tabId, scrollStitch);
+async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean, replica = false): Promise<Capture[]> {
+  const primary = await runSerializer(tabId, scrollStitch, replica);
   if (!dualTheme) return [primary];
   try {
     await chrome.scripting.executeScript({
@@ -324,7 +362,7 @@ async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme
       },
     });
     await waitForLayout(tabId);
-    const alt = await runSerializer(tabId, scrollStitch);
+    const alt = await runSerializer(tabId, scrollStitch, replica);
     return [primary, alt];
   } catch (error) {
     primary.diagnostics ??= [];
@@ -589,7 +627,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             }
           }
           if (liveTabId !== undefined) {
-            captures = await captureWithThemes(liveTabId, session.scrollStitch, session.dualTheme);
+            captures = await captureWithThemes(liveTabId, session.scrollStitch, session.dualTheme, session.format === 'html');
           } else {
             if (captureWindowId === undefined) {
               const win = await chrome.windows.create({ url: 'about:blank', focused: false, type: 'popup', width: 1280, height: 900 });
@@ -607,7 +645,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             }
             if (control.cancelled) break;
             await fitViewport(captureWindowId, captureTabId, job.width);
-            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme);
+            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html');
             if (liveStateUnavailable) {
               for (const capture of captures) {
                 capture.diagnostics ??= [];
@@ -737,19 +775,13 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
     return true;
   }
 
+  // One handler for both callers: the replica asks for `data` (a data: URL or
+  // text), the serializer's CORS fallback reads `mimeType` + `base64`.
   if (action === 'fetch-asset' && typeof request.url === 'string') {
-    fetch(request.url, { signal: AbortSignal.timeout(6000) })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        if (blob.size > 8 * 1024 * 1024) throw new Error('Asset over 8 MB cap');
-        const buffer = await blob.arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        sendResponse({ success: true, mimeType: blob.type || 'image/png', base64: btoa(binary) });
-      })
-      .catch(fail);
+    fetchAsset(request.url, request.as).then((data) => {
+      const m = data?.match(/^data:([^;]+);base64,(.*)$/s);
+      sendResponse({ success: data !== null, data, mimeType: m?.[1], base64: m?.[2] });
+    });
     return true;
   }
   return false;

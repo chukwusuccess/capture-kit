@@ -2,6 +2,7 @@ node_modules/
 dist/
 .DS_Store
 *.local
+tools/fidelity/out/
 
 # Fidelity harness artifacts (regenerated per run)
 tools/fidelity/src/out/
