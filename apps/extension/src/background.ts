@@ -264,7 +264,7 @@ async function injectSerializer(tabId: number): Promise<void> {
   });
 }
 
-async function runSerializer(tabId: number, scrollStitch: boolean, replica = false, cachedReplica?: string): Promise<Capture> {
+async function runSerializer(tabId: number, scrollStitch: boolean, replica = false): Promise<Capture> {
   const injectStart = performance.now();
   await injectSerializer(tabId);
   const injectMs = roundTiming(performance.now() - injectStart);
@@ -294,13 +294,9 @@ async function runSerializer(tabId: number, scrollStitch: boolean, replica = fal
 
   let replicaMs = 0;
   if (replica) {
-    if (cachedReplica !== undefined) {
-      capture.replica = cachedReplica;
-    } else {
-      const replicaStart = performance.now();
-      capture.replica = await runReplica(tabId);
-      replicaMs = roundTiming(performance.now() - replicaStart);
-    }
+    const replicaStart = performance.now();
+    capture.replica = await runReplica(tabId);
+    replicaMs = roundTiming(performance.now() - replicaStart);
   }
   lastRunTimings = { injectMs, serializeMs, replicaMs };
   return capture;
@@ -320,25 +316,33 @@ async function runReplica(tabId: number): Promise<string> {
 }
 
 const MAX_ASSET_BYTES = 15 * 1024 * 1024;
+let replicaAssetCache: Map<string, Promise<string | null>> | null = null;
 
 // Replica assets come through here: host permissions make CORS a non-issue.
 async function fetchAsset(url: string, as: unknown): Promise<string | null> {
   if (!/^https?:/i.test(url)) return null;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    if (as === 'text') return await res.text();
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    if (bytes.byteLength > MAX_ASSET_BYTES) return null;
-    let bin = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    let type = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
-    // <img> refuses SVG served as octet-stream (S3 and friends).
-    if (/\.svg(\?|#|$)/i.test(url) && type !== 'image/svg+xml') type = 'image/svg+xml';
-    return `data:${type};base64,${btoa(bin)}`;
-  } catch {
-    return null;
-  }
+  const cacheKey = `${as === 'text' ? 'text' : 'data'}:${url}`;
+  const cached = replicaAssetCache?.get(cacheKey);
+  if (cached) return cached;
+  const pending = (async (): Promise<string | null> => {
+    try {
+      const res = await fetch(url, { cache: 'force-cache', signal: AbortSignal.timeout(15000) });
+      if (!res.ok) return null;
+      if (as === 'text') return await res.text();
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength > MAX_ASSET_BYTES) return null;
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      let type = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
+      // <img> refuses SVG served as octet-stream (S3 and friends).
+      if (/\.svg(\?|#|$)/i.test(url) && type !== 'image/svg+xml') type = 'image/svg+xml';
+      return `data:${type};base64,${btoa(bin)}`;
+    } catch {
+      return null;
+    }
+  })();
+  replicaAssetCache?.set(cacheKey, pending);
+  return pending;
 }
 
 async function waitForLayout(tabId: number): Promise<void> {
@@ -361,8 +365,8 @@ async function waitForLayout(tabId: number): Promise<void> {
   });
 }
 
-async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean, replica = false, cachedReplica?: string): Promise<Capture[]> {
-  const primary = await runSerializer(tabId, scrollStitch, replica, cachedReplica);
+async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean, replica = false): Promise<Capture[]> {
+  const primary = await runSerializer(tabId, scrollStitch, replica);
   if (!dualTheme) return [primary];
   try {
     await chrome.scripting.executeScript({
@@ -618,7 +622,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
   let captureWindowId: number | undefined;
   let captureTabId: number | undefined;
   let loadedUrl = '';
-  const replicaByUrl = new Map<string, string>();
+  replicaAssetCache = new Map();
   try {
     for (const job of session.jobs) {
       if (job.status === 'completed') continue;
@@ -677,11 +681,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             const fitStart = performance.now();
             await fitViewport(captureWindowId, captureTabId, job.width);
             fitViewportMs = roundTiming(performance.now() - fitStart);
-            const cachedReplica = session.format === 'html' ? replicaByUrl.get(job.url) : undefined;
-            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html', cachedReplica);
-            if (session.format === 'html' && cachedReplica === undefined && captures[0]?.replica !== undefined) {
-              replicaByUrl.set(job.url, captures[0].replica);
-            }
+            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html');
             if (liveStateUnavailable) {
               for (const capture of captures) {
                 capture.diagnostics ??= [];
@@ -735,6 +735,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
     }
     sendToPopup({ type: 'run-error', sessionId: session.id, error: message });
   } finally {
+    replicaAssetCache = null;
     if (captureWindowId !== undefined) await chrome.windows.remove(captureWindowId).catch(() => undefined);
   }
 }
