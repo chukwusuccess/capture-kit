@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Capture Kit Native Import</title>
+  <style>
+    :root { color-scheme: light dark; --surface: var(--figma-color-bg, #fff); --ink: var(--figma-color-text, #202124); --muted: var(--figma-color-text-secondary, #60666d); --line: var(--figma-color-border, #d8dce1); --blue: var(--figma-color-bg-brand, #1459cb); --on-blue: var(--figma-color-text-onbrand, #fff); --space: 4px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--surface); color: var(--ink); font: 13px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { padding: calc(var(--space) * 5); }
+    header { border-bottom: 1px solid var(--line); margin-bottom: 20px; padding-bottom: 16px; }
+    h1 { margin: 0 0 4px; font-size: 18px; line-height: 1.4; letter-spacing: -.3px; }
+    p { margin: 8px 0 16px; }
+    .eyebrow { margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; font-weight: 600; }
+    .muted, small { color: var(--muted); }
+    label { display: block; font-weight: 600; margin: 0 0 8px; }
+    input[type=file] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 4px; font: inherit; color: var(--ink); }
+    input::file-selector-button { margin-right: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+    small { display: block; margin-top: 8px; }
+    .actions { display: flex; gap: 8px; margin: 20px 0 12px; }
+    button { min-height: 36px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+    button.primary { flex: 1; border-color: var(--blue); background: var(--blue); color: var(--on-blue); }
+    button:disabled, input:disabled { opacity: .55; cursor: not-allowed; }
+    :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+    #status { min-height: 40px; padding: 8px 0; overflow-wrap: anywhere; }
+    details { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+    summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+    ul { margin: 8px 0; padding-left: 20px; }
+    li { margin-bottom: 8px; overflow-wrap: anywhere; }
+    code { font-size: 12px; overflow-wrap: anywhere; }
+    [hidden] { display: none !important; }
+    #diagnostics { max-height: 220px; overflow-y: auto; }
+    .tag { display: block; color: var(--muted); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Capture Kit / Figma development plugin</p>
+      <h1>Import editable native layers</h1>
+      <p class="muted">Choose the <strong>Figma Native</strong> JSON downloaded by the Capture Kit extension.</p>
+    </header>
+    <form id="import-form">
+      <label for="capture-file">Capture file</label>
+      <input id="capture-file" type="file" accept=".json,.capture.json,application/json" aria-describedby="file-help" required>
+      <small id="file-help">Accepts one Capture or an array of Captures. Images must be embedded in the capture; this plugin makes no network requests.</small>
+      <div class="actions">
+        <button class="primary" id="import-button" type="submit" disabled>Import capture</button>
+        <button id="close-button" type="button">Close</button>
+      </div>
+    </form>
+    <div id="status" role="status" aria-live="polite">Select a .capture.json file to begin.</div>
+    <details id="diagnostic-panel" hidden>
+      <summary id="diagnostic-title">Import diagnostics</summary>
+      <ul id="diagnostics"></ul>
+    </details>
+    <details>
+      <summary>What stays editable?</summary>
+      <p>Frames, text, bitmap image fills, colors, borders and SVG paths become native Figma layers. Supported horizontal and vertical flex containers become real Auto Layout frames with fixed captured dimensions and cross-axis fill for stretch.</p>
+      <p>Grid, wrapped flex, transforms and complex CSS use captured positioned bounds instead. Flex whose captured child bounds disagree with its layout metadata also stays positioned. Warnings identify omitted or approximate effects, asset failures and actual font substitutions.</p>
+      <p>Available Figma fonts are loaded before text is created. Embedded web fonts cannot be installed automatically. Figma text shaping and line wrapping can differ from the browser.</p>
+      <p><strong>SVG clipboard is a separate export.</strong> Pasting the extension's Figma SVG clipboard format does not create native Auto Layout. This plugin imports Capture JSON, not clipboard SVG or HTML.</p>
+    </details>
+    <details>
+      <summary>Development installation</summary>
+      <p>From the repository, install dependencies and run <code>pnpm --filter @capture-kit/figma-plugin build</code> after building its workspace dependencies. In Figma, use <strong>Plugins / Development / Import plugin from manifest</strong> and select <code>apps/figma-plugin/dist/manifest.json</code>.</p>
+      <p>The build emits self-contained <code>code.js</code>, <code>ui.html</code> and <code>manifest.json</code>. No Figma access token or server is required. Real native rendering still needs verification inside a Figma design file.</p>
+    </details>
+  </main>
+  <script>
+    const fileInput = document.getElementById('capture-file');
+    const importButton = document.getElementById('import-button');
+    const closeButton = document.getElementById('close-button');
+    const status = document.getElementById('status');
+    const panel = document.getElementById('diagnostic-panel');
+    const list = document.getElementById('diagnostics');
+    let busy = false;
+    fileInput.addEventListener('change', () => {
+      importButton.disabled = !fileInput.files.length || busy;
+      status.textContent = fileInput.files.length ? `Ready to import ${fileInput.files[0].name}.` : 'Select a .capture.json file to begin.';
+    });
+    document.getElementById('import-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const file = fileInput.files[0];
+      if (!file || busy) return;
+      busy = true;
+      importButton.disabled = true;
+      fileInput.disabled = true;
+      closeButton.disabled = true;
+      panel.hidden = true;
+      list.replaceChildren();
+      status.textContent = 'Reading and validating capture...';
+      try {
+        const payload = JSON.parse(await file.text());
+        parent.postMessage({ pluginMessage: { type: 'import', payload } }, '*');
+      } catch (error) {
+        busy = false;
+        importButton.disabled = false;
+        fileInput.disabled = false;
+        closeButton.disabled = false;
+        status.textContent = `Cannot read capture JSON: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    });
+    closeButton.addEventListener('click', () => parent.postMessage({ pluginMessage: { type: 'close' } }, '*'));
+    window.addEventListener('message', (event) => {
+      if (event.source !== parent) return;
+      const message = event.data.pluginMessage;
+      if (!message || !['progress', 'complete', 'error'].includes(message.type)) return;
+      status.textContent = message.message;
+      if (message.type === 'progress') return;
+      busy = false;
+      importButton.disabled = !fileInput.files.length;
+      fileInput.disabled = false;
+      closeButton.disabled = false;
+      const diagnostics = Array.isArray(message.diagnostics) ? message.diagnostics : [];
+      list.replaceChildren();
+      for (const diagnostic of diagnostics) {
+        const item = document.createElement('li');
+        const text = document.createElement('span');
+        text.textContent = diagnostic.message;
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = `${diagnostic.severity || 'warning'} / ${diagnostic.code}${diagnostic.nodeId ? ` / ${diagnostic.nodeId}` : ''}`;
+        item.append(text, tag);
+        list.append(item);
+      }
+      panel.hidden = diagnostics.length === 0;
+      panel.open = diagnostics.length > 0;
+      document.getElementById('diagnostic-title').textContent = `${diagnostics.length} import diagnostic${diagnostics.length === 1 ? '' : 's'}`;
+      if (diagnostics.length) status.textContent += ' Review the diagnostics below.';
+    });
+  </script>
+</body>
+</html>

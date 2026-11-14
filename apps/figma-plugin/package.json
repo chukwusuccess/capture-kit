@@ -1,0 +1,18 @@
+{
+  "name": "@capture-kit/figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && node build.mjs"
+  },
+  "dependencies": {
+    "@capture-kit/destination-figma": "workspace:*",
+    "@capture-kit/model": "workspace:*"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "1.142.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  }
+}

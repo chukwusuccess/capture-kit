@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wrapped mixed typography</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:32px;background:#f7f3eb;color:#242626;font-family:Arial,sans-serif}main{max-width:940px;margin:auto}h1{font-family:Georgia,serif;font-size:42px;line-height:1.1;max-width:620px;margin:0 0 28px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:28px}article{border-top:3px solid #304e63;padding-top:18px}p{font-size:19px;line-height:1.65;margin:0 0 22px}strong{font-weight:800;color:#834629}em{font-family:Georgia,serif;font-size:23px}code{font:15px Courier,monospace;background:#e5e0d5;padding:2px 4px}small{font-size:12px;letter-spacing:1px;text-transform:uppercase}a{color:#285576;text-decoration:underline;text-decoration-thickness:2px}blockquote{margin:20px 0;padding:18px;border-left:4px solid #834629;font-family:Georgia,serif;font-size:24px;line-height:1.4;background:#ebe6db}.narrow{max-width:280px;letter-spacing:.15px}.pre{white-space:pre-wrap;font:14px/1.8 Courier,monospace;overflow-wrap:anywhere}footer{margin-top:28px;border-top:1px solid #aaa298;padding-top:16px}@media(max-width:600px){body{padding:22px}.columns{grid-template-columns:1fr;gap:20px}h1{font-size:34px}p{font-size:17px}}
+</style></head>
+<body><main>
+<small>Type specimen / wrapped inline runs</small><h1>A line does not end where an inline element does</h1>
+<div class="columns"><article><p>Ordinary text sits beside <strong>bold words that cross a line boundary</strong>, an <em>italic serif phrase</em>, and then ordinary text again. These runs must remain in their original reading order.</p><p>A <a href="#details">link with several wrapping words and an underline</a> should share its baseline with <code>inline_code()</code> rather than restarting a paragraph.</p><blockquote>Different font metrics reveal the small layout mistakes hidden by short labels.</blockquote></article>
+<article id="details"><p class="narrow">Narrow measure contains <strong>weight changes</strong> and <em>larger inline glyphs</em> across many lines, with H<sub>2</sub>O and x<sup>2</sup> at the baseline edges.</p><p><span style="font-size:28px;color:#304e63">Large opening words</span> continue at the normal body size with <s>removed text</s> and <u>an explicit underline</u>.</p><p class="pre">Preserved line one
+  indented line two
+capture.reference.wrapped-typography-with-a-long-token</p></article></div>
+<footer><small>Typography fixture complete</small></footer>
+</main></body></html>

@@ -11,10 +11,15 @@
  * - Outer and inner box shadows (blur, offset, spread, color).
  * - Text layers with attributedString, color, and font metrics.
  * - Corner radii on rectangle layers.
+ * - Editable SVG shape paths, compound contours, and viewBox meet-fit scaling.
+ *   All SVG path commands are normalized to cubic Sketch geometry; elliptic
+ *   arcs use cubic segments spanning at most 90 degrees. Invalid paths reject
+ *   export with the node/path identity instead of silently producing placeholders.
  */
 
 import JSZip from 'jszip';
 import type { Capture, CornerRadius, Fill, Node, Shadow, Stroke } from '@capture-kit/model';
+import { parseVectorPath, sketchContourPoints } from './vector-path.js';
 
 interface SketchColor {
   _class: 'color';
@@ -297,6 +302,76 @@ function edgeLineLayers(node: Node, offsetX: number, offsetY: number): Array<Rec
   return out;
 }
 
+function convertVectorLayer(
+  node: Node,
+  assets: Capture['assets'],
+  frame: Record<string, unknown>
+): Record<string, unknown> {
+  const vb = node.vectorViewBox;
+  const scale = vb ? Math.min(node.box.w / vb.width, node.box.h / vb.height) : 1;
+  const dx = vb ? (node.box.w - vb.width * scale) / 2 : 0;
+  const dy = vb ? (node.box.h - vb.height * scale) / 2 : 0;
+  const base = {
+    booleanOperation: -1, isFixedToViewport: false,
+    isFlippedHorizontal: false, isFlippedVertical: false, isLocked: false,
+    isVisible: true, layerListExpandedType: 0, nameIsFixed: false,
+    resizingConstraint: 63, resizingType: 0, rotation: 0,
+    shouldBreakMaskChain: false, hasClippingMask: false,
+    clippingMaskMode: 0, isTemplate: false,
+  };
+  const localFrame = {
+    _class: 'rect', constrainProportions: false,
+    x: 0, y: 0, width: node.box.w, height: node.box.h,
+  };
+  const emptyStyle = {
+    _class: 'style', endMarkerType: 0, miterLimit: 10, startMarkerType: 0,
+    windingRule: 0, fills: [], borders: [], shadows: [], innerShadows: [],
+  };
+  const layers = node.vectorPaths!.map((path, index) => {
+    try {
+      const contours = parseVectorPath(path.d);
+      const fill = path.fill ?? '#000000';
+      const fills: Fill[] = fill === 'none' ? [] : [{ type: 'solid', color: fill }];
+      const strokeWidth = (path.strokeWidth ?? 1) * scale;
+      const strokes: Stroke[] = path.stroke && path.stroke !== 'none' && strokeWidth > 0
+        ? [{ color: path.stroke, width: strokeWidth, style: 'solid' }] : [];
+      const { borders, borderOptions } = convertStrokes(strokes);
+      // SVG strokes straddle the path, unlike CSS borders.
+      for (const border of borders) border.position = 0;
+      return {
+        ...base, _class: 'shapeGroup', do_objectID: `${node.id}-path-${index + 1}`,
+        name: `Path ${index + 1}`, frame: localFrame, windingRule: 0,
+        hasClickThrough: false, groupLayout: { _class: 'MSImmutableFreeformGroupLayout' },
+        style: {
+          ...emptyStyle, fills: convertFills(fills, assets), borders,
+          ...(borderOptions ? { borderOptions } : {}),
+        },
+        layers: contours.map((contour, contourIndex) => ({
+          ...base, _class: 'shapePath',
+          do_objectID: `${node.id}-path-${index + 1}-contour-${contourIndex + 1}`,
+          name: `Contour ${contourIndex + 1}`, frame: localFrame,
+          style: emptyStyle, edited: true, isClosed: contour.closed,
+          pointRadiusBehaviour: 1,
+          points: sketchContourPoints(contour, node.box.w, node.box.h, scale, dx, dy),
+        })),
+      };
+    } catch (error) {
+      throw new Error(`Cannot export Sketch vector ${node.id}, path ${index + 1}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+  const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
+  return {
+    ...base, _class: 'group', do_objectID: node.id,
+    name: node.name || `Vector ${node.id}`, frame,
+    hasClickThrough: false, groupLayout: { _class: 'MSImmutableFreeformGroupLayout' },
+    style: {
+      ...emptyStyle, shadows: outerShadows, innerShadows,
+      contextSettings: { _class: 'graphicsContextSettings', blendMode: 0, opacity: node.style.opacity ?? 1 },
+    },
+    layers,
+  };
+}
+
 function convertNodeToSketchLayer(
   node: Node,
   assets: Capture['assets'],
@@ -428,6 +503,10 @@ function convertNodeToSketchLayer(
       lineSpacingBehaviour: 2,
       textBehaviour: 1,
     };
+  }
+
+  if (node.type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
+    return convertVectorLayer(node, assets, commonFrame);
   }
 
   // Handle image and vector types: bitmap layer if asset is present

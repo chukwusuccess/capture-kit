@@ -1,7 +1,7 @@
 /**
- * Fidelity harness: screenshot the original page, serialize it with the real
- * extension bundle, render the HTML export, screenshot that, then pixel-diff
- * both in Chrome's canvas (no Node-side image deps).
+ * Fidelity harness: serialize the settled original with the real extension
+ * bundle, screenshot that same page state, render the HTML export, then
+ * pixel-diff both in Chrome's canvas (no Node-side image deps).
  *
  * Driven over raw CDP — Node's global WebSocket, zero npm dependencies.
  */
@@ -10,8 +10,9 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CaptureSchema } from '../../../packages/model/src/index.js';
+import { CaptureSchema, type Capture } from '../../../packages/model/src/index.js';
 import { modelToHtml } from '../../../packages/destinations/html/src/index.js';
+import type { SerializeOptions } from '../../../packages/serializer/src/index.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CONTENT_JS = join(HERE, '../../../apps/extension/dist/content.js');
@@ -19,6 +20,12 @@ const CONTENT_JS = join(HERE, '../../../apps/extension/dist/content.js');
 export interface FidelityOptions {
   url: string;
   width?: number;
+  height?: number;
+  mobile?: boolean;
+  /** Passed unchanged to the shipped serializer, including readiness budgets. */
+  serializeOptions?: SerializeOptions;
+  /** Fixture completion markers that must exist in serialized text. */
+  requiredText?: string[];
   /** Per-channel delta (0-255) below which pixels count as matching. */
   tolerance?: number;
   outDir?: string;
@@ -28,6 +35,11 @@ export interface FidelityOptions {
 export interface Hotspot {
   cell: string;
   mismatchPct: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  mismatchedPixels: number;
 }
 
 export interface FidelityReport {
@@ -37,13 +49,21 @@ export interface FidelityReport {
   strictScore: number;
   mismatchedPixels: number;
   totalPixels: number;
+  /** Pixels where either screenshot has an RGB channel below 250; excludes near-white padding. */
+  nonWhitePixels: number;
+  /** Informational only; not semantic segmentation or a native-destination metric. */
+  nonWhiteScore: number;
   width: number;
   height: number;
   widthDelta: number;
   heightDelta: number;
   nodeCount: number;
   hotspots: Hotspot[];
-  files: { original: string; rendered: string; mask: string; html: string };
+  destination: 'html';
+  diagnostics: NonNullable<Capture['diagnostics']>;
+  sourceSize: { width: number; height: number };
+  renderedSize: { width: number; height: number };
+  files: { original: string; rendered: string; mask: string; html: string; capture: string };
 }
 
 interface CdpMessage {
@@ -135,9 +155,15 @@ async function launchChrome(timeoutMs: number): Promise<{ port: number; proc: Ch
     { stdio: 'ignore' }
   );
   proc.on('exit', () => rmSync(userDataDir, { recursive: true, force: true }));
+  let launchError: Error | undefined;
+  proc.on('error', (error: Error) => {
+    launchError = error;
+    rmSync(userDataDir, { recursive: true, force: true });
+  });
 
   const deadline = Date.now() + timeoutMs;
   for (;;) {
+    if (launchError) throw new Error(`Chrome launch failed: ${launchError.message}`);
     if (proc.exitCode !== null) throw new Error(`Chrome exited early (code ${proc.exitCode})`);
     try {
       const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -145,7 +171,10 @@ async function launchChrome(timeoutMs: number): Promise<{ port: number; proc: Ch
     } catch {
       /* not up yet */
     }
-    if (Date.now() > deadline) throw new Error('Chrome DevTools did not come up in time');
+    if (Date.now() > deadline) {
+      proc.kill('SIGKILL');
+      throw new Error('Chrome DevTools did not come up in time');
+    }
     await new Promise((r) => setTimeout(r, 150));
   }
   return { port, proc };
@@ -168,7 +197,7 @@ async function evaluate<T>(
   return r.result?.value as T;
 }
 
-async function waitForPage(cdp: Cdp, session: string): Promise<void> {
+async function waitForPage(cdp: Cdp, session: string, settleFonts = true): Promise<void> {
   const deadline = Date.now() + 20_000;
   for (;;) {
     const state = await evaluate<string>(cdp, session, 'document.readyState');
@@ -176,14 +205,23 @@ async function waitForPage(cdp: Cdp, session: string): Promise<void> {
     if (Date.now() > deadline) throw new Error('Page load timeout');
     await new Promise((r) => setTimeout(r, 100));
   }
-  // Fonts must be settled or text scores are noise.
-  await evaluate<number>(cdp, session, 'document.fonts.ready.then(() => 1)', true);
+  // Source fonts are handled by serializer readiness budgets; rendered fonts
+  // must settle before raster comparison.
+  if (settleFonts) await evaluate<number>(cdp, session, 'document.fonts.ready.then(() => 1)', true);
 }
 
 async function screenshot(cdp: Cdp, session: string): Promise<string> {
+  const { cssContentSize } = await cdp.send<{ cssContentSize: { width: number; height: number } }>(
+    'Page.getLayoutMetrics', {}, session
+  );
   const r = await cdp.send<{ data: string }>(
     'Page.captureScreenshot',
-    { format: 'png', captureBeyondViewport: true },
+    {
+      format: 'png',
+      captureBeyondViewport: true,
+      fromSurface: true,
+      clip: { x: 0, y: 0, width: cssContentSize.width, height: cssContentSize.height, scale: 1 },
+    },
     session
   );
   return r.data;
@@ -194,11 +232,15 @@ interface DiffResult {
   strict: number;
   mismatched: number;
   total: number;
+  nonWhitePixels: number;
+  nonWhiteScore: number;
   width: number;
   height: number;
   widthDelta: number;
   heightDelta: number;
   hotspots: Hotspot[];
+  sourceSize: { width: number; height: number };
+  renderedSize: { width: number; height: number };
   mask: string;
 }
 
@@ -231,6 +273,8 @@ const DIFF_FN = `async (aB64, bB64, tolerance) => {
   const out = mctx.createImageData(w, h);
   let mismatched = 0;
   let strict = 0;
+  let nonWhitePixels = 0;
+  let nonWhiteMismatched = 0;
   const cellsX = 8, cellsY = 8;
   const cellHits = new Array(cellsX * cellsY).fill(0);
   const cellTotals = new Array(cellsX * cellsY).fill(0);
@@ -242,6 +286,10 @@ const DIFF_FN = `async (aB64, bB64, tolerance) => {
       Math.abs(da[p + 1] - db[p + 1]),
       Math.abs(da[p + 2] - db[p + 2])
     );
+    if (Math.min(da[p], da[p + 1], da[p + 2], db[p], db[p + 1], db[p + 2]) < 250) {
+      nonWhitePixels++;
+      if (delta > tolerance) nonWhiteMismatched++;
+    }
     const px = (p / 4) % w;
     const py = Math.floor((p / 4) / w);
     const cell = Math.min(cellsY - 1, Math.floor(py / ch)) * cellsX +
@@ -264,6 +312,11 @@ const DIFF_FN = `async (aB64, bB64, tolerance) => {
     .map((hits, i) => ({
       cell: 'r' + Math.floor(i / cellsX) + 'c' + (i % cellsX),
       mismatchPct: cellTotals[i] ? Math.round((hits / cellTotals[i]) * 1000) / 10 : 0,
+      x: (i % cellsX) * cw,
+      y: Math.floor(i / cellsX) * ch,
+      width: Math.max(0, Math.min(cw, w - (i % cellsX) * cw)),
+      height: Math.max(0, Math.min(ch, h - Math.floor(i / cellsX) * ch)),
+      mismatchedPixels: hits,
     }))
     .filter((s) => s.mismatchPct > 0)
     .sort((x, y) => y.mismatchPct - x.mismatchPct)
@@ -273,10 +326,14 @@ const DIFF_FN = `async (aB64, bB64, tolerance) => {
     strict: Math.round((1 - strict / total) * 10000) / 100,
     mismatched,
     total,
+    nonWhitePixels,
+    nonWhiteScore: nonWhitePixels ? Math.round((1 - nonWhiteMismatched / nonWhitePixels) * 10000) / 100 : 0,
     width: w,
     height: h,
     widthDelta: Math.abs(a.naturalWidth - b.naturalWidth),
     heightDelta: Math.abs(a.naturalHeight - b.naturalHeight),
+    sourceSize: { width: a.naturalWidth, height: a.naturalHeight },
+    renderedSize: { width: b.naturalWidth, height: b.naturalHeight },
     hotspots,
     mask: mask.toDataURL('image/png').split(',')[1],
   };
@@ -312,32 +369,47 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
     await cdp.send('Page.enable', {}, s);
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width,
-      height: 800,
+      height: opts.height ?? 800,
       deviceScaleFactor: 1,
-      mobile: false,
+      mobile: opts.mobile ?? false,
     }, s);
-    await cdp.send('Page.navigate', { url: opts.url }, s);
-    await waitForPage(cdp, s);
-    const shotOriginal = await screenshot(cdp, s);
+    const navigation = await cdp.send<{ errorText?: string }>('Page.navigate', { url: opts.url }, s);
+    if (navigation.errorText) throw new Error(`Page navigation failed: ${navigation.errorText}`);
+    await waitForPage(cdp, s, false);
 
     // Serialize with the real extension bundle — the shipped artifact.
     await cdp.send('Runtime.evaluate', { expression: contentJs }, s);
     const captureJson = await evaluate<unknown>(
       cdp,
       s,
-      'window.__captureKitSerialize({ scrollStitch: false }).then(c => JSON.stringify(c))',
+      `window.__captureKitSerialize(${JSON.stringify(opts.serializeOptions ?? { scrollStitch: false })}).then(c => JSON.stringify(c))`,
       true
     );
     const capture = CaptureSchema.parse(JSON.parse(String(captureJson)));
+    // Readiness can grow the page. The reference must be taken AFTER it, not
+    // before lazy sections exist. Do not scroll nested surfaces or reload here.
+    await evaluate(cdp, s, '(() => { const { promise, resolve } = Promise.withResolvers(); requestAnimationFrame(() => requestAnimationFrame(resolve)); return promise; })()', true);
+    const shotOriginal = await screenshot(cdp, s);
+    const originalPath = join(outDir, 'original.png');
+    const capturePath = join(outDir, 'capture.json');
+    writeFileSync(originalPath, Buffer.from(shotOriginal, 'base64'));
+    writeFileSync(capturePath, JSON.stringify(capture, null, 2));
+    const capturedText = capture.nodes.map((node) => node.text?.content ?? '').join('\n');
+    for (const marker of opts.requiredText ?? []) {
+      if (!capturedText.includes(marker)) {
+        throw new Error(`Fixture incomplete: serialized text is missing ${JSON.stringify(marker)} (see ${capturePath})`);
+      }
+    }
 
     // Render exactly what the HTML destination ships, on a neutral page shell.
     const canvas = modelToHtml(capture, { standalone: false, title: 'fidelity render' });
-    const renderHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}body{background:#ffffff;width:${capture.frame.width}px}</style></head><body>${canvas}</body></html>`;
+    const renderHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0}body{background:#ffffff;width:${capture.frame.width}px}</style></head><body>${canvas}</body></html>`;
     const renderPath = join(outDir, 'render.html');
     writeFileSync(renderPath, renderHtml);
 
     await cdp.send('Page.navigate', { url: `file://${renderPath}` }, s);
     await waitForPage(cdp, s);
+    await evaluate(cdp, s, `Promise.all(Array.from(document.images, img => img.decode())).then(() => { const { promise, resolve } = Promise.withResolvers(); requestAnimationFrame(() => requestAnimationFrame(resolve)); return promise; })`, true);
     const shotRendered = await screenshot(cdp, s);
 
     // Pixel diff in-page: both PNGs as data URLs on a blank document.
@@ -349,10 +421,8 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
       true
     );
 
-    const originalPath = join(outDir, 'original.png');
     const renderedPath = join(outDir, 'rendered.png');
     const maskPath = join(outDir, 'diff-mask.png');
-    writeFileSync(originalPath, Buffer.from(shotOriginal, 'base64'));
     writeFileSync(renderedPath, Buffer.from(shotRendered, 'base64'));
     writeFileSync(maskPath, Buffer.from(diff.mask, 'base64'));
 
@@ -361,13 +431,19 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
       strictScore: diff.strict,
       mismatchedPixels: diff.mismatched,
       totalPixels: diff.total,
+      nonWhitePixels: diff.nonWhitePixels,
+      nonWhiteScore: diff.nonWhiteScore,
       width: diff.width,
       height: diff.height,
       widthDelta: diff.widthDelta,
       heightDelta: diff.heightDelta,
       nodeCount: capture.nodes.length,
       hotspots: diff.hotspots,
-      files: { original: originalPath, rendered: renderedPath, mask: maskPath, html: renderPath },
+      destination: 'html',
+      diagnostics: capture.diagnostics ?? [],
+      sourceSize: diff.sourceSize,
+      renderedSize: diff.renderedSize,
+      files: { original: originalPath, rendered: renderedPath, mask: maskPath, html: renderPath, capture: capturePath },
     };
     writeFileSync(join(outDir, 'report.json'), JSON.stringify(report, null, 2));
     return report;

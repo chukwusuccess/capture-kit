@@ -24,13 +24,13 @@ async function main(): Promise<void> {
 
   console.log(report);
 
+  assert.ok(report.nodeCount > 20, `suspiciously few nodes: ${report.nodeCount}`);
   assert.ok(
     report.score >= 90,
     `fidelity score ${report.score}% below 90% floor (see ${report.files.mask})`
   );
   assert.ok(report.widthDelta === 0, `width delta ${report.widthDelta}px`);
   assert.ok(report.heightDelta <= 1, `height delta ${report.heightDelta}px`);
-  assert.ok(report.nodeCount > 20, `suspiciously few nodes: ${report.nodeCount}`);
   // Worst region must not be catastrophically broken either.
   if (report.hotspots.length > 0) {
     assert.ok(

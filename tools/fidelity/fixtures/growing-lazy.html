@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Growing lazy page</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef2f6;color:#182334;font-family:Arial,sans-serif}header{padding:28px;background:#182334;color:white}h1{margin:0 0 12px;font-size:30px}p{line-height:1.5}main{padding:24px;display:grid;gap:20px}.batch{height:660px;padding:28px;background:#fff;border:2px solid #51749d;border-radius:12px;display:flex;flex-direction:column;justify-content:space-between}.batch h2{font-size:26px;margin:0}.batch p{max-width:520px}.batch:nth-child(even){background:#dbe9ef}img{width:200px;height:100px;max-width:100%}footer{padding:28px;background:#183b4a;color:white}
+</style>
+</head>
+<body>
+<header><h1>Growing field notes</h1><p>Three bounded batches are revealed only by reaching the current page bottom.</p></header>
+<main id="feed"><section class="batch"><h2>Batch 0: initial surface</h2><p>The reference must include the later batches, not this initial shorter document.</p></section></main>
+<footer id="end">Scroll to reveal the next batch</footer>
+<script>
+let batch = 0;
+let pending = false;
+function reveal() {
+  if (pending || batch === 3 || scrollY + innerHeight < document.documentElement.scrollHeight - 120) return;
+  pending = true;
+  setTimeout(() => {
+    batch += 1;
+    const section = document.createElement('section');
+    section.className = 'batch';
+    const title = document.createElement('h2');
+    title.textContent = 'Batch ' + batch + ': lazy surface';
+    const note = document.createElement('p');
+    note.textContent = 'Revealed content has a different height and a lazily decoded local image. Batch number ' + batch + '.';
+    const image = document.createElement('img');
+    image.loading = 'lazy';
+    image.alt = 'Local geometric illustration';
+    image.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="#183b4a"/><circle cx="100" cy="50" r="34" fill="#f2b46e"/></svg>');
+    section.append(title, note, image);
+    document.getElementById('feed').append(section);
+    document.getElementById('end').textContent = batch === 3 ? 'Lazy fixture complete: batch 3' : 'Scroll to reveal the next batch';
+    pending = false;
+  }, 25);
+}
+addEventListener('scroll', reveal, {passive:true});
+</script>
+</body>
+</html>

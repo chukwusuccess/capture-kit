@@ -11,7 +11,8 @@
     }
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsx test.ts"
   },
   "dependencies": {
     "@capture-kit/model": "workspace:*",
