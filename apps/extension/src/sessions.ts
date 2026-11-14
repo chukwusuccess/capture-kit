@@ -49,6 +49,7 @@ export const SESSION_INDEX_KEY = 'capture-kit:sessions:v1';
 export const MAX_SAVED_SESSIONS = 8;
 const resultKey = (sessionId: string, jobId: string): string => `capture-kit:result:${sessionId}:${jobId}`;
 const sessionAssetsKey = (sessionId: string): string => `capture-kit:assets:${sessionId}`;
+const sessionAssetKey = (sessionId: string, hash: string): string => `capture-kit:asset:${sessionId}:${hash}`;
 
 function hashAsset(asset: Capture['assets'][string]): string {
   const s = `${asset.kind}|${asset.mimeType}|${asset.base64}`;
@@ -218,10 +219,10 @@ export class CaptureSessionStore {
       // rejection must leave every previously persisted capture untouched.
       await this.save(index);
       try {
-        const expiredKeys = expired.flatMap((item) => [
-          sessionAssetsKey(item.id),
+        const expiredKeys = (await Promise.all(expired.map(async (item) => [
+          ...(await this.collectSessionAssetKeys(item.id, item.jobs)),
           ...item.jobs.map((job) => resultKey(item.id, job.id)),
-        ]);
+        ]))).flat();
         if (expiredKeys.length) await this.storage.remove(expiredKeys);
       } catch (error) {
         session.status = 'interrupted';
@@ -280,27 +281,27 @@ export class CaptureSessionStore {
         if (!hasAssets) {
           await this.storage.set({ [resultKey(id, jobId)]: { completedAt: this.now(), captures } satisfies JobResult });
         } else {
-          const aKey = sessionAssetsKey(id);
-          const existing = ((await this.storage.get(aKey))[aKey] as Record<string, Capture['assets'][string]> | undefined) ?? {};
-          let added = false;
+          const needed = new Map<string, Capture['assets'][string]>();
           const assetRefs: Array<Record<string, string>> = [];
           const stripped = captures.map((c) => {
             const refs: Record<string, string> = {};
             for (const [k, asset] of Object.entries(c.assets)) {
               const h = hashAsset(asset);
               refs[k] = h;
-              if (!(h in existing)) {
-                existing[h] = asset;
-                added = true;
-              }
+              if (!needed.has(h)) needed.set(h, asset);
             }
             assetRefs.push(refs);
             return { ...c, assets: {} };
           });
+          const assetKeys = [...needed.keys()].map((h) => sessionAssetKey(id, h));
+          const existing = assetKeys.length ? await this.storage.get(assetKeys) : {};
           const payload: Record<string, unknown> = {
             [resultKey(id, jobId)]: { completedAt: this.now(), captures: stripped, assetRefs } satisfies JobResult,
           };
-          if (added) payload[aKey] = existing;
+          for (const [h, asset] of needed) {
+            const k = sessionAssetKey(id, h);
+            if (!(k in existing)) payload[k] = asset;
+          }
           await this.storage.set(payload);
         }
       } catch (error) {
@@ -390,25 +391,49 @@ export class CaptureSessionStore {
     });
   }
 
+  private async collectSessionAssetKeys(sessionId: string, jobs: CaptureJob[]): Promise<string[]> {
+    const jobKeys = jobs.map((job) => resultKey(sessionId, job.id));
+    const results = jobKeys.length ? await this.storage.get(jobKeys) : {};
+    const hashes = new Set<string>();
+    for (const key of jobKeys) {
+      const result = results[key] as JobResult | undefined;
+      for (const refs of result?.assetRefs ?? []) {
+        for (const h of Object.values(refs)) hashes.add(h);
+      }
+    }
+    return [sessionAssetsKey(sessionId), ...[...hashes].map((h) => sessionAssetKey(sessionId, h))];
+  }
+
   getCaptures(id: string, selectedJobIds?: string[]): Promise<Capture[]> {
     return this.operation(async (index) => {
       const session = this.session(index, id);
       const selected = selectedJobIds ? new Set(selectedJobIds) : undefined;
       const jobs = session.jobs.filter((job) => job.status === 'completed' && (!selected || selected.has(job.id)));
       const keys = jobs.map((job) => resultKey(id, job.id));
-      const aKey = sessionAssetsKey(id);
-      const results = jobs.length ? await this.storage.get([...keys, aKey]) : {};
-      const sessionAssets = (results[aKey] as Record<string, Capture['assets'][string]> | undefined) ?? {};
-      return jobs.flatMap((job) => {
+      const results = jobs.length ? await this.storage.get(keys) : {};
+      const hashes = new Set<string>();
+      for (const job of jobs) {
         const result = results[resultKey(id, job.id)] as JobResult | undefined;
         if (!result || !Array.isArray(result.captures) || result.captures.length === 0) throw new Error('A saved capture is missing. No export was produced; resume this session to recover the job.');
+        for (const refs of result.assetRefs ?? []) {
+          for (const h of Object.values(refs)) hashes.add(h);
+        }
+      }
+      const aKey = sessionAssetsKey(id);
+      const assetData = hashes.size
+        ? await this.storage.get([aKey, ...[...hashes].map((h) => sessionAssetKey(id, h))])
+        : {};
+      const legacyAssets = (assetData[aKey] as Record<string, Capture['assets'][string]> | undefined) ?? {};
+      return jobs.flatMap((job) => {
+        const result = results[resultKey(id, job.id)] as JobResult;
         if (!result.assetRefs) return result.captures;
         return result.captures.map((c, idx) => {
           const refs = result.assetRefs?.[idx];
           if (!refs) return c;
           const assets: Capture['assets'] = { ...c.assets };
           for (const [k, h] of Object.entries(refs)) {
-            if (sessionAssets[h]) assets[k] = sessionAssets[h];
+            const asset = (assetData[sessionAssetKey(id, h)] as Capture['assets'][string] | undefined) ?? legacyAssets[h];
+            if (asset) assets[k] = asset;
           }
           return { ...c, assets };
         });
@@ -420,7 +445,8 @@ export class CaptureSessionStore {
     return this.operation(async (index) => {
       const session = this.session(index, id);
       if (isSessionActive(session)) throw new Error('Cancel the active session before discarding it');
-      await this.storage.remove([sessionAssetsKey(id), ...session.jobs.map((job) => resultKey(id, job.id))]);
+      const assetKeys = await this.collectSessionAssetKeys(id, session.jobs);
+      await this.storage.remove([...assetKeys, ...session.jobs.map((job) => resultKey(id, job.id))]);
       index.sessions = index.sessions.filter((item) => item.id !== id);
       try {
         await this.save(index);
