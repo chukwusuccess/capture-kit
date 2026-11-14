@@ -146,6 +146,7 @@ class MockElement extends MockNode {
   contains(_el: unknown): boolean {
     return false;
   }
+  dAttr = '';
   pointsAttr = '';
   getAttribute(attr: string): string | null {
     if (attr === 'src') return this.src;
