@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { serializeDocument, serializeElement, startElementPicker, triggerPageScroll, waitForImages } from './src/index.js';
+import { arrayBufferToBase64, serializeDocument, serializeElement, startElementPicker, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -789,6 +789,15 @@ async function runReadinessTests() {
     ]);
     assert.ok((capture.timings?.counts.textCharsMeasured ?? Infinity) < fullStr.length * 0.35,
       `Expected binary search rect calls < 35% of ${fullStr.length}, got ${capture.timings?.counts.textCharsMeasured}`);
+  }
+
+  // Chunked arrayBufferToBase64 matches Node Buffer.toString('base64') across 0 B, 1 B, 32 KB+1, and 3 MB.
+  for (const size of [0, 1, 32 * 1024 + 1, 3 * 1024 * 1024]) {
+    const bytes = new Uint8Array(size);
+    for (let i = 0; i < size; i++) bytes[i] = (i * 31 + 7) & 0xff;
+    const actual = await arrayBufferToBase64(bytes.buffer);
+    const expected = Buffer.from(bytes).toString('base64');
+    assert.strictEqual(actual, expected, `Base64 mismatch for ${size} bytes`);
   }
 }
 

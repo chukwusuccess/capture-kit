@@ -1255,14 +1255,13 @@ function extractSvgPaths(
 
 
 
-async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
+export async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.byteLength; i += 0x8000) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
   }
-  return btoa(binary);
+  return btoa(chunks.join(''));
 }
 
 function parseCornerRadius(computed: CSSStyleDeclaration): CornerRadius {
