@@ -619,6 +619,8 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
       await sessionStore.startJob(session.id, job.id);
       announceSession(session.id);
       let captures: Capture[];
+      let loadMs = 0;
+      let fitViewportMs = 0;
       try {
         if (session.mode === 'pick') {
           const tab = await chrome.tabs.get(session.tabId);
@@ -659,11 +661,15 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             }
             if (captureTabId === undefined) throw new Error('Capture tab is unavailable');
             if (loadedUrl !== job.url) {
+              const loadStart = performance.now();
               await loadInTab(captureTabId, job.url);
+              loadMs = roundTiming(performance.now() - loadStart);
               loadedUrl = job.url;
             }
             if (control.cancelled) break;
+            const fitStart = performance.now();
             await fitViewport(captureWindowId, captureTabId, job.width);
+            fitViewportMs = roundTiming(performance.now() - fitStart);
             captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html');
             if (liveStateUnavailable) {
               for (const capture of captures) {
@@ -698,6 +704,8 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
         url: job.url,
         width: job.width,
         format: session.format,
+        loadMs,
+        fitViewportMs,
         ...lastRunTimings,
         storageWriteMs,
         serializer: captures[0]?.timings?.stages ?? null,
