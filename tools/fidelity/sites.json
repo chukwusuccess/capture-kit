@@ -1,0 +1,33 @@
+[
+  {
+    "id": "marketing",
+    "url": "https://stripe.com",
+    "why": "gradients, transforms, heavy fonts"
+  },
+  {
+    "id": "saas",
+    "url": "https://linear.app",
+    "why": "dark UI, blur, dense components"
+  },
+  {
+    "id": "news",
+    "url": "https://www.bbc.com/news",
+    "why": "long page, many images, lazy load"
+  },
+  {
+    "id": "motion",
+    "url": "https://www.apple.com/iphone/",
+    "why": "scroll animation, huge images"
+  },
+  {
+    "id": "own",
+    "url": "http://127.0.0.1:4173/",
+    "why": "our real target",
+    "localDir": "~/orca/workspaces/Sales Canvas/sales-canvas-site"
+  },
+  {
+    "id": "fixture",
+    "url": "tools/fidelity/fixture.html",
+    "why": "control — must stay 100%"
+  }
+]
