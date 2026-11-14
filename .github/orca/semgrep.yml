@@ -25,8 +25,9 @@ rules:
     message: >-
       A table is created without "enable row level security" in the same migration. On Supabase that
       table is readable and writable by anyone with the public key. Enable RLS and add policies.
+    # Only Supabase migrations: on a self-hosted Postgres tables aren't exposed, so no RLS is normal.
     paths:
-      include: ["*.sql"]
+      include: ["**/supabase/**/*.sql"]
     pattern-regex: (?is)create\s+table\s+(?:if\s+not\s+exists\s+)?(?:"?public"?\.)?"?(\w+)"?\s*\((?!.*alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:"?public"?\.)?"?\1"?\s+enable\s+row\s+level\s+security)
 
   - id: orca-policy-allows-everyone-to-write

@@ -63,4 +63,10 @@ node "$here/browser-check.mjs" check http://127.0.0.1:4173 "$out/head.json" --sh
 if [ $base_ok = 1 ]; then
   node "$here/browser-check.mjs" check http://127.0.0.1:4174 "$out/base.json" --routes-from "$out/head.json" || rm -f "$out/base.json"
 fi
-node "$here/browser-check.mjs" compare "$out/base.json" "$out/head.json"
+node "$here/browser-check.mjs" compare "$out/base.json" "$out/head.json" && exit 0
+# A claimed exception (commit line "Orca-Exception: <reason>") reports instead of blocking; the
+# pipeline holds the PR for a human to approve it, as for the floor guard.
+if git log --format=%B "$mb..HEAD" | grep -qi '^Orca-Exception:'; then
+  echo "browser: findings above are covered by an Orca-Exception — a human must approve this PR"; exit 0
+fi
+exit 1
