@@ -28,6 +28,8 @@ export interface ImageReadinessOptions {
   timeoutMs?: number;
   /** Shared deadline per discovery pass, default 5000ms. */
   totalTimeoutMs?: number;
+  /** Stop waiting once no tracked image progresses for this long, default 300ms. */
+  idleMs?: number;
   /** Maximum pending browser decodes, default 8. */
   concurrency?: number;
   /** Optional explicit cap; all discovered images are considered by default. */
@@ -139,63 +141,145 @@ async function waitForImageElements(
 ): Promise<number> {
   const timeoutMs = boundedNumber(opts?.timeoutMs, 2500);
   const deadline = Math.min(Date.now() + boundedNumber(opts?.totalTimeoutMs, 5000), outerDeadline);
+  const idleMs = boundedNumber(opts?.idleMs, 300);
   const concurrency = Math.floor(boundedNumber(opts?.concurrency, 8, 1));
   const maxImages = opts?.maxImages === undefined ? Infinity : Math.floor(boundedNumber(opts.maxImages, Infinity));
   const images: HTMLImageElement[] = [];
   if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
   if (typeof root.querySelectorAll === 'function') images.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
   const doc = 'tagName' in root ? root.ownerDocument : root;
-  const viewportHeight = doc.defaultView?.innerHeight ?? 800;
-  const candidates = images.filter((img) => {
+  const view = doc.defaultView;
+  const viewportHeight = view?.innerHeight ?? 800;
+
+  const skippedReasons = new Map<string, number>();
+  const recordSkip = (reason: string) => {
+    skippedReasons.set(reason, (skippedReasons.get(reason) ?? 0) + 1);
+  };
+
+  const candidates: HTMLImageElement[] = [];
+  for (const img of images) {
     const source = resolveHighestDpiSrc(img);
-    if (!source || state.sources.get(img) === source) return false;
-    if (!visibleOnly) return true;
+    if (!source) {
+      recordSkip('no-source');
+      continue;
+    }
+    if (state.sources.get(img) === source) continue;
+    const cs = view?.getComputedStyle?.(img);
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) {
+      recordSkip('hidden');
+      continue;
+    }
     const rect = img.getBoundingClientRect();
-    return rect.bottom >= 0 && rect.top <= viewportHeight;
-  });
-  let next = 0;
-  let decoded = 0;
-  await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, async () => {
-    while (next < candidates.length && state.considered < maxImages && state.pending < concurrency && Date.now() < deadline) {
-      const img = candidates[next++];
-      const source = resolveHighestDpiSrc(img);
-      state.sources.set(img, source);
-      state.considered++;
-      try {
-        if (img.complete) {
-          if (img.naturalWidth <= 0) throw new Error('Image has no decoded pixels');
-        } else if (typeof img.decode === 'function') {
-          const decoding = img.decode();
-          state.pending++;
-          const pending = decoding.finally(() => { state.pending--; });
-          await withTimeout(pending, Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
-        } else {
-          const { promise, resolve, reject } = Promise.withResolvers<void>();
-          const finish = (error?: Error) => {
-            clearTimeout(timer);
-            img.removeEventListener('load', loaded);
-            img.removeEventListener('error', failed);
-            error ? reject(error) : resolve();
-          };
-          const loaded = () => finish(img.naturalWidth > 0 ? undefined : new Error('Image has no decoded pixels'));
-          const failed = () => finish(new Error('Image loading failed'));
-          const timer = setTimeout(() => finish(new CaptureTimeout('Timed out')), Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
-          img.addEventListener('load', loaded);
-          img.addEventListener('error', failed);
-          if (img.complete) loaded();
-          await promise;
-        }
-        decoded++;
-        state.sources.set(img, resolveHighestDpiSrc(img));
-      } catch (error) {
-        warning(state.report, error instanceof CaptureTimeout ? 'image_timeout' : 'image_failed',
-          `${error instanceof CaptureTimeout ? 'Image readiness timed out' : 'Image could not be decoded'}: ${source}`);
-        // Decode cannot be cancelled. Do not start another image in this slot
-        // while a timed-out browser decode may still be pending.
-        if (error instanceof CaptureTimeout) return;
+    if (rect.width <= 0 || rect.height <= 0) {
+      recordSkip('zero-size');
+      continue;
+    }
+    if (visibleOnly) {
+      if (rect.bottom < 0 || rect.top > viewportHeight) continue;
+    } else {
+      const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
+      if (loadingAttr === 'lazy' && (rect.bottom < -viewportHeight || rect.top > viewportHeight * 2)) {
+        recordSkip('lazy-offscreen');
+        continue;
       }
     }
-  }));
+    candidates.push(img);
+  }
+
+  if (skippedReasons.size > 0) {
+    const totalSkipped = Array.from(skippedReasons.values()).reduce((a, b) => a + b, 0);
+    const summary = Array.from(skippedReasons.entries()).map(([r, n]) => `${n} ${r}`).join(', ');
+    state.report({
+      code: 'image_skipped',
+      severity: 'info',
+      message: `Skipped ${totalSkipped} image${totalSkipped === 1 ? '' : 's'} (${summary}).`,
+    });
+  }
+
+  let next = 0;
+  let decoded = 0;
+  let idleTriggered = false;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const idleWaiters = new Set<() => void>();
+
+  const clearIdleTimer = () => {
+    if (idleTimer !== undefined) {
+      clearTimeout(idleTimer);
+      idleTimer = undefined;
+    }
+  };
+  const armIdleTimer = () => {
+    clearIdleTimer();
+    if (idleMs <= 0 || !Number.isFinite(idleMs)) return;
+    idleTimer = setTimeout(() => {
+      idleTriggered = true;
+      for (const wake of idleWaiters) wake();
+      idleWaiters.clear();
+    }, idleMs);
+  };
+  const raceIdle = <T>(pending: Promise<T>): Promise<T> => {
+    if (idleMs <= 0 || !Number.isFinite(idleMs)) return pending;
+    return new Promise<T>((resolve, reject) => {
+      const onIdle = () => reject(new CaptureTimeout('Image readiness idle'));
+      if (idleTriggered) { onIdle(); return; }
+      idleWaiters.add(onIdle);
+      pending.then(
+        (v) => { idleWaiters.delete(onIdle); resolve(v); },
+        (e) => { idleWaiters.delete(onIdle); reject(e); }
+      );
+    });
+  };
+
+  try {
+    await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, async () => {
+      while (next < candidates.length && state.considered < maxImages && state.pending < concurrency && Date.now() < deadline && !idleTriggered) {
+        const img = candidates[next++];
+        const source = resolveHighestDpiSrc(img);
+        state.sources.set(img, source);
+        state.considered++;
+        try {
+          if (img.complete) {
+            if (img.naturalWidth <= 0) throw new Error('Image has no decoded pixels');
+          } else if (typeof img.decode === 'function') {
+            armIdleTimer();
+            const decoding = img.decode();
+            state.pending++;
+            const pending = decoding.finally(() => { state.pending--; });
+            await raceIdle(withTimeout(pending, Math.min(timeoutMs, Math.max(0, deadline - Date.now()))));
+          } else {
+            armIdleTimer();
+            const { promise, resolve, reject } = Promise.withResolvers<void>();
+            const finish = (error?: Error) => {
+              clearTimeout(timer);
+              img.removeEventListener('load', loaded);
+              img.removeEventListener('error', failed);
+              error ? reject(error) : resolve();
+            };
+            const loaded = () => finish(img.naturalWidth > 0 ? undefined : new Error('Image has no decoded pixels'));
+            const failed = () => finish(new Error('Image loading failed'));
+            const timer = setTimeout(() => finish(new CaptureTimeout('Timed out')), Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
+            img.addEventListener('load', loaded);
+            img.addEventListener('error', failed);
+            if (img.complete) loaded();
+            await raceIdle(promise);
+          }
+          decoded++;
+          armIdleTimer();
+          state.sources.set(img, resolveHighestDpiSrc(img));
+        } catch (error) {
+          warning(state.report, error instanceof CaptureTimeout ? 'image_timeout' : 'image_failed',
+            `${error instanceof CaptureTimeout ? 'Image readiness timed out' : 'Image could not be decoded'}: ${source}`);
+          // Decode cannot be cancelled. Do not start another image in this slot
+          // while a timed-out browser decode may still be pending.
+          if (error instanceof CaptureTimeout) return;
+          armIdleTimer();
+        }
+      }
+    }));
+  } finally {
+    clearIdleTimer();
+    idleWaiters.clear();
+  }
   if (next < candidates.length) {
     warning(state.report, 'image_budget_exhausted',
       `${candidates.length - next} images were not checked because the image ${state.considered >= maxImages ? 'count' : state.pending >= concurrency ? 'decode concurrency' : 'time'} budget was exhausted.`);

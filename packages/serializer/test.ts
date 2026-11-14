@@ -697,6 +697,34 @@ async function runReadinessTests() {
     assert.strictEqual(capture.frame.width, 240);
     assert.strictEqual(capture.frame.height, 90);
   }
+
+  // Skipped images emit one aggregated image_skipped diagnostic and idleMs exits stalled decodes early.
+  {
+    const { doc, body } = createMockDocument();
+    const noSrc = new MockElement('img');
+    const zeroSize = new MockElement('img');
+    zeroSize.src = '/zero.png';
+    zeroSize.rect = { left: 0, top: 0, width: 0, height: 0 };
+    const lazyFar = new MockElement('img');
+    lazyFar.src = '/lazy.png';
+    (lazyFar as unknown as { loading: string }).loading = 'lazy';
+    lazyFar.rect = { left: 0, top: 3000, width: 100, height: 100 };
+    const stalled = new MockElement('img');
+    stalled.src = '/stalled.png';
+    stalled.complete = false;
+    stalled.decode = () => Promise.withResolvers<void>().promise;
+    body.appendChild(noSrc);
+    body.appendChild(zeroSize);
+    body.appendChild(lazyFar);
+    body.appendChild(stalled);
+    const diagnostics: Array<{ code: string; message: string }> = [];
+    const t0 = Date.now();
+    await waitForImages(doc as unknown as Document, { idleMs: 25, totalTimeoutMs: 2000 }, (d) => diagnostics.push(d));
+    assert.ok(Date.now() - t0 < 500, 'idleMs should exit stalled decodes before totalTimeoutMs');
+    const skipped = diagnostics.filter((d) => d.code === 'image_skipped');
+    assert.strictEqual(skipped.length, 1);
+    assert.ok(skipped[0].message.includes('3 images'));
+  }
 }
 
 runSerializerAccuracyTests().then(runReadinessTests).catch((err) => {
