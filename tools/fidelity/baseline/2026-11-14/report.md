@@ -140,3 +140,25 @@
    - `saas`: dark-UI card surfaces and blur/gradient layers differ from the live render.
 
 *(Cookie banners: no blocking full-page cookie modal covered the viewport on any of the 6 sites during capture.)*
+
+## Replica path (added after review)
+
+`pnpm fidelity:replica` on the same real sites, one run each (2026-11-14). Match = pixels
+within tolerance; noise = antialiasing-level differences.
+
+| site | width | replica match % | model match % (above) | replica size |
+|---|---|---|---|---|
+| marketing (stripe) | 1440 | 89.81 | 86.74 | 4.9 MB |
+| marketing (stripe) | 768 | 91.06 | — | 5.0 MB |
+| saas (linear) | 768 | 100.00 | — | 9.6 MB |
+| saas (linear) | 390 | 99.84 | 89.44 | 9.5 MB |
+| news (bbc) | 768 | 87.01 | — | 3.1 MB |
+| news (bbc) | 390 | 99.79 | 85.27 | 3.1 MB |
+| motion (apple) | 1440 | 98.30 | 94.01 | 2.2 MB |
+
+5 of 12 runs failed in the harness, not the replica: `Page.captureScreenshot` errors and a
+30 s screenshot timeout on pages 15,000+ px tall, and one 45 s `page.goto` timeout on bbc.
+
+**Findings:** the replica beats the model path by 3–14 points wherever both ran, and is
+near-perfect on linear/bbc mobile. Its cost is size (2–10 MB per page, all assets inlined).
+The harness needs tiled screenshots for very tall pages before replica scores can gate CI.
