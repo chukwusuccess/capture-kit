@@ -143,7 +143,7 @@ async function waitForImageElements(
 ): Promise<number> {
   const timeoutMs = boundedNumber(opts?.timeoutMs, 2500);
   const deadline = Math.min(Date.now() + boundedNumber(opts?.totalTimeoutMs, 5000), outerDeadline);
-  const idleMs = boundedNumber(opts?.idleMs, 300);
+  const idleMs = boundedNumber(opts?.idleMs, 800);
   const concurrency = Math.floor(boundedNumber(opts?.concurrency, 8, 1));
   const maxImages = opts?.maxImages === undefined ? Infinity : Math.floor(boundedNumber(opts.maxImages, Infinity));
   const images: HTMLImageElement[] = [];
@@ -393,16 +393,12 @@ async function waitForFonts(
   }
 }
 
-function eagerLoadImages(root: Document | Element): void {
+function eagerLoadImages(root: Document | Element, doc: Document): void {
+  const origin = doc.defaultView?.location?.origin;
   const images: HTMLImageElement[] = [];
   if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
   if (typeof root.querySelectorAll === 'function') images.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
   for (const img of images) {
-    const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
-    if (loadingAttr === 'lazy') {
-      try { (img as HTMLImageElement).loading = 'eager'; } catch { /* ignore */ }
-      try { img.setAttribute?.('loading', 'eager'); } catch { /* ignore */ }
-    }
     const existingSrcset = img.getAttribute?.('srcset');
     if (!existingSrcset) {
       const lazySrcset = img.getAttribute?.('data-srcset') || img.getAttribute?.('data-lazy-srcset');
@@ -416,6 +412,22 @@ function eagerLoadImages(root: Document | Element): void {
       const lazySrc = img.getAttribute?.('data-src') || img.getAttribute?.('data-lazy-src');
       if (lazySrc) {
         try { img.setAttribute?.('src', lazySrc); } catch { /* ignore */ }
+      }
+    }
+    const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
+    if (loadingAttr === 'lazy') {
+      const candidateSrc = resolveHighestDpiSrc(img);
+      let sameOrigin = !origin || !candidateSrc || candidateSrc.startsWith('data:') || candidateSrc.startsWith('blob:');
+      if (!sameOrigin && candidateSrc) {
+        try {
+          sameOrigin = new URL(candidateSrc, doc.baseURI || 'http://localhost/').origin === origin;
+        } catch {
+          sameOrigin = true;
+        }
+      }
+      if (sameOrigin) {
+        try { (img as HTMLImageElement).loading = 'eager'; } catch { /* ignore */ }
+        try { img.setAttribute?.('loading', 'eager'); } catch { /* ignore */ }
       }
     }
   }
@@ -468,7 +480,7 @@ async function prepareCapture(
       diagnostics.push(diagnostic);
     }
   };
-  eagerLoadImages(root);
+  eagerLoadImages(root, doc);
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
   const fontDeadline = Math.min(readinessDeadline, Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500));
@@ -490,7 +502,7 @@ async function prepareCapture(
   }
   const waitImagesStart = nowMs();
   let waitImagesMs = 0;
-  const idleMs = boundedNumber(opts?.imageOptions?.idleMs, 300);
+  const idleMs = boundedNumber(opts?.imageOptions?.idleMs, 800);
   const hasScrollHeight = typeof doc.documentElement?.scrollHeight === 'number';
   const getHeight = () => Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
   let trackedHeight = hasScrollHeight ? getHeight() : 0;
