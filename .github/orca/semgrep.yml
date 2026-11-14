@@ -1,0 +1,48 @@
+# Orca's own semgrep rules: the mistakes our stack (Next/Vite/Astro/Expo + Supabase) invites.
+# Run alongside the registry's p/default pack by .github/orca/security.sh. ERROR blocks, WARNING is a note.
+rules:
+  - id: orca-public-env-holds-secret
+    languages: [regex]
+    severity: ERROR
+    message: >-
+      A browser-exposed env variable (NEXT_PUBLIC_/VITE_/PUBLIC_/EXPO_PUBLIC_) is named like a secret.
+      Anything with these prefixes is shipped to every visitor. Keep the secret server-side.
+    pattern-regex: \b(NEXT_PUBLIC|VITE|PUBLIC|EXPO_PUBLIC)_\w*(SECRET|SERVICE_ROLE|PRIVATE_KEY|PASSWORD|SERVICE_KEY)\w*
+
+  - id: orca-service-role-in-client-code
+    languages: [regex]
+    severity: ERROR
+    message: >-
+      The Supabase service-role key is referenced in a "use client" file. It bypasses row-level
+      security for everyone who loads the page. Use it only in server code.
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs"]
+    pattern-regex: (?s)\A\s*(//[^\n]*\n\s*)*['"]use client['"].*?(SERVICE_ROLE|service_role)
+
+  - id: orca-table-without-rls
+    languages: [regex]
+    severity: ERROR
+    message: >-
+      A table is created without "enable row level security" in the same migration. On Supabase that
+      table is readable and writable by anyone with the public key. Enable RLS and add policies.
+    paths:
+      include: ["*.sql"]
+    pattern-regex: (?is)create\s+table\s+(?:if\s+not\s+exists\s+)?(?:"?public"?\.)?"?(\w+)"?\s*\((?!.*alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:"?public"?\.)?"?\1"?\s+enable\s+row\s+level\s+security)
+
+  - id: orca-policy-allows-everyone-to-write
+    languages: [regex]
+    severity: ERROR
+    message: >-
+      This policy lets anyone insert, update or delete (using/with check (true)). Scope it to the
+      owner, e.g. auth.uid() = user_id.
+    paths:
+      include: ["*.sql"]
+    pattern-regex: (?is)create\s+policy[^;]*?for\s+(all|insert|update|delete)\b[^;]*?(using|with\s+check)\s*\(\s*true\s*\)
+
+  - id: orca-public-storage-bucket
+    languages: [regex]
+    severity: WARNING
+    message: >-
+      A public storage bucket: every file in it is readable by URL without auth. Fine for public
+      images, wrong for drafts, uploads or anything private.
+    pattern-regex: (?is)(insert\s+into\s+storage\.buckets[^;]*\btrue\b|createBucket\([^)]*public\s*:\s*true)

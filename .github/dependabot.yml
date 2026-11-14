@@ -1,0 +1,13 @@
+# Orca: weekly dependency updates, minor + patch grouped into one PR per ecosystem.
+# The orca sweep merges these once every check is green; major versions wait for a human.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+# ponytail: no github-actions ecosystem — workflow versions come from the orca templates (adopt.sh).
