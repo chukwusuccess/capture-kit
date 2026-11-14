@@ -101,9 +101,12 @@ function compare(basePath, headPath) {
   const k = (f) => `${f.route}|${f.width}|${f.kind}|${f.key}`;
   const had = new Map((base?.findings || []).map((f) => [k(f), f.count]));
   const rows = head.findings.map((f) => ({ ...f, added: f.count - (had.get(k(f)) || 0) })).filter((f) => f.added > 0);
-  const hard = rows.filter((f) => f.blocking), soft = rows.filter((f) => !f.blocking);
-  const line = (f) => `${f.blocking ? 'BLOCK' : 'note '} ${f.route} @${f.width}px  ${f.kind}: ${f.key}${f.detail ? ' — ' + f.detail : ''}${f.added > 1 ? ` (+${f.added})` : ''}`;
-  if (!base) console.log('base could not be built or served: every problem on this PR counts as new');
+  // No baseline (main didn't build/serve/check): old and new can't be told apart, so only a page that
+  // won't load or crashes blocks; the rest is reported, not held against this PR.
+  const hard = rows.filter((f) => f.blocking && (base || f.kind === 'page-status' || f.kind === 'page-crash'));
+  const soft = rows.filter((f) => !hard.includes(f));
+  const line = (f) => `${hard.includes(f) ? 'BLOCK' : 'note '} ${f.route} @${f.width}px  ${f.kind}: ${f.key}${f.detail ? ' — ' + f.detail : ''}${f.added > 1 ? ` (+${f.added})` : ''}`;
+  if (!base) console.log('no baseline (main could not be built, served or checked): only pages that fail to load or crash block');
   for (const f of [...hard, ...soft]) console.log('  ' + line(f));
   const old = head.findings.filter((f) => f.blocking).length - hard.length;
   const verdict = hard.length ? `✗ ${hard.length} problem(s) this PR adds or makes worse` : `✓ nothing worse than ${base ? 'main' : 'before'}`;
