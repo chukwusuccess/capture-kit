@@ -170,6 +170,48 @@ async function sessionTests(): Promise<void> {
   const starts = await Promise.allSettled([racing.create(input), racing.create(input)]);
   assert.equal(starts.filter((result) => result.status === 'fulfilled').length, 1);
   assert.equal(starts.filter((result) => result.status === 'rejected').length, 1);
+
+  // Per-asset keys: completeJob writes only new assets (O(new assets)) and cleans them up on discard.
+  const assetStorage = new MemoryStorage();
+  const assetStore = new CaptureSessionStore(assetStorage, { id: (() => { let i = 0; return () => `asset-sess-${++i}`; })() });
+  const assetSess = await assetStore.create({ ...input, urls: [`${o}/a`, `${o}/b`], widths: [1440] });
+  const sharedAsset = { kind: 'image' as const, mimeType: 'image/png', base64: 'AAAA' };
+  const secondAsset = { kind: 'image' as const, mimeType: 'image/png', base64: 'BBBB' };
+  const cap1 = { ...capture(), assets: { img1: sharedAsset } };
+  const cap2 = { ...capture(), assets: { img1: sharedAsset, img2: secondAsset } };
+  const setCalls: string[][] = [];
+  const origSet = assetStorage.set.bind(assetStorage);
+  assetStorage.set = async (items) => {
+    setCalls.push(Object.keys(items));
+    await origSet(items);
+  };
+  await assetStore.startJob(assetSess.id, assetSess.jobs[0].id);
+  await assetStore.completeJob(assetSess.id, assetSess.jobs[0].id, [cap1]);
+  const firstAssetWriteKeys = setCalls.find((keys) => keys.some((k) => k.startsWith(`capture-kit:asset:${assetSess.id}:`))) ?? [];
+  assert.equal(firstAssetWriteKeys.filter((k) => k.startsWith(`capture-kit:asset:${assetSess.id}:`)).length, 1);
+  setCalls.length = 0;
+  await assetStore.startJob(assetSess.id, assetSess.jobs[1].id);
+  await assetStore.completeJob(assetSess.id, assetSess.jobs[1].id, [cap2]);
+  const secondAssetWriteKeys = setCalls.find((keys) => keys.some((k) => k.startsWith(`capture-kit:asset:${assetSess.id}:`))) ?? [];
+  assert.equal(secondAssetWriteKeys.filter((k) => k.startsWith(`capture-kit:asset:${assetSess.id}:`)).length, 1, 'shared asset should not be rewritten');
+  await assetStore.finish(assetSess.id);
+  const loadedCaps = await assetStore.getCaptures(assetSess.id);
+  assert.deepEqual(loadedCaps[0].assets, { img1: sharedAsset });
+  assert.deepEqual(loadedCaps[1].assets, { img1: sharedAsset, img2: secondAsset });
+  await assetStore.discard(assetSess.id);
+  const remaining = await assetStorage.get(null);
+  assert.equal(Object.keys(remaining).filter((k) => k.startsWith(`capture-kit:asset:${assetSess.id}:`)).length, 0);
+
+  // Backward compatibility: loading old sessions saved without assetRefs.
+  const legacyStorage = new MemoryStorage();
+  const legacyStore = new CaptureSessionStore(legacyStorage, { id: () => 'legacy-sess' });
+  const legacy = await legacyStore.create({ ...input, urls: [`${o}/legacy`], widths: [1440] });
+  await legacyStore.startJob(legacy.id, legacy.jobs[0].id);
+  const legacyCap = { ...capture(), assets: { hero: sharedAsset } };
+  await legacyStore.completeJob(legacy.id, legacy.jobs[0].id, [legacyCap]);
+  await legacyStorage.set({ [sessionResultKey(legacy.id, legacy.jobs[0].id)]: { completedAt: 1, captures: [legacyCap] } });
+  const loadedLegacy = await legacyStore.getCaptures(legacy.id);
+  assert.deepEqual(loadedLegacy[0].assets, { hero: sharedAsset });
 }
 
 await sessionTests();

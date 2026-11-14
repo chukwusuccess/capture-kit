@@ -269,17 +269,19 @@ async function runSerializer(tabId: number, scrollStitch: boolean, replica = fal
   await injectSerializer(tabId);
   const injectMs = roundTiming(performance.now() - injectStart);
 
+  const collectTimings = Boolean((globalThis as { __captureKitDebugTimings?: boolean }).__captureKitDebugTimings);
   const serializeStart = performance.now();
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
-    args: [scrollStitch],
+    args: [scrollStitch, collectTimings],
     func: async (...args: unknown[]) => {
       const stitch = Boolean(args[0]);
+      const wantTimings = Boolean(args[1]);
       const customWindow = window as unknown as WindowWithCaptureKit;
       if (!customWindow.__captureKitSerialize) {
         throw new Error('Capture-kit serializer is not available on page');
       }
-      return await customWindow.__captureKitSerialize({ scrollStitch: stitch, collectTimings: true });
+      return await customWindow.__captureKitSerialize({ scrollStitch: stitch, collectTimings: wantTimings });
     },
   });
 
@@ -314,25 +316,33 @@ async function runReplica(tabId: number): Promise<string> {
 }
 
 const MAX_ASSET_BYTES = 15 * 1024 * 1024;
+let replicaAssetCache: Map<string, Promise<string | null>> | null = null;
 
 // Replica assets come through here: host permissions make CORS a non-issue.
 async function fetchAsset(url: string, as: unknown): Promise<string | null> {
   if (!/^https?:/i.test(url)) return null;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    if (as === 'text') return await res.text();
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    if (bytes.byteLength > MAX_ASSET_BYTES) return null;
-    let bin = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    let type = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
-    // <img> refuses SVG served as octet-stream (S3 and friends).
-    if (/\.svg(\?|#|$)/i.test(url) && type !== 'image/svg+xml') type = 'image/svg+xml';
-    return `data:${type};base64,${btoa(bin)}`;
-  } catch {
-    return null;
-  }
+  const cacheKey = `${as === 'text' ? 'text' : 'data'}:${url}`;
+  const cached = replicaAssetCache?.get(cacheKey);
+  if (cached) return cached;
+  const pending = (async (): Promise<string | null> => {
+    try {
+      const res = await fetch(url, { cache: 'force-cache', signal: AbortSignal.timeout(15000) });
+      if (!res.ok) return null;
+      if (as === 'text') return await res.text();
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength > MAX_ASSET_BYTES) return null;
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      let type = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
+      // <img> refuses SVG served as octet-stream (S3 and friends).
+      if (/\.svg(\?|#|$)/i.test(url) && type !== 'image/svg+xml') type = 'image/svg+xml';
+      return `data:${type};base64,${btoa(bin)}`;
+    } catch {
+      return null;
+    }
+  })();
+  replicaAssetCache?.set(cacheKey, pending);
+  return pending;
 }
 
 async function waitForLayout(tabId: number): Promise<void> {
@@ -612,6 +622,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
   let captureWindowId: number | undefined;
   let captureTabId: number | undefined;
   let loadedUrl = '';
+  replicaAssetCache = new Map();
   try {
     for (const job of session.jobs) {
       if (job.status === 'completed') continue;
@@ -619,6 +630,8 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
       await sessionStore.startJob(session.id, job.id);
       announceSession(session.id);
       let captures: Capture[];
+      let loadMs = 0;
+      let fitViewportMs = 0;
       try {
         if (session.mode === 'pick') {
           const tab = await chrome.tabs.get(session.tabId);
@@ -659,11 +672,15 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             }
             if (captureTabId === undefined) throw new Error('Capture tab is unavailable');
             if (loadedUrl !== job.url) {
+              const loadStart = performance.now();
               await loadInTab(captureTabId, job.url);
+              loadMs = roundTiming(performance.now() - loadStart);
               loadedUrl = job.url;
             }
             if (control.cancelled) break;
+            const fitStart = performance.now();
             await fitViewport(captureWindowId, captureTabId, job.width);
+            fitViewportMs = roundTiming(performance.now() - fitStart);
             captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html');
             if (liveStateUnavailable) {
               for (const capture of captures) {
@@ -698,6 +715,8 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
         url: job.url,
         width: job.width,
         format: session.format,
+        loadMs,
+        fitViewportMs,
         ...lastRunTimings,
         storageWriteMs,
         serializer: captures[0]?.timings?.stages ?? null,
@@ -716,6 +735,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
     }
     sendToPopup({ type: 'run-error', sessionId: session.id, error: message });
   } finally {
+    replicaAssetCache = null;
     if (captureWindowId !== undefined) await chrome.windows.remove(captureWindowId).catch(() => undefined);
   }
 }

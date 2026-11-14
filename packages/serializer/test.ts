@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { serializeDocument, serializeElement, startElementPicker, triggerPageScroll, waitForImages } from './src/index.js';
+import { arrayBufferToBase64, serializeDocument, serializeElement, startElementPicker, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -696,6 +696,131 @@ async function runReadinessTests() {
     const capture = await serializeElement(image as unknown as Element);
     assert.strictEqual(capture.frame.width, 240);
     assert.strictEqual(capture.frame.height, 90);
+  }
+
+  // Skipped images emit one aggregated image_skipped diagnostic and idleMs exits stalled decodes early.
+  {
+    const { doc, body } = createMockDocument();
+    const noSrc = new MockElement('img');
+    const zeroSize = new MockElement('img');
+    zeroSize.src = '/zero.png';
+    zeroSize.rect = { left: 0, top: 0, width: 0, height: 0 };
+    const lazyFar = new MockElement('img');
+    lazyFar.src = '/lazy.png';
+    (lazyFar as unknown as { loading: string }).loading = 'lazy';
+    lazyFar.rect = { left: 0, top: 3000, width: 100, height: 100 };
+    const stalled = new MockElement('img');
+    stalled.src = '/stalled.png';
+    stalled.complete = false;
+    stalled.decode = () => Promise.withResolvers<void>().promise;
+    body.appendChild(noSrc);
+    body.appendChild(zeroSize);
+    body.appendChild(lazyFar);
+    body.appendChild(stalled);
+    const diagnostics: Array<{ code: string; message: string }> = [];
+    const t0 = Date.now();
+    await waitForImages(doc as unknown as Document, { idleMs: 25, totalTimeoutMs: 2000 }, (d) => diagnostics.push(d));
+    assert.ok(Date.now() - t0 < 500, 'idleMs should exit stalled decodes before totalTimeoutMs');
+    const skipped = diagnostics.filter((d) => d.code === 'image_skipped');
+    assert.strictEqual(skipped.length, 1);
+    assert.ok(skipped[0].message.includes('2 images'));
+  }
+
+  // Lazy images (loading="lazy", data-src, data-srcset) are promoted to eager at capture start.
+  {
+    const { doc, body } = createMockDocument();
+    const lazyImg = new MockElement('img');
+    const attrs = new Map<string, string>([
+      ['loading', 'lazy'],
+      ['data-src', '/real.png'],
+      ['data-srcset', '/real-2x.png 2x'],
+    ]);
+    lazyImg.getAttribute = (name: string) => attrs.get(name) ?? null;
+    (lazyImg as unknown as { setAttribute: (k: string, v: string) => void }).setAttribute = (k: string, v: string) => {
+      attrs.set(k, v);
+      if (k === 'src') lazyImg.src = v;
+    };
+    (lazyImg as unknown as { loading: string }).loading = 'lazy';
+    lazyImg.rect = { left: 0, top: 3000, width: 100, height: 100 };
+    body.appendChild(lazyImg);
+    await serializeDocument(doc as unknown as Document, { scrollStitch: false, imageOptions: { idleMs: 20 } });
+    assert.strictEqual(attrs.get('loading'), 'eager');
+    assert.strictEqual(attrs.get('src'), '/real.png');
+    assert.strictEqual(attrs.get('srcset'), '/real-2x.png 2x');
+  }
+
+  // Multi-line text runs use binary search over clientRects with O(lines * log chars) calls.
+  {
+    const { doc, body, styleMap } = createMockDocument();
+    const p = new MockElement('p');
+    const line1 = 'First wrapped line of text ';
+    const line2 = 'Second wrapped line of text ';
+    const line3 = 'Third wrapped line of text';
+    const fullStr = line1 + line2 + line3;
+    const textNode = { nodeType: 3, textContent: fullStr } as unknown as MockElement;
+    p.appendChild(textNode);
+    p.rect = { left: 10, top: 20, width: 200, height: 60 };
+    styleMap.set(p, {
+      display: 'block',
+      visibility: 'visible',
+      opacity: '1',
+      fontSize: '16px',
+      lineHeight: '20px',
+      fontFamily: 'Inter',
+      textAlign: 'left',
+      color: 'rgb(0, 0, 0)',
+    });
+    body.appendChild(p);
+
+    const b1 = line1.length;
+    const b2 = line1.length + line2.length;
+    let rectCalls = 0;
+    (doc as unknown as Record<string, unknown>).createRange = () => {
+      let start = 0;
+      let end = fullStr.length;
+      const lineRect = (li: number) => ({
+        left: 10,
+        top: 20 + li * 20,
+        right: 190 - li * 10,
+        bottom: 40 + li * 20,
+        width: 180 - li * 10,
+        height: 20,
+      });
+      return {
+        selectNodeContents: () => { start = 0; end = fullStr.length; },
+        setStart: (_n: unknown, s: number) => { start = s; },
+        setEnd: (_n: unknown, e: number) => { end = e; },
+        getClientRects: () => {
+          rectCalls++;
+          const out = [];
+          if (start < b1 && end > 0) out.push(lineRect(0));
+          if (start < b2 && end > b1) out.push(lineRect(1));
+          if (end > b2) out.push(lineRect(2));
+          return out;
+        },
+        getBoundingClientRect: () => lineRect(start < b1 ? 0 : start < b2 ? 1 : 2),
+      };
+    };
+
+    const capture = await serializeDocument(doc as unknown as Document, { collectTimings: true });
+    const tNode = capture.nodes.find((n) => n.type === 'text');
+    assert.ok(tNode?.text?.runs, 'Multi-line text node should emit runs');
+    assert.deepStrictEqual(tNode.text.runs, [
+      { text: line1.trim(), x: 10, y: 20, w: 182 },
+      { text: line2.trim(), x: 10, y: 40, w: 172 },
+      { text: line3.trim(), x: 10, y: 60, w: 162 },
+    ]);
+    assert.ok((capture.timings?.counts.textCharsMeasured ?? Infinity) < fullStr.length * 0.35,
+      `Expected binary search rect calls < 35% of ${fullStr.length}, got ${capture.timings?.counts.textCharsMeasured}`);
+  }
+
+  // Chunked arrayBufferToBase64 matches Node Buffer.toString('base64') across 0 B, 1 B, 32 KB+1, and 3 MB.
+  for (const size of [0, 1, 32 * 1024 + 1, 3 * 1024 * 1024]) {
+    const bytes = new Uint8Array(size);
+    for (let i = 0; i < size; i++) bytes[i] = (i * 31 + 7) & 0xff;
+    const actual = await arrayBufferToBase64(bytes.buffer);
+    const expected = Buffer.from(bytes).toString('base64');
+    assert.strictEqual(actual, expected, `Base64 mismatch for ${size} bytes`);
   }
 }
 

@@ -244,7 +244,8 @@ async function main(): Promise<void> {
     preview?.kill('SIGTERM');
   }
 
-  const baseDir = join(ROOT, 'tools/fidelity/baseline', date);
+  const outArg = process.argv.find((a) => a.startsWith('--out-dir='))?.slice(10);
+  const baseDir = outArg ? resolve(ROOT, outArg) : join(ROOT, 'tools/fidelity/baseline', date);
   mkdirSync(baseDir, { recursive: true });
   writeFileSync(join(baseDir, 'report.json'), JSON.stringify({ date, runsPerCase: RUNS, entries }, null, 2));
   writeFileSync(join(baseDir, 'report.md'), formatMarkdown(date, entries));
