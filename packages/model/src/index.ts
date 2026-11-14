@@ -185,6 +185,31 @@ export const CaptureDiagnosticSchema = z.object({
   nodeId: z.string().optional(),
 });
 
+export const CaptureTimingsSchema = z.object({
+  stages: z.object({
+    scroll: z.number(),
+    waitImages: z.number(),
+    walk: z.number(),
+    freezeTransforms: z.number(),
+    nodes: z.number(),
+    text: z.number(),
+    assets: z.number(),
+    fonts: z.number(),
+    total: z.number(),
+  }),
+  counts: z.object({
+    elementsWalked: z.number(),
+    nodesEmitted: z.number(),
+    textCharsMeasured: z.number(),
+    transformedElements: z.number(),
+    assetsFetched: z.number(),
+    assetsFailed: z.number(),
+    assetsTimedOut: z.number(),
+    assetBytes: z.number(),
+    jsonBytes: z.number(),
+  }),
+});
+
 export const CaptureSchema = z.object({
   url: z.string(),
   version: z.string(),
@@ -194,6 +219,7 @@ export const CaptureSchema = z.object({
   fonts: z.array(FontSchema),
   alternatives: z.array(FrameSchema).optional(),
   diagnostics: z.array(CaptureDiagnosticSchema).optional(),
+  timings: CaptureTimingsSchema.optional(),
   /** Self-contained HTML that renders identically to the page (replica mode). */
   replica: z.string().optional(),
 });
@@ -228,6 +254,7 @@ export type VectorPath = z.infer<typeof VectorPathSchema>;
 export type VectorViewBox = z.infer<typeof VectorViewBoxSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type CaptureDiagnostic = z.infer<typeof CaptureDiagnosticSchema>;
+export type CaptureTimings = z.infer<typeof CaptureTimingsSchema>;
 export type Capture = z.infer<typeof CaptureSchema>;
 export type SitePageCapture = z.infer<typeof SitePageCaptureSchema>;
 export type SiteCapture = z.infer<typeof SiteCaptureSchema>;
@@ -246,5 +273,6 @@ export function emptyCapture(opts: Partial<Capture> = {}): Capture {
     fonts: opts.fonts ?? [],
     ...(opts.alternatives ? { alternatives: opts.alternatives } : {}),
     ...(opts.diagnostics?.length ? { diagnostics: opts.diagnostics } : {}),
+    ...(opts.timings ? { timings: opts.timings } : {}),
   };
 }
