@@ -402,7 +402,7 @@ async function prepareCapture(
   doc: Document,
   opts: SerializeOptions | undefined,
   scroll: boolean
-): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number }> {
+): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; fontDeadline: number }> {
   const diagnostics: CaptureDiagnostic[] = [];
   const seen = new Set<string>();
   const report: ReportDiagnostic = (diagnostic) => {
@@ -414,13 +414,14 @@ async function prepareCapture(
   };
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
+  const fontDeadline = Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500);
   let scrollMs = 0;
   if (scroll && doc.defaultView) {
     const scrollStart = nowMs();
     try {
       await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => Promise.all([
         waitForImageElements(root, opts?.imageOptions, state, true, deadline),
-        waitForFonts(doc, Math.min(boundedNumber(opts?.fontTimeoutMs, 2500), Math.max(0, deadline - Date.now())), report, fontState),
+        waitForFonts(doc, Math.min(Math.max(0, fontDeadline - Date.now()), Math.max(0, deadline - Date.now())), report, fontState),
       ]), report);
     } catch (error) {
       warning(report, 'scroll_failed', `Page scrolling failed; lazy content may be incomplete: ${error instanceof Error ? error.message : String(error)}`);
@@ -433,9 +434,9 @@ async function prepareCapture(
     waitForImageElements(root, opts?.imageOptions, state).finally(() => {
       waitImagesMs = nowMs() - waitImagesStart;
     }),
-    waitForFonts(doc, opts?.fontTimeoutMs, report, fontState),
+    waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
   ]);
-  return { diagnostics, scrollMs, waitImagesMs };
+  return { diagnostics, scrollMs, waitImagesMs, fontDeadline };
 }
 
 async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
@@ -1472,25 +1473,49 @@ function extractPseudoElement(
     return null;
   }
 }
+function normalizeFontFamily(raw: string): string {
+  return raw.replace(/^["']|["']$/g, '').trim().toLowerCase();
+}
+
+function normalizeFontWeight(raw: string | number | undefined): string {
+  const s = String(raw ?? '400').trim().toLowerCase();
+  if (s === 'normal') return '400';
+  if (s === 'bold') return '700';
+  return s || '400';
+}
+
 async function extractWebFonts(
   doc: Document,
   baseURI: string,
   assets: Record<string, Asset>,
   nextAssetId: () => string,
   report: ReportDiagnostic,
-  timeoutMs: number
+  deadline: number,
+  usedFamilies?: Set<string>,
+  usedFaces?: Set<string>,
+  concurrency = 8
 ): Promise<Font[]> {
   const fonts: Font[] = [];
   const seenFamilies = new Set<string>();
+  const loadedFaces = new Set<string>();
+  const loadedFamilies = new Set<string>();
   const defaultView = doc.defaultView ?? window;
-  const deadline = Date.now() + timeoutMs;
 
   // 1. Inspect doc.fonts (FontFaceSet API)
   if (doc.fonts && typeof doc.fonts.forEach === 'function') {
     try {
       doc.fonts.forEach((fontFace: FontFace) => {
         const family = fontFace.family.replace(/^["']|["']$/g, '').trim();
-        if (family && !seenFamilies.has(family)) {
+        if (!family) return;
+        const isLoaded = fontFace.status === undefined || fontFace.status === 'loaded';
+        if (isLoaded) {
+          const normFam = normalizeFontFamily(family);
+          const normWeight = normalizeFontWeight(fontFace.weight);
+          const normStyle = (fontFace.style || 'normal').trim().toLowerCase();
+          loadedFamilies.add(normFam);
+          loadedFaces.add(`${normFam}|${normWeight}|${normStyle}`);
+        }
+        if (!seenFamilies.has(family)) {
           seenFamilies.add(family);
           fonts.push({
             family,
@@ -1504,7 +1529,17 @@ async function extractWebFonts(
     }
   }
 
-  // 2. Inspect CSSStyleSheets for @font-face rules
+  // 2. Inspect CSSStyleSheets for @font-face rules, embedding only loaded & used faces in parallel.
+  const pendingFetches: Array<{
+    family: string;
+    weight: string;
+    fontStyle: string;
+    fontUrl: string;
+    resolvedHref: string;
+    fontIdentity: string;
+  }> = [];
+  const urlToAssetKey = new Map<string, string>();
+
   try {
     const styleSheets = doc.styleSheets;
     if (styleSheets) {
@@ -1517,85 +1552,118 @@ async function extractWebFonts(
           warning(report, 'asset_unavailable', 'A stylesheet could not be inspected for embedded font assets.');
           continue;
         }
-
         if (!rules) continue;
 
         for (let j = 0; j < rules.length; j++) {
           const rule = rules[j];
-          if (rule.type === 5) {
-            const fontRule = rule as CSSFontFaceRule;
-            const style = fontRule.style;
-            if (!style) continue;
+          if (rule.type !== 5) continue;
+          const fontRule = rule as CSSFontFaceRule;
+          const style = fontRule.style;
+          if (!style) continue;
 
-            const family = (style.fontFamily || '').replace(/^["']|["']$/g, '').trim();
-            if (!family) continue;
+          const family = (style.fontFamily || '').replace(/^["']|["']$/g, '').trim();
+          if (!family) continue;
 
-            const weight = style.fontWeight || '400';
-            const fontStyle = style.fontStyle || 'normal';
+          const weight = style.fontWeight || '400';
+          const fontStyle = style.fontStyle || 'normal';
+          const normFam = normalizeFontFamily(family);
+          const normWeight = normalizeFontWeight(weight);
+          const normStyle = fontStyle.trim().toLowerCase();
+          const faceKey = `${normFam}|${normWeight}|${normStyle}`;
 
-            let assetRef: string | undefined;
-            const srcDeclaration =
-              typeof style.getPropertyValue === 'function'
-                ? style.getPropertyValue('src')
-                : '';
-            const match = srcDeclaration.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
-            if (match && match[1]) {
-              const fontUrl = match[1];
-              if (fontUrl.startsWith('data:')) {
-                const dataMatch = fontUrl.match(/^data:([^;]+);base64,(.+)$/);
-                if (dataMatch) {
-                  const assetKey = nextAssetId();
-                  assets[assetKey] = {
-                    kind: 'font',
-                    mimeType: dataMatch[1],
-                    base64: dataMatch[2],
-                  };
-                  assetRef = assetKey;
-                } else {
-                  warning(report, 'asset_failed', `Font data could not be read: ${family}`);
-                }
+          if (usedFamilies && usedFamilies.size > 0 && !usedFamilies.has(normFam)) continue;
+          if (loadedFaces.size > 0) {
+            const isRangeWeight = normWeight.includes(' ');
+            const isLoaded = isRangeWeight ? loadedFamilies.has(normFam) : loadedFaces.has(faceKey);
+            if (!isLoaded) continue;
+            if (usedFaces && usedFaces.size > 0 && !isRangeWeight && !usedFaces.has(faceKey)) continue;
+          }
+
+          const fontIdentity = `${family}|${weight}|${fontStyle}`;
+          if (seenFamilies.has(fontIdentity)) continue;
+
+          const srcDeclaration = typeof style.getPropertyValue === 'function' ? style.getPropertyValue('src') : '';
+          const match = srcDeclaration.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
+          if (!match || !match[1]) {
+            seenFamilies.add(fontIdentity);
+            fonts.push({ family, weight, style: fontStyle });
+            continue;
+          }
+
+          const fontUrl = match[1];
+          if (fontUrl.startsWith('data:')) {
+            const existingKey = urlToAssetKey.get(fontUrl);
+            if (existingKey) {
+              seenFamilies.add(fontIdentity);
+              fonts.push({ family, weight, style: fontStyle, assetRef: existingKey });
+            } else {
+              const dataMatch = fontUrl.match(/^data:([^;]+);base64,(.+)$/);
+              if (dataMatch) {
+                const assetKey = nextAssetId();
+                assets[assetKey] = { kind: 'font', mimeType: dataMatch[1], base64: dataMatch[2] };
+                urlToAssetKey.set(fontUrl, assetKey);
+                seenFamilies.add(fontIdentity);
+                fonts.push({ family, weight, style: fontStyle, assetRef: assetKey });
               } else {
-                try {
-                  const resolved = new URL(fontUrl, baseURI);
-                  const isSameOrigin = resolved.origin === defaultView.location?.origin;
-                  if (isSameOrigin || resolved.protocol === 'blob:') {
-                    if (Date.now() >= deadline) throw new CaptureTimeout('Font asset budget exhausted');
-                    const blob = await fetchAssetBlob(resolved.href, Math.max(0, deadline - Date.now()));
-                    const buffer = await withTimeout(blob.arrayBuffer(), Math.max(0, deadline - Date.now()));
-                    const base64 = await arrayBufferToBase64(buffer);
-                    const assetKey = nextAssetId();
-                    assets[assetKey] = {
-                      kind: 'font',
-                      mimeType: blob.type || 'font/woff2',
-                      base64,
-                    };
-                    assetRef = assetKey;
-                  } else {
-                    warning(report, 'asset_unavailable', `Cross-origin font bytes were not embedded: ${resolved.href}`);
-                  }
-                } catch (error) {
-                  warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
-                    `Font asset could not be embedded: ${family} (${fontUrl})`);
-                }
+                warning(report, 'asset_failed', `Font data could not be read: ${family}`);
+                seenFamilies.add(fontIdentity);
+                fonts.push({ family, weight, style: fontStyle });
               }
             }
+            continue;
+          }
 
-            const fontIdentity = `${family}|${weight}|${fontStyle}`;
-            if (!seenFamilies.has(fontIdentity)) {
+          try {
+            const resolved = new URL(fontUrl, baseURI);
+            const isSameOrigin = resolved.origin === defaultView.location?.origin;
+            if (isSameOrigin || resolved.protocol === 'blob:') {
               seenFamilies.add(fontIdentity);
-              fonts.push({
-                family,
-                weight,
-                style: fontStyle,
-                assetRef,
-              });
+              pendingFetches.push({ family, weight, fontStyle, fontUrl, resolvedHref: resolved.href, fontIdentity });
+            } else {
+              warning(report, 'asset_unavailable', `Cross-origin font bytes were not embedded: ${resolved.href}`);
+              seenFamilies.add(fontIdentity);
+              fonts.push({ family, weight, style: fontStyle });
             }
+          } catch {
+            warning(report, 'asset_failed', `Font asset could not be embedded: ${family} (${fontUrl})`);
+            seenFamilies.add(fontIdentity);
+            fonts.push({ family, weight, style: fontStyle });
           }
         }
       }
     }
   } catch {
     warning(report, 'asset_unavailable', 'Stylesheets could not be inspected for font assets.');
+  }
+
+  // Dedupe URLs and fetch in bounded parallel batches under the shared deadline.
+  const uniqueUrls = Array.from(new Set(pendingFetches.map((f) => f.resolvedHref)));
+  let nextUrlIdx = 0;
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), uniqueUrls.length) }, async () => {
+    while (nextUrlIdx < uniqueUrls.length) {
+      const href = uniqueUrls[nextUrlIdx++];
+      try {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new CaptureTimeout('Font asset budget exhausted');
+        const blob = await fetchAssetBlob(href, remaining);
+        const rem2 = deadline - Date.now();
+        if (rem2 <= 0) throw new CaptureTimeout('Font asset budget exhausted');
+        const buffer = await withTimeout(blob.arrayBuffer(), rem2);
+        const base64 = await arrayBufferToBase64(buffer);
+        const assetKey = nextAssetId();
+        assets[assetKey] = { kind: 'font', mimeType: blob.type || 'font/woff2', base64 };
+        urlToAssetKey.set(href, assetKey);
+      } catch (error) {
+        const sample = pendingFetches.find((f) => f.resolvedHref === href);
+        warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+          `Font asset could not be embedded: ${sample?.family ?? href} (${sample?.fontUrl ?? href})`);
+      }
+    }
+  }));
+
+  for (const item of pendingFetches) {
+    const assetRef = urlToAssetKey.get(item.resolvedHref);
+    fonts.push({ family: item.family, weight: item.weight, style: item.fontStyle, ...(assetRef ? { assetRef } : {}) });
   }
 
   return fonts;
@@ -1655,7 +1723,8 @@ async function serializeSubtree(
   frameRect: { originX: number; originY: number; width: number; height: number },
   opts?: SerializeOptions,
   diagnostics: CaptureDiagnostic[] = [],
-  timingCtx?: TimingContext
+  timingCtx?: TimingContext,
+  fontDeadline?: number
 ): Promise<Capture> {
   const report: ReportDiagnostic = (diagnostic) => diagnostics.push(diagnostic);
   const assetTimeoutMs = boundedNumber(opts?.assetTimeoutMs, 2500);
@@ -2800,8 +2869,32 @@ async function serializeSubtree(
   }
   capture.nodes = nodes;
   capture.assets = assets;
+  const usedFontFamilies = new Set<string>();
+  const usedFontFaces = new Set<string>();
+  for (const n of nodes) {
+    if (!n.text) continue;
+    const w = normalizeFontWeight(n.text.fontWeight);
+    const st = n.text.italic ? 'italic' : 'normal';
+    for (const part of n.text.fontFamily.split(',')) {
+      const fam = normalizeFontFamily(part);
+      if (!fam) continue;
+      usedFontFamilies.add(fam);
+      usedFontFaces.add(`${fam}|${w}|${st}`);
+    }
+  }
   const fontsStart = nowMs();
-  capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`, report, assetTimeoutMs);
+  const embedDeadline = Math.min(fontDeadline ?? Infinity, Date.now() + assetTimeoutMs);
+  capture.fonts = await extractWebFonts(
+    doc,
+    baseURI,
+    assets,
+    () => `asset-${nextAssetId++}`,
+    report,
+    embedDeadline,
+    usedFontFamilies,
+    usedFontFaces,
+    assetConcurrency
+  );
   const fontsMs = nowMs() - fontsStart;
   if (diagnostics.length) capture.diagnostics = diagnostics;
 
@@ -2835,7 +2928,7 @@ export async function serializeDocument(
   const totalStart = nowMs();
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
 
-  const { diagnostics, scrollMs, waitImagesMs } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
+  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -2878,7 +2971,8 @@ export async function serializeDocument(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    fontDeadline
   );
 }
 
@@ -2890,7 +2984,7 @@ export async function serializeElement(
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const { diagnostics, scrollMs, waitImagesMs } = await prepareCapture(el, doc, opts, false);
+  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(el, doc, opts, false);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -2911,7 +3005,8 @@ export async function serializeElement(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    fontDeadline
   );
 }
 
