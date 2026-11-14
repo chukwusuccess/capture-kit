@@ -1479,6 +1479,99 @@ function extractPseudoElement(
     return null;
   }
 }
+interface MeasuredTextLine {
+  text: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function measureWrappedLines(
+  doc: Document,
+  textNode: globalThis.Node,
+  fullStr: string,
+  fontSize: number,
+  scrollX: number,
+  scrollY: number,
+  originX: number,
+  originY: number
+): { lines: MeasuredTextLine[]; measuredCalls: number } {
+  const range = doc.createRange();
+  range.selectNodeContents(textNode);
+  const rawRects = range.getClientRects?.();
+  if (!rawRects || rawRects.length <= 1) return { lines: [], measuredCalls: 0 };
+
+  const lineRects: Array<{ left: number; top: number; right: number; bottom: number }> = [];
+  for (let i = 0; i < rawRects.length; i++) {
+    const r = rawRects[i];
+    if (r.width === 0 && r.height === 0) continue;
+    const prev = lineRects[lineRects.length - 1];
+    if (prev && Math.abs(r.top - prev.top) <= fontSize * 0.4) {
+      prev.left = Math.min(prev.left, r.left);
+      prev.top = Math.min(prev.top, r.top);
+      prev.right = Math.max(prev.right, r.right);
+      prev.bottom = Math.max(prev.bottom, r.bottom);
+    } else {
+      lineRects.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    }
+  }
+  if (lineRects.length <= 1) return { lines: [], measuredCalls: 0 };
+
+  const probe = doc.createRange();
+  let measuredCalls = 0;
+  const hasClientRects = typeof probe.getClientRects === 'function';
+  const spillsPastLine = (start: number, end: number, lineTop: number): boolean => {
+    probe.setStart(textNode, start);
+    probe.setEnd(textNode, end);
+    measuredCalls++;
+    if (hasClientRects) {
+      const rects = probe.getClientRects();
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if ((r.width > 0 || r.height > 0) && r.top - lineTop > fontSize * 0.4) return true;
+      }
+      return false;
+    }
+    const r = probe.getBoundingClientRect();
+    return (r.width > 0 || r.height > 0) && r.top - lineTop > fontSize * 0.4;
+  };
+
+  const lines: MeasuredTextLine[] = [];
+  let start = 0;
+  for (let li = 0; li < lineRects.length; li++) {
+    const lr = lineRects[li];
+    let end = fullStr.length;
+    if (li < lineRects.length - 1 && start < fullStr.length) {
+      let lo = start + 1;
+      let hi = fullStr.length;
+      let best = start;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (spillsPastLine(start, mid, lr.top)) {
+          hi = mid - 1;
+        } else {
+          best = mid;
+          lo = mid + 1;
+        }
+      }
+      end = best;
+    }
+    const text = fullStr.slice(start, end).trim();
+    if (text) {
+      lines.push({
+        text,
+        x: lr.left + scrollX - originX,
+        y: lr.top + scrollY - originY,
+        w: lr.right - lr.left + 2,
+        h: lr.bottom - lr.top,
+      });
+    }
+    start = end;
+  }
+  return { lines, measuredCalls };
+}
+
 function normalizeFontFamily(raw: string): string {
   return raw.replace(/^["']|["']$/g, '').trim().toLowerCase();
 }
@@ -2651,48 +2744,19 @@ async function serializeSubtree(
         try {
           const tNode = childTextNodes[0];
           const fullStr = tNode.textContent || '';
-          const range = doc.createRange();
-          range.selectNodeContents(tNode);
-          const clientRects = range.getClientRects();
-          if (clientRects && clientRects.length > 1) {
-            const lineRuns: Array<{ text: string; x?: number; y?: number; w?: number }> = [];
-            let currentLine = '';
-            let minL = Infinity, minT = Infinity, maxR = -Infinity;
-            let prevTop: number | null = null;
-            const charRange = doc.createRange();
-            const textStart = nowMs();
-            textCharsMeasured += fullStr.length;
-            for (let ci = 0; ci < fullStr.length; ci++) {
-              charRange.setStart(tNode, ci);
-              charRange.setEnd(tNode, ci + 1);
-              const cr = charRange.getBoundingClientRect();
-              if (cr.width === 0 && cr.height === 0) {
-                currentLine += fullStr[ci];
-                continue;
-              }
-              if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
-                if (currentLine.trim()) {
-                  lineRuns.push({
-                    text: currentLine.trim(),
-                    ...(minL < Infinity ? { x: round2(minL + scrollX - frameRect.originX), y: round2(minT + scrollY - frameRect.originY), w: round2(maxR - minL + 2) } : {}),
-                  });
-                }
-                currentLine = fullStr[ci];
-                minL = cr.left; minT = cr.top; maxR = cr.right;
-              } else {
-                currentLine += fullStr[ci];
-                minL = Math.min(minL, cr.left); minT = Math.min(minT, cr.top); maxR = Math.max(maxR, cr.right);
-              }
-              prevTop = cr.top;
-            }
-            textMs += nowMs() - textStart;
-            if (currentLine.trim()) {
-              lineRuns.push({
-                text: currentLine.trim(),
-                ...(minL < Infinity ? { x: round2(minL + scrollX - frameRect.originX), y: round2(minT + scrollY - frameRect.originY), w: round2(maxR - minL + 2) } : {}),
-              });
-            }
-            if (lineRuns.length > 1) runs = lineRuns;
+          const textStart = nowMs();
+          const { lines, measuredCalls } = measureWrappedLines(
+            doc, tNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+          );
+          textMs += nowMs() - textStart;
+          textCharsMeasured += measuredCalls;
+          if (lines.length > 1) {
+            runs = lines.map((l) => ({
+              text: l.text,
+              x: round2(l.x),
+              y: round2(l.y),
+              w: round2(l.w),
+            }));
           }
         } catch {
           // ignore
@@ -2778,44 +2842,17 @@ async function serializeSubtree(
 
       if (typeof doc.createRange === 'function') {
         try {
-          const range = doc.createRange();
-          range.selectNodeContents(textNode);
-          const clientRects = range.getClientRects?.();
           const fullStr = textNode.textContent || '';
-          if (clientRects && clientRects.length > 1) {
-            let curText = '';
-            let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
-            let prevTop: number | null = null;
-            const crRange = doc.createRange();
-            const textStart = nowMs();
-            textCharsMeasured += fullStr.length;
-            for (let ci = 0; ci < fullStr.length; ci++) {
-              crRange.setStart(textNode, ci);
-              crRange.setEnd(textNode, ci + 1);
-              const cr = crRange.getBoundingClientRect();
-              if (cr.width === 0 && cr.height === 0) {
-                curText += fullStr[ci];
-                continue;
-              }
-              if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
-                if (curText.trim() && minL < Infinity) {
-                  lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
-                }
-                curText = fullStr[ci];
-                minL = cr.left; minT = cr.top; maxR = cr.right; maxB = cr.bottom;
-              } else {
-                curText += fullStr[ci];
-                minL = Math.min(minL, cr.left); minT = Math.min(minT, cr.top);
-                maxR = Math.max(maxR, cr.right); maxB = Math.max(maxB, cr.bottom);
-              }
-              prevTop = cr.top;
-            }
-            textMs += nowMs() - textStart;
-            if (curText.trim() && minL < Infinity) {
-              lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
-            }
-          }
+          const textStart = nowMs();
+          const { lines, measuredCalls } = measureWrappedLines(
+            doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+          );
+          textMs += nowMs() - textStart;
+          textCharsMeasured += measuredCalls;
+          for (const l of lines) lineBoxes.push(l);
           if (lineBoxes.length === 0) {
+            const range = doc.createRange();
+            range.selectNodeContents(textNode);
             const rangeRect = range.getBoundingClientRect();
             if (rangeRect.width > 0 && rangeRect.height > 0) {
               lineBoxes.push({ text: textVal, x: rangeRect.left + scrollX - frameRect.originX, y: rangeRect.top + scrollY - frameRect.originY, w: rangeRect.width + 2, h: rangeRect.height });

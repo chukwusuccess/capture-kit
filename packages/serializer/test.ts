@@ -725,6 +725,71 @@ async function runReadinessTests() {
     assert.strictEqual(skipped.length, 1);
     assert.ok(skipped[0].message.includes('3 images'));
   }
+
+  // Multi-line text runs use binary search over clientRects with O(lines * log chars) calls.
+  {
+    const { doc, body, styleMap } = createMockDocument();
+    const p = new MockElement('p');
+    const line1 = 'First wrapped line of text ';
+    const line2 = 'Second wrapped line of text ';
+    const line3 = 'Third wrapped line of text';
+    const fullStr = line1 + line2 + line3;
+    const textNode = { nodeType: 3, textContent: fullStr } as unknown as MockElement;
+    p.appendChild(textNode);
+    p.rect = { left: 10, top: 20, width: 200, height: 60 };
+    styleMap.set(p, {
+      display: 'block',
+      visibility: 'visible',
+      opacity: '1',
+      fontSize: '16px',
+      lineHeight: '20px',
+      fontFamily: 'Inter',
+      textAlign: 'left',
+      color: 'rgb(0, 0, 0)',
+    });
+    body.appendChild(p);
+
+    const b1 = line1.length;
+    const b2 = line1.length + line2.length;
+    let rectCalls = 0;
+    (doc as unknown as Record<string, unknown>).createRange = () => {
+      let start = 0;
+      let end = fullStr.length;
+      const lineRect = (li: number) => ({
+        left: 10,
+        top: 20 + li * 20,
+        right: 190 - li * 10,
+        bottom: 40 + li * 20,
+        width: 180 - li * 10,
+        height: 20,
+      });
+      return {
+        selectNodeContents: () => { start = 0; end = fullStr.length; },
+        setStart: (_n: unknown, s: number) => { start = s; },
+        setEnd: (_n: unknown, e: number) => { end = e; },
+        getClientRects: () => {
+          rectCalls++;
+          const out = [];
+          if (start < b1 && end > 0) out.push(lineRect(0));
+          if (start < b2 && end > b1) out.push(lineRect(1));
+          if (end > b2) out.push(lineRect(2));
+          return out;
+        },
+        getBoundingClientRect: () => lineRect(start < b1 ? 0 : start < b2 ? 1 : 2),
+      };
+    };
+
+    const capture = await serializeDocument(doc as unknown as Document, { collectTimings: true });
+    const tNode = capture.nodes.find((n) => n.type === 'text');
+    assert.ok(tNode?.text?.runs, 'Multi-line text node should emit runs');
+    assert.deepStrictEqual(tNode.text.runs, [
+      { text: line1.trim(), x: 10, y: 20, w: 182 },
+      { text: line2.trim(), x: 10, y: 40, w: 172 },
+      { text: line3.trim(), x: 10, y: 60, w: 162 },
+    ]);
+    assert.ok((capture.timings?.counts.textCharsMeasured ?? Infinity) < fullStr.length * 0.35,
+      `Expected binary search rect calls < 35% of ${fullStr.length}, got ${capture.timings?.counts.textCharsMeasured}`);
+  }
 }
 
 runSerializerAccuracyTests().then(runReadinessTests).catch((err) => {
