@@ -2,6 +2,7 @@ import {
   type Asset,
   type Capture,
   type CaptureDiagnostic,
+  type CaptureTimings,
   type CornerRadius,
   type Fill,
   type Font,
@@ -44,6 +45,49 @@ export interface SerializeOptions {
   assetTimeoutMs?: number;
   /** Concurrent image asset fetches, default 8. */
   assetConcurrency?: number;
+  /** Optional stage timing callback (stage name, elapsed ms). */
+  onTiming?: (stage: string, ms: number) => void;
+  /** Populate capture.timings even when onTiming is not provided. */
+  collectTimings?: boolean;
+}
+
+interface TimingContext {
+  totalStart: number;
+  scrollMs: number;
+  waitImagesMs: number;
+  wantTimings: boolean;
+  onTiming?: (stage: string, ms: number) => void;
+}
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function roundMs(ms: number): number {
+  return Math.round(ms * 100) / 100;
+}
+
+function finalizeTimings(
+  capture: Capture,
+  ctx: TimingContext,
+  stages: Omit<CaptureTimings['stages'], 'scroll' | 'waitImages' | 'total'>,
+  counts: Omit<CaptureTimings['counts'], 'jsonBytes'>
+): void {
+  const fullStages: CaptureTimings['stages'] = {
+    scroll: roundMs(ctx.scrollMs),
+    waitImages: roundMs(ctx.waitImagesMs),
+    ...stages,
+    total: roundMs(nowMs() - ctx.totalStart),
+  };
+  if (ctx.onTiming) {
+    for (const [stage, ms] of Object.entries(fullStages)) ctx.onTiming(stage, ms);
+  }
+  const timings: CaptureTimings = { stages: fullStages, counts: { ...counts, jsonBytes: 0 } };
+  capture.timings = timings;
+  const json = JSON.stringify(capture);
+  timings.counts.jsonBytes = typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(json).length : json.length;
 }
 
 function delay(ms: number): Promise<void> {
@@ -274,7 +318,7 @@ async function prepareCapture(
   doc: Document,
   opts: SerializeOptions | undefined,
   scroll: boolean
-): Promise<CaptureDiagnostic[]> {
+): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number }> {
   const diagnostics: CaptureDiagnostic[] = [];
   const seen = new Set<string>();
   const report: ReportDiagnostic = (diagnostic) => {
@@ -286,7 +330,9 @@ async function prepareCapture(
   };
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
+  let scrollMs = 0;
   if (scroll && doc.defaultView) {
+    const scrollStart = nowMs();
     try {
       await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => Promise.all([
         waitForImageElements(root, opts?.imageOptions, state, true, deadline),
@@ -295,12 +341,17 @@ async function prepareCapture(
     } catch (error) {
       warning(report, 'scroll_failed', `Page scrolling failed; lazy content may be incomplete: ${error instanceof Error ? error.message : String(error)}`);
     }
+    scrollMs = nowMs() - scrollStart;
   }
+  const waitImagesStart = nowMs();
+  let waitImagesMs = 0;
   await Promise.all([
-    waitForImageElements(root, opts?.imageOptions, state),
+    waitForImageElements(root, opts?.imageOptions, state).finally(() => {
+      waitImagesMs = nowMs() - waitImagesStart;
+    }),
     waitForFonts(doc, opts?.fontTimeoutMs, report, fontState),
   ]);
-  return diagnostics;
+  return { diagnostics, scrollMs, waitImagesMs };
 }
 
 async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
@@ -1519,7 +1570,8 @@ async function serializeSubtree(
   doc: Document,
   frameRect: { originX: number; originY: number; width: number; height: number },
   opts?: SerializeOptions,
-  diagnostics: CaptureDiagnostic[] = []
+  diagnostics: CaptureDiagnostic[] = [],
+  timingCtx?: TimingContext
 ): Promise<Capture> {
   const report: ReportDiagnostic = (diagnostic) => diagnostics.push(diagnostic);
   const assetTimeoutMs = boundedNumber(opts?.assetTimeoutMs, 2500);
@@ -1603,11 +1655,13 @@ async function serializeSubtree(
       for (const child of children) visit(child);
     }
   };
+  const walkStart = nowMs();
   walkInto(root);
   for (let i = 0; i < elements.length; i++) {
     const sr = (elements[i] as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
     if (sr) walkInto(sr);
   }
+  const walkMs = nowMs() - walkStart;
 
   // Freeze every active transform so all measurement below (element rects,
   // range rects, pseudo boxes) happens in pure layout space. Frozen values
@@ -1617,6 +1671,7 @@ async function serializeSubtree(
     frozen: new Map(),
     boxes: new Map(),
   };
+  const freezeStart = nowMs();
   for (const el of elements) {
     const frozen = freezeTransform(el, defaultView);
     if (frozen) {
@@ -1624,6 +1679,7 @@ async function serializeSubtree(
       measure.frozen.set(el, frozen);
     }
   }
+  const freezeTransformsMs = nowMs() - freezeStart;
   const chainCache = new Map<Element, { matrix: Affine | null; failed: boolean }>();
   const chainFor = (e: Element): { matrix: Affine | null; failed: boolean } => {
     if (measure.transformed.size === 0) return { matrix: null, failed: false };
@@ -1657,6 +1713,9 @@ async function serializeSubtree(
     return {};
   };
 
+  let textMs = 0;
+  let textCharsMeasured = 0;
+  const nodesStart = nowMs();
   try {
   for (const el of elements) {
     if (el.parentElement && hiddenAncestors.has(el.parentElement)) {
@@ -2137,7 +2196,7 @@ async function serializeSubtree(
         const iframeDoc = iframeEl.contentDocument;
         if (iframeDoc && (iframeDoc.body || iframeDoc.documentElement)) {
           const iframeRoot = iframeDoc.body || iframeDoc.documentElement;
-          const iframeDiagnostics = await prepareCapture(iframeRoot, iframeDoc, opts, false);
+          const { diagnostics: iframeDiagnostics } = await prepareCapture(iframeRoot, iframeDoc, opts, false);
           const iframeCapture = await serializeSubtree(
             iframeRoot,
             iframeDoc,
@@ -2375,6 +2434,8 @@ async function serializeSubtree(
             let minL = Infinity, minT = Infinity, maxR = -Infinity;
             let prevTop: number | null = null;
             const charRange = doc.createRange();
+            const textStart = nowMs();
+            textCharsMeasured += fullStr.length;
             for (let ci = 0; ci < fullStr.length; ci++) {
               charRange.setStart(tNode, ci);
               charRange.setEnd(tNode, ci + 1);
@@ -2398,6 +2459,7 @@ async function serializeSubtree(
               }
               prevTop = cr.top;
             }
+            textMs += nowMs() - textStart;
             if (currentLine.trim()) {
               lineRuns.push({
                 text: currentLine.trim(),
@@ -2499,6 +2561,8 @@ async function serializeSubtree(
             let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
             let prevTop: number | null = null;
             const crRange = doc.createRange();
+            const textStart = nowMs();
+            textCharsMeasured += fullStr.length;
             for (let ci = 0; ci < fullStr.length; ci++) {
               crRange.setStart(textNode, ci);
               crRange.setEnd(textNode, ci + 1);
@@ -2520,6 +2584,7 @@ async function serializeSubtree(
               }
               prevTop = cr.top;
             }
+            textMs += nowMs() - textStart;
             if (curText.trim() && minL < Infinity) {
               lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
             }
@@ -2593,8 +2658,15 @@ async function serializeSubtree(
     // frozen inline styles are visible to the user's live page.
     for (const [el, frozen] of measure.frozen) thawTransform(el, frozen);
   }
+  const nodesMs = nowMs() - nodesStart;
+
   // Resolve assets with bounded concurrency, including the extension fallback.
   let nextFetch = 0;
+  let assetsFetched = 0;
+  let assetsFailed = 0;
+  let assetsTimedOut = 0;
+  let assetBytes = 0;
+  const assetsStart = nowMs();
   const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
   await Promise.all(Array.from({ length: Math.min(assetConcurrency, pendingAssetFetches.length) }, async () => {
     while (nextFetch < pendingAssetFetches.length) {
@@ -2607,6 +2679,8 @@ async function serializeSubtree(
         const buffer = await withTimeout(finalBlob.arrayBuffer(), assetTimeoutMs);
         const base64 = await arrayBufferToBase64(buffer);
         assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
+        assetsFetched++;
+        assetBytes += buffer.byteLength;
       } catch (error) {
         failure = error;
         const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
@@ -2616,6 +2690,8 @@ async function serializeSubtree(
             const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), assetTimeoutMs)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
             if (bg?.success && bg.base64) {
               assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
+              assetsFetched++;
+              assetBytes += Math.floor((bg.base64.length * 3) / 4);
             }
           } catch (error) {
             failure = error;
@@ -2623,11 +2699,14 @@ async function serializeSubtree(
         }
       }
       if (!assets[assetKey]) {
+        if (failure instanceof CaptureTimeout) assetsTimedOut++;
+        else assetsFailed++;
         warning(report, failure instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
           `Image asset could not be embedded: ${url}${failure instanceof Error ? ` (${failure.message})` : ''}`, nodeId);
       }
     }
   }));
+  const assetsMs = nowMs() - assetsStart;
 
   for (const n of nodes) {
     n.box.x = round2(n.box.x);
@@ -2637,8 +2716,30 @@ async function serializeSubtree(
   }
   capture.nodes = nodes;
   capture.assets = assets;
+  const fontsStart = nowMs();
   capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`, report, assetTimeoutMs);
+  const fontsMs = nowMs() - fontsStart;
   if (diagnostics.length) capture.diagnostics = diagnostics;
+
+  if (timingCtx?.wantTimings) {
+    finalizeTimings(capture, timingCtx, {
+      walk: roundMs(walkMs),
+      freezeTransforms: roundMs(freezeTransformsMs),
+      nodes: roundMs(nodesMs),
+      text: roundMs(textMs),
+      assets: roundMs(assetsMs),
+      fonts: roundMs(fontsMs),
+    }, {
+      elementsWalked: elements.length,
+      nodesEmitted: nodes.length,
+      textCharsMeasured,
+      transformedElements: measure.transformed.size,
+      assetsFetched,
+      assetsFailed,
+      assetsTimedOut,
+      assetBytes,
+    });
+  }
   return capture;
 }
 
@@ -2647,8 +2748,10 @@ export async function serializeDocument(
   opts?: SerializeOptions
 ): Promise<Capture> {
   const defaultView = doc.defaultView ?? window;
+  const totalStart = nowMs();
+  const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
 
-  const diagnostics = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
+  const { diagnostics, scrollMs, waitImagesMs } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -2667,11 +2770,17 @@ export async function serializeDocument(
 
   const targetRoot = body || docEl;
   if (!targetRoot) {
-    return emptyCapture({
+    const empty = emptyCapture({
       url: defaultView.location?.href || 'about:blank',
       version: '0.2.2',
       ...(diagnostics.length ? { diagnostics } : {}),
     });
+    if (wantTimings) {
+      finalizeTimings(empty, { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming },
+        { walk: 0, freezeTransforms: 0, nodes: 0, text: 0, assets: 0, fonts: 0 },
+        { elementsWalked: 0, nodesEmitted: 0, textCharsMeasured: 0, transformedElements: 0, assetsFetched: 0, assetsFailed: 0, assetsTimedOut: 0, assetBytes: 0 });
+    }
+    return empty;
   }
 
   return serializeSubtree(
@@ -2684,7 +2793,8 @@ export async function serializeDocument(
       height: frameHeight,
     },
     opts,
-    diagnostics
+    diagnostics,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined
   );
 }
 
@@ -2692,9 +2802,11 @@ export async function serializeElement(
   el: Element,
   opts?: SerializeOptions
 ): Promise<Capture> {
+  const totalStart = nowMs();
+  const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const diagnostics = await prepareCapture(el, doc, opts, false);
+  const { diagnostics, scrollMs, waitImagesMs } = await prepareCapture(el, doc, opts, false);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -2714,7 +2826,8 @@ export async function serializeElement(
       height,
     },
     opts,
-    diagnostics
+    diagnostics,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined
   );
 }
 
