@@ -42,12 +42,25 @@ export interface CaptureSession {
   error?: string;
 }
 interface SessionIndex { version: 1; sessions: CaptureSession[] }
-interface JobResult { completedAt: number; captures: Capture[] }
+interface JobResult { completedAt: number; captures: Capture[]; assetRefs?: Array<Record<string, string>> }
 interface StoreOptions { maxSessions?: number; now?: () => number; id?: () => string }
 
 export const SESSION_INDEX_KEY = 'capture-kit:sessions:v1';
 export const MAX_SAVED_SESSIONS = 8;
 const resultKey = (sessionId: string, jobId: string): string => `capture-kit:result:${sessionId}:${jobId}`;
+const sessionAssetsKey = (sessionId: string): string => `capture-kit:assets:${sessionId}`;
+
+function hashAsset(asset: Capture['assets'][string]): string {
+  const s = `${asset.kind}|${asset.mimeType}|${asset.base64}`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ (c + i), 0x01000193);
+  }
+  return `${(h1 >>> 0).toString(36)}-${(h2 >>> 0).toString(36)}-${s.length.toString(36)}`;
+}
 export const sessionResultKey = resultKey;
 export const isSessionActive = (session: CaptureSession): boolean => session.status === 'running' || session.status === 'cancelling';
 const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -205,7 +218,10 @@ export class CaptureSessionStore {
       // rejection must leave every previously persisted capture untouched.
       await this.save(index);
       try {
-        const expiredKeys = expired.flatMap((item) => item.jobs.map((job) => resultKey(item.id, job.id)));
+        const expiredKeys = expired.flatMap((item) => [
+          sessionAssetsKey(item.id),
+          ...item.jobs.map((job) => resultKey(item.id, job.id)),
+        ]);
         if (expiredKeys.length) await this.storage.remove(expiredKeys);
       } catch (error) {
         session.status = 'interrupted';
@@ -260,7 +276,33 @@ export class CaptureSessionStore {
       // The result is one durable record. On restart it rolls the manifest forward
       // if the separate, small metadata checkpoint could not be written.
       try {
-        await this.storage.set({ [resultKey(id, jobId)]: { completedAt: this.now(), captures } satisfies JobResult });
+        const hasAssets = captures.some((c) => Object.keys(c.assets).length > 0);
+        if (!hasAssets) {
+          await this.storage.set({ [resultKey(id, jobId)]: { completedAt: this.now(), captures } satisfies JobResult });
+        } else {
+          const aKey = sessionAssetsKey(id);
+          const existing = ((await this.storage.get(aKey))[aKey] as Record<string, Capture['assets'][string]> | undefined) ?? {};
+          let added = false;
+          const assetRefs: Array<Record<string, string>> = [];
+          const stripped = captures.map((c) => {
+            const refs: Record<string, string> = {};
+            for (const [k, asset] of Object.entries(c.assets)) {
+              const h = hashAsset(asset);
+              refs[k] = h;
+              if (!(h in existing)) {
+                existing[h] = asset;
+                added = true;
+              }
+            }
+            assetRefs.push(refs);
+            return { ...c, assets: {} };
+          });
+          const payload: Record<string, unknown> = {
+            [resultKey(id, jobId)]: { completedAt: this.now(), captures: stripped, assetRefs } satisfies JobResult,
+          };
+          if (added) payload[aKey] = existing;
+          await this.storage.set(payload);
+        }
       } catch (error) {
         throw new Error(`Capture result was not saved: ${errorMessage(error)}. Previously saved captures are retained.`);
       }
@@ -353,11 +395,23 @@ export class CaptureSessionStore {
       const session = this.session(index, id);
       const selected = selectedJobIds ? new Set(selectedJobIds) : undefined;
       const jobs = session.jobs.filter((job) => job.status === 'completed' && (!selected || selected.has(job.id)));
-      const results = jobs.length ? await this.storage.get(jobs.map((job) => resultKey(id, job.id))) : {};
+      const keys = jobs.map((job) => resultKey(id, job.id));
+      const aKey = sessionAssetsKey(id);
+      const results = jobs.length ? await this.storage.get([...keys, aKey]) : {};
+      const sessionAssets = (results[aKey] as Record<string, Capture['assets'][string]> | undefined) ?? {};
       return jobs.flatMap((job) => {
         const result = results[resultKey(id, job.id)] as JobResult | undefined;
         if (!result || !Array.isArray(result.captures) || result.captures.length === 0) throw new Error('A saved capture is missing. No export was produced; resume this session to recover the job.');
-        return result.captures;
+        if (!result.assetRefs) return result.captures;
+        return result.captures.map((c, idx) => {
+          const refs = result.assetRefs?.[idx];
+          if (!refs) return c;
+          const assets: Capture['assets'] = { ...c.assets };
+          for (const [k, h] of Object.entries(refs)) {
+            if (sessionAssets[h]) assets[k] = sessionAssets[h];
+          }
+          return { ...c, assets };
+        });
       });
     });
   }
@@ -366,7 +420,7 @@ export class CaptureSessionStore {
     return this.operation(async (index) => {
       const session = this.session(index, id);
       if (isSessionActive(session)) throw new Error('Cancel the active session before discarding it');
-      await this.storage.remove(session.jobs.map((job) => resultKey(id, job.id)));
+      await this.storage.remove([sessionAssetsKey(id), ...session.jobs.map((job) => resultKey(id, job.id))]);
       index.sessions = index.sessions.filter((item) => item.id !== id);
       try {
         await this.save(index);

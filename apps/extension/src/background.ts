@@ -264,22 +264,24 @@ async function injectSerializer(tabId: number): Promise<void> {
   });
 }
 
-async function runSerializer(tabId: number, scrollStitch: boolean, replica = false): Promise<Capture> {
+async function runSerializer(tabId: number, scrollStitch: boolean, replica = false, cachedReplica?: string): Promise<Capture> {
   const injectStart = performance.now();
   await injectSerializer(tabId);
   const injectMs = roundTiming(performance.now() - injectStart);
 
+  const collectTimings = Boolean((globalThis as { __captureKitDebugTimings?: boolean }).__captureKitDebugTimings);
   const serializeStart = performance.now();
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
-    args: [scrollStitch],
+    args: [scrollStitch, collectTimings],
     func: async (...args: unknown[]) => {
       const stitch = Boolean(args[0]);
+      const wantTimings = Boolean(args[1]);
       const customWindow = window as unknown as WindowWithCaptureKit;
       if (!customWindow.__captureKitSerialize) {
         throw new Error('Capture-kit serializer is not available on page');
       }
-      return await customWindow.__captureKitSerialize({ scrollStitch: stitch, collectTimings: true });
+      return await customWindow.__captureKitSerialize({ scrollStitch: stitch, collectTimings: wantTimings });
     },
   });
 
@@ -292,9 +294,13 @@ async function runSerializer(tabId: number, scrollStitch: boolean, replica = fal
 
   let replicaMs = 0;
   if (replica) {
-    const replicaStart = performance.now();
-    capture.replica = await runReplica(tabId);
-    replicaMs = roundTiming(performance.now() - replicaStart);
+    if (cachedReplica !== undefined) {
+      capture.replica = cachedReplica;
+    } else {
+      const replicaStart = performance.now();
+      capture.replica = await runReplica(tabId);
+      replicaMs = roundTiming(performance.now() - replicaStart);
+    }
   }
   lastRunTimings = { injectMs, serializeMs, replicaMs };
   return capture;
@@ -355,8 +361,8 @@ async function waitForLayout(tabId: number): Promise<void> {
   });
 }
 
-async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean, replica = false): Promise<Capture[]> {
-  const primary = await runSerializer(tabId, scrollStitch, replica);
+async function captureWithThemes(tabId: number, scrollStitch: boolean, dualTheme: boolean, replica = false, cachedReplica?: string): Promise<Capture[]> {
+  const primary = await runSerializer(tabId, scrollStitch, replica, cachedReplica);
   if (!dualTheme) return [primary];
   try {
     await chrome.scripting.executeScript({
@@ -612,6 +618,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
   let captureWindowId: number | undefined;
   let captureTabId: number | undefined;
   let loadedUrl = '';
+  const replicaByUrl = new Map<string, string>();
   try {
     for (const job of session.jobs) {
       if (job.status === 'completed') continue;
@@ -670,7 +677,11 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             const fitStart = performance.now();
             await fitViewport(captureWindowId, captureTabId, job.width);
             fitViewportMs = roundTiming(performance.now() - fitStart);
-            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html');
+            const cachedReplica = session.format === 'html' ? replicaByUrl.get(job.url) : undefined;
+            captures = await captureWithThemes(captureTabId, session.scrollStitch, session.dualTheme, session.format === 'html', cachedReplica);
+            if (session.format === 'html' && cachedReplica === undefined && captures[0]?.replica !== undefined) {
+              replicaByUrl.set(job.url, captures[0].replica);
+            }
             if (liveStateUnavailable) {
               for (const capture of captures) {
                 capture.diagnostics ??= [];
