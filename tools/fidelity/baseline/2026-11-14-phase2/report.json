@@ -1,0 +1,2235 @@
+{
+  "date": "2026-11-14",
+  "runsPerCase": 3,
+  "entries": [
+    {
+      "id": "marketing",
+      "url": "https://stripe.com",
+      "why": "gradients, transforms, heavy fonts",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 14735,
+      "score": 90.95,
+      "strictScore": 77.31,
+      "widthDelta": 0,
+      "heightDelta": 26,
+      "nodeCount": 1322,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 579.1,
+        "walk": 8.2,
+        "freezeTransforms": 33.2,
+        "nodes": 209,
+        "text": 8.6,
+        "assets": 0,
+        "fonts": 1.7,
+        "total": 837.5
+      },
+      "counts": {
+        "elementsWalked": 1823,
+        "nodesEmitted": 1322,
+        "textCharsMeasured": 541,
+        "transformedElements": 180,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 1130567
+      },
+      "jsonMB": 1.078,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 579.1
+      },
+      "hotspots": [
+        {
+          "cell": "r0c6",
+          "mismatchPct": 33.7,
+          "x": 1080,
+          "y": 0,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 114017
+        },
+        {
+          "cell": "r0c7",
+          "mismatchPct": 32.6,
+          "x": 1260,
+          "y": 0,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 110195
+        },
+        {
+          "cell": "r0c5",
+          "mismatchPct": 29.3,
+          "x": 900,
+          "y": 0,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 99045
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-1440/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-1440/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-1440/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 34 images (14 zero-size, 20 lazy-offscreen).",
+          "severity": "info"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=1028&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://b.stripecdn.com/mkt-ssr-statics/assets/_next/static/media/wave-fallback-desktop-1x.fba6fa88.webp",
+          "severity": "warning",
+          "nodeId": "node-198"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/vYmk6v8n7oDAwbDpwhjV6/846f9b3e214549b8f14e2b8c8cfe9343/payment-bento-background.jpg?w=860&fm=webp&q=80",
+          "severity": "warning",
+          "nodeId": "node-219"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=514&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-320"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "severity": "warning",
+          "nodeId": "node-338"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+          "severity": "warning",
+          "nodeId": "node-355"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
+          "severity": "warning",
+          "nodeId": "node-371"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
+          "severity": "warning",
+          "nodeId": "node-384"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-467"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-495"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-523"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-552"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-637"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-652"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-667"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-682"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-697"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-712"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-727"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-742"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-804"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-853"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-867"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-881"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-895"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90",
+          "severity": "warning",
+          "nodeId": "node-1060"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "url": "https://stripe.com",
+      "why": "gradients, transforms, heavy fonts",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 10003,
+      "score": 72.55,
+      "strictScore": 43.62,
+      "widthDelta": 0,
+      "heightDelta": 1550,
+      "nodeCount": 1228,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2,
+        "walk": 7.5,
+        "freezeTransforms": 21,
+        "nodes": 183.7,
+        "text": 9,
+        "assets": 0,
+        "fonts": 0.7,
+        "total": 219.5
+      },
+      "counts": {
+        "elementsWalked": 1495,
+        "nodesEmitted": 1228,
+        "textCharsMeasured": 734,
+        "transformedElements": 121,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 1020079
+      },
+      "jsonMB": 0.973,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 183.7
+      },
+      "hotspots": [
+        {
+          "cell": "r5c1",
+          "mismatchPct": 66,
+          "x": 49,
+          "y": 12950,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 83774
+        },
+        {
+          "cell": "r5c2",
+          "mismatchPct": 64.8,
+          "x": 98,
+          "y": 12950,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 82223
+        },
+        {
+          "cell": "r5c3",
+          "mismatchPct": 64,
+          "x": 147,
+          "y": 12950,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 81219
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 37 images (5 zero-size, 32 lazy-offscreen).",
+          "severity": "info"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://b.stripecdn.com/mkt-ssr-statics/assets/_next/static/media/wave-fallback-mobile-1x.80eb433a.webp",
+          "severity": "warning",
+          "nodeId": "node-186"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/m9HBEK464p46FeNIhs2PV/f5054a93c8a0a6aabdd1c47675d610ae/wave_crop.jpg?w=396&fm=webp&q=80",
+          "severity": "warning",
+          "nodeId": "node-205"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=1028&q=90",
+          "severity": "warning",
+          "nodeId": "node-306"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "severity": "warning",
+          "nodeId": "node-324"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+          "severity": "warning",
+          "nodeId": "node-341"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+          "severity": "warning",
+          "nodeId": "node-357"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+          "severity": "warning",
+          "nodeId": "node-370"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+          "severity": "warning",
+          "nodeId": "node-404"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-432"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-463"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-494"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-525"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-610"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-625"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-632"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-639"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-646"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-653"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-660"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-667"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-714"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-763"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-777"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-791"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-805"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/yqIFyZRGU5zDwdUsWtUyM/25b9f23c748c4d54079a09016fde59d8/annual-letter-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-934"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6yE6G454SGCJnJgEYsS2MB/70b405a1dce904bc0c6f2698223fb966/the-happenings-bfcm-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-947"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/33xcv8eCmXzMzWXicVQ4cF/83d91fa419ff8d1b9466739b4ecdcb1d/the-happenings-tidemark-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-952"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/t03tXrgvnHUPGwxYUgSxN/bd8da003434c9e9fb72c719b9edb429b/the-happenings-cheeky-pint-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-957"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/Pd2JQ7FZ1pYMIMGDwvMdV/13e7e021ca23d042da8ac07be829f7ef/the-happenings-payment-processing-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-962"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4LaZVLqDqGf9091wqUAmFp/fbe9fc307e1336b69bcd9be4ec5c4752/the-happenings-crypto-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-967"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1k7ckFceNFlxqF47hWJUlM/eaa4d8b3f8e4b76ba3dd7df7da88e099/the-happenings-agentic-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-972"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7EVLwfXmG3pl1vhBssMrFB/b6d8612b1f567922c1355d864c279678/the-happenings-payment-retailers-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-977"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90",
+          "severity": "warning",
+          "nodeId": "node-1003"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "saas",
+      "url": "https://linear.app",
+      "why": "dark UI, blur, dense components",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 12711,
+      "score": 92.6,
+      "strictScore": 62.16,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1824,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 3.8,
+        "walk": 11.5,
+        "freezeTransforms": 17.2,
+        "nodes": 268.7,
+        "text": 7.5,
+        "assets": 1311.4,
+        "fonts": 1087.7,
+        "total": 1396.9
+      },
+      "counts": {
+        "elementsWalked": 2174,
+        "nodesEmitted": 1824,
+        "textCharsMeasured": 275,
+        "transformedElements": 56,
+        "assetsFetched": 22,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 1230875,
+        "jsonBytes": 2929192
+      },
+      "jsonMB": 2.793,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 1311.4
+      },
+      "hotspots": [
+        {
+          "cell": "r6c4",
+          "mismatchPct": 39.7,
+          "x": 720,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 89343
+        },
+        {
+          "cell": "r6c1",
+          "mismatchPct": 39.3,
+          "x": 180,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 88321
+        },
+        {
+          "cell": "r6c3",
+          "mismatchPct": 39.1,
+          "x": 540,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 87863
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 28 images (4 zero-size, 24 lazy-offscreen).",
+          "severity": "info"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Background image data could not be read.",
+          "severity": "warning",
+          "nodeId": "node-1106"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Background image data could not be read.",
+          "severity": "warning",
+          "nodeId": "node-1134"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Background image data could not be read.",
+          "severity": "warning",
+          "nodeId": "node-1176"
+        }
+      ]
+    },
+    {
+      "id": "saas",
+      "url": "https://linear.app",
+      "why": "dark UI, blur, dense components",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 8194,
+      "score": 89.7,
+      "strictScore": 59.41,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 412,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 5,
+        "walk": 47.2,
+        "freezeTransforms": 39.7,
+        "nodes": 106,
+        "text": 4.6,
+        "assets": 1420.9,
+        "fonts": 1372.9,
+        "total": 1581.7
+      },
+      "counts": {
+        "elementsWalked": 2174,
+        "nodesEmitted": 412,
+        "textCharsMeasured": 207,
+        "transformedElements": 21,
+        "assetsFetched": 6,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 2753386,
+        "jsonBytes": 4081230
+      },
+      "jsonMB": 3.892,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 1420.9
+      },
+      "hotspots": [
+        {
+          "cell": "r5c2",
+          "mismatchPct": 34.2,
+          "x": 98,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 12445
+        },
+        {
+          "cell": "r5c1",
+          "mismatchPct": 33.5,
+          "x": 49,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 12176
+        },
+        {
+          "cell": "r5c3",
+          "mismatchPct": 30.8,
+          "x": 147,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 11216
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 32 images (25 zero-size, 7 lazy-offscreen).",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "url": "https://www.bbc.com/news",
+      "why": "long page, many images, lazy load",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 16179,
+      "score": 84.61,
+      "strictScore": 70.17,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1044,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1.9,
+        "walk": 3.5,
+        "freezeTransforms": 7.6,
+        "nodes": 127.8,
+        "text": 10,
+        "assets": 0,
+        "fonts": 1.7,
+        "total": 146.3
+      },
+      "counts": {
+        "elementsWalked": 1253,
+        "nodesEmitted": 1044,
+        "textCharsMeasured": 1117,
+        "transformedElements": 12,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 491003
+      },
+      "jsonMB": 0.468,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 127.8
+      },
+      "hotspots": [
+        {
+          "cell": "r0c3",
+          "mismatchPct": 65.2,
+          "x": 540,
+          "y": 0,
+          "width": 180,
+          "height": 823,
+          "mismatchedPixels": 96568
+        },
+        {
+          "cell": "r0c4",
+          "mismatchPct": 63.7,
+          "x": 720,
+          "y": 0,
+          "width": 180,
+          "height": 823,
+          "mismatchedPixels": 94429
+        },
+        {
+          "cell": "r0c5",
+          "mismatchPct": 59.6,
+          "x": 900,
+          "y": 0,
+          "width": 180,
+          "height": 823,
+          "mismatchedPixels": 88337
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-1440/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 14 images (14 lazy-offscreen).",
+          "severity": "info"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/3326052006735372490",
+          "severity": "warning",
+          "nodeId": "node-20"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/d61b/live/3ce2aaf0-e01c-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-35"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/14ef/live/f4aae840-dfd7-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-59"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/d028/live/47c10ab0-e013-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-107"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/172e/live/be162960-dfc9-11f1-81be-1f9bcd2a4214.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-125"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/1c12/live/8c3025e0-e005-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-143"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/1a28/live/45df2820-e00f-11f1-9fd4-8b3c9f9dfc89.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-161"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/800/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-227"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-251"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-297"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-315"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/41c9/live/7d390f90-dfcc-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-333"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-366"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-367"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-391"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/880d/live/7334ea60-dfad-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-392"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-441"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/5f18/live/9b3a5370-df98-11f1-a9ad-6774a3284d10.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-442"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-460"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ea6/live/8d0137e0-e00d-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-461"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-477"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/2d86/live/54377b90-df86-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-478"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-671"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-672"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-696"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-697"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-743"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-744"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-762"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/7e38/live/cc5f4c70-e002-11f1-a3e2-bfb07c67d49c.png.webp",
+          "severity": "warning",
+          "nodeId": "node-763"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-781"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a078/live/ecafe1b0-df85-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-782"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-804"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/4234/live/ccb11760-566c-11f0-9074-8989d8c97d87.png.webp",
+          "severity": "warning",
+          "nodeId": "node-805"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Md.woff2",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "url": "https://www.bbc.com/news",
+      "why": "long page, many images, lazy load",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 7466,
+      "score": 88.48,
+      "strictScore": 75.24,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 923,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1.9,
+        "walk": 4.1,
+        "freezeTransforms": 6.9,
+        "nodes": 106.6,
+        "text": 6.7,
+        "assets": 0,
+        "fonts": 1.7,
+        "total": 124.5
+      },
+      "counts": {
+        "elementsWalked": 1200,
+        "nodesEmitted": 923,
+        "textCharsMeasured": 690,
+        "transformedElements": 12,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 437373
+      },
+      "jsonMB": 0.417,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 106.6
+      },
+      "hotspots": [
+        {
+          "cell": "r0c1",
+          "mismatchPct": 42.9,
+          "x": 49,
+          "y": 0,
+          "width": 49,
+          "height": 1317,
+          "mismatchedPixels": 27690
+        },
+        {
+          "cell": "r0c2",
+          "mismatchPct": 42.8,
+          "x": 98,
+          "y": 0,
+          "width": 49,
+          "height": 1317,
+          "mismatchedPixels": 27638
+        },
+        {
+          "cell": "r0c0",
+          "mismatchPct": 34,
+          "x": 0,
+          "y": 0,
+          "width": 49,
+          "height": 1317,
+          "mismatchedPixels": 21911
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 16 images (16 lazy-offscreen).",
+          "severity": "info"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/480/cpsprodpb/d61b/live/3ce2aaf0-e01c-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-27"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/14ef/live/f4aae840-dfd7-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-49"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/d028/live/47c10ab0-e013-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-94"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/172e/live/be162960-dfc9-11f1-81be-1f9bcd2a4214.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-111"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/1c12/live/8c3025e0-e005-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-128"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/1a28/live/45df2820-e00f-11f1-9fd4-8b3c9f9dfc89.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-145"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-210"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-211"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-233"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-234"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-279"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-280"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-297"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-298"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-315"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/41c9/live/7d390f90-dfcc-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-316"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-348"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-349"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-371"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/880d/live/7334ea60-dfad-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-372"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-420"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/5f18/live/9b3a5370-df98-11f1-a9ad-6774a3284d10.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-421"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-438"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ea6/live/8d0137e0-e00d-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-439"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-454"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/2d86/live/54377b90-df86-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-455"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-647"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-648"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-670"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-671"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-716"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-717"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-734"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/7e38/live/cc5f4c70-e002-11f1-a3e2-bfb07c67d49c.png.webp",
+          "severity": "warning",
+          "nodeId": "node-735"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-752"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a078/live/ecafe1b0-df85-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-753"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-774"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/4234/live/ccb11760-566c-11f0-9074-8989d8c97d87.png.webp",
+          "severity": "warning",
+          "nodeId": "node-775"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Md.woff2",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "url": "https://www.apple.com/iphone/",
+      "why": "scroll animation, huge images",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 13796,
+      "score": 94.05,
+      "strictScore": 86.18,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1158,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 3.1,
+        "walk": 13.7,
+        "freezeTransforms": 58,
+        "nodes": 162.6,
+        "text": 44.1,
+        "assets": 199.3,
+        "fonts": 119.5,
+        "total": 364.5
+      },
+      "counts": {
+        "elementsWalked": 2630,
+        "nodesEmitted": 1158,
+        "textCharsMeasured": 4163,
+        "transformedElements": 380,
+        "assetsFetched": 7,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 153730,
+        "jsonBytes": 1993752
+      },
+      "jsonMB": 1.901,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 199.3
+      },
+      "hotspots": [
+        {
+          "cell": "r5c2",
+          "mismatchPct": 16.6,
+          "x": 360,
+          "y": 10125,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 60667
+        },
+        {
+          "cell": "r4c2",
+          "mismatchPct": 16.3,
+          "x": 360,
+          "y": 8100,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 59382
+        },
+        {
+          "cell": "r4c3",
+          "mismatchPct": 16.1,
+          "x": 540,
+          "y": 8100,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 58824
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 11 images (11 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "font_failed",
+          "message": "Font failed to load: Apple Legacy Icons",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "url": "https://www.apple.com/iphone/",
+      "why": "scroll animation, huge images",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 13173,
+      "score": 90.1,
+      "strictScore": 76.44,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1843,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 4,
+        "walk": 23.1,
+        "freezeTransforms": 37.8,
+        "nodes": 241.6,
+        "text": 105.6,
+        "assets": 333,
+        "fonts": 96.2,
+        "total": 415.8
+      },
+      "counts": {
+        "elementsWalked": 2630,
+        "nodesEmitted": 1843,
+        "textCharsMeasured": 12774,
+        "transformedElements": 146,
+        "assetsFetched": 12,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 92709,
+        "jsonBytes": 2268601
+      },
+      "jsonMB": 2.164,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 333
+      },
+      "hotspots": [
+        {
+          "cell": "r5c1",
+          "mismatchPct": 16.5,
+          "x": 49,
+          "y": 19550,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 31556
+        },
+        {
+          "cell": "r5c4",
+          "mismatchPct": 16.5,
+          "x": 196,
+          "y": 19550,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 31669
+        },
+        {
+          "cell": "r5c2",
+          "mismatchPct": 16.3,
+          "x": 98,
+          "y": 19550,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 31186
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 14 images (14 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "font_failed",
+          "message": "Font failed to load: Apple Legacy Icons",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "own",
+      "url": "http://127.0.0.1:4173/",
+      "why": "our real target",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 9830,
+      "score": 91.41,
+      "strictScore": 90.96,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 554,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 302.6,
+        "walk": 7.4,
+        "freezeTransforms": 26,
+        "nodes": 76.8,
+        "text": 4.5,
+        "assets": 75.7,
+        "fonts": 33.4,
+        "total": 1459
+      },
+      "counts": {
+        "elementsWalked": 1256,
+        "nodesEmitted": 554,
+        "textCharsMeasured": 47,
+        "transformedElements": 252,
+        "assetsFetched": 1,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 7574,
+        "jsonBytes": 277177
+      },
+      "jsonMB": 0.264,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 302.6
+      },
+      "hotspots": [
+        {
+          "cell": "r1c6",
+          "mismatchPct": 81.2,
+          "x": 1080,
+          "y": 1786,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 261195
+        },
+        {
+          "cell": "r1c7",
+          "mismatchPct": 74.2,
+          "x": 1260,
+          "y": 1786,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 238486
+        },
+        {
+          "cell": "r2c3",
+          "mismatchPct": 43.8,
+          "x": 540,
+          "y": 3572,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 140967
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 14 images (14 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79e8d09a7d00ffe4d50a46_Banner%20Line%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "46 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79e8d09a7d00ffe4d50a46_Banner%20Line%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-8"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-19"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-20"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-25"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-33"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-39"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-45"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-51"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79e0d3548fb53224983311_Banner%20Information%20Scanner.svg",
+          "severity": "warning",
+          "nodeId": "node-55"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a7973e0f6ef788d0e0f48bc_Primary%20Button%20White%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-91"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2786c96c21c947d0a8_Main%20About%20Us%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-114"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2819a7f5705fec3bd7_Main%20About%20Us%20Image2.webp",
+          "severity": "warning",
+          "nodeId": "node-115"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a6e5f21a498cf825561_Project%20Image6.webp",
+          "severity": "warning",
+          "nodeId": "node-117"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a6e5f21a498cf825561_Project%20Image6.webp",
+          "severity": "warning",
+          "nodeId": "node-132"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9ae0b3e4237cab7fe42f_Project%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-151"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a558ec6a2138822da75_Project%20Image7.webp",
+          "severity": "warning",
+          "nodeId": "node-152"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-186"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4f48ffd2ac932b6b3_Work%20Card%20Icon1.svg",
+          "severity": "warning",
+          "nodeId": "node-190"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-193"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4ee817048104c0b1a_Work%20Card%20Icon4.svg",
+          "severity": "warning",
+          "nodeId": "node-197"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-201"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c43b0f8d65e70b6958_Work%20Card%20Icon2.svg",
+          "severity": "warning",
+          "nodeId": "node-205"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-208"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c49a5a92e694d581a2_Work%20Card%20Icon3.svg",
+          "severity": "warning",
+          "nodeId": "node-212"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff9ddcfaf2ddbd6a5e38e_Work%20Card%20Pluse%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-214"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-223"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-224"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-243"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-244"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "own",
+      "url": "http://127.0.0.1:4173/",
+      "why": "our real target",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 5662,
+      "score": 93.86,
+      "strictScore": 85.87,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 516,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 305.2,
+        "walk": 8.3,
+        "freezeTransforms": 20.7,
+        "nodes": 67.2,
+        "text": 3.6,
+        "assets": 60.5,
+        "fonts": 25.3,
+        "total": 1361.6
+      },
+      "counts": {
+        "elementsWalked": 1270,
+        "nodesEmitted": 516,
+        "textCharsMeasured": 60,
+        "transformedElements": 196,
+        "assetsFetched": 1,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 7574,
+        "jsonBytes": 260209
+      },
+      "jsonMB": 0.248,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 305.2
+      },
+      "hotspots": [
+        {
+          "cell": "r1c2",
+          "mismatchPct": 32.7,
+          "x": 98,
+          "y": 1140,
+          "width": 49,
+          "height": 1140,
+          "mismatchedPixels": 18294
+        },
+        {
+          "cell": "r1c1",
+          "mismatchPct": 31.3,
+          "x": 49,
+          "y": 1140,
+          "width": 49,
+          "height": 1140,
+          "mismatchedPixels": 17483
+        },
+        {
+          "cell": "r1c3",
+          "mismatchPct": 29.6,
+          "x": 147,
+          "y": 1140,
+          "width": 49,
+          "height": 1140,
+          "mismatchedPixels": 16517
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 22 images (19 zero-size, 3 hidden).",
+          "severity": "info"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a7973e0f6ef788d0e0f48bc_Primary%20Button%20White%20Icon.svg",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "38 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-17"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-18"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-23"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-31"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-37"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-43"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-49"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a7973e0f6ef788d0e0f48bc_Primary%20Button%20White%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-91"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2786c96c21c947d0a8_Main%20About%20Us%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-112"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2819a7f5705fec3bd7_Main%20About%20Us%20Image2.webp",
+          "severity": "warning",
+          "nodeId": "node-113"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a6e5f21a498cf825561_Project%20Image6.webp",
+          "severity": "warning",
+          "nodeId": "node-122"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9ae0b3e4237cab7fe42f_Project%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-141"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a558ec6a2138822da75_Project%20Image7.webp",
+          "severity": "warning",
+          "nodeId": "node-142"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-179"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4f48ffd2ac932b6b3_Work%20Card%20Icon1.svg",
+          "severity": "warning",
+          "nodeId": "node-183"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-186"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4ee817048104c0b1a_Work%20Card%20Icon4.svg",
+          "severity": "warning",
+          "nodeId": "node-190"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-193"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c43b0f8d65e70b6958_Work%20Card%20Icon2.svg",
+          "severity": "warning",
+          "nodeId": "node-197"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-200"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c49a5a92e694d581a2_Work%20Card%20Icon3.svg",
+          "severity": "warning",
+          "nodeId": "node-204"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-214"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-215"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-234"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-235"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "fixture",
+      "url": "tools/fidelity/fixture.html",
+      "why": "control — must stay 100%",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 2209,
+      "score": 100,
+      "strictScore": 98.9,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 29,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2,
+        "walk": 1,
+        "freezeTransforms": 1.1,
+        "nodes": 10.5,
+        "text": 0.6,
+        "assets": 0,
+        "fonts": 0.7,
+        "total": 18.2
+      },
+      "counts": {
+        "elementsWalked": 25,
+        "nodesEmitted": 29,
+        "textCharsMeasured": 0,
+        "transformedElements": 1,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 15051
+      },
+      "jsonMB": 0.014,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 10.5
+      },
+      "hotspots": [],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "fixture",
+      "url": "tools/fidelity/fixture.html",
+      "why": "control — must stay 100%",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 2049,
+      "score": 100,
+      "strictScore": 99.34,
+      "widthDelta": 1,
+      "heightDelta": 2,
+      "nodeCount": 29,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1.9,
+        "walk": 0.7,
+        "freezeTransforms": 1,
+        "nodes": 10.2,
+        "text": 0.6,
+        "assets": 0,
+        "fonts": 0.7,
+        "total": 17.2
+      },
+      "counts": {
+        "elementsWalked": 25,
+        "nodesEmitted": 29,
+        "textCharsMeasured": 0,
+        "transformedElements": 1,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 15054
+      },
+      "jsonMB": 0.014,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 10.2
+      },
+      "hotspots": [],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-3/diff-mask.png"
+      },
+      "diagnostics": []
+    }
+  ]
+}
