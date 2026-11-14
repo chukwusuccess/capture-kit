@@ -24,6 +24,7 @@ async function main(): Promise<void> {
 
   console.log(report);
 
+  assert.ok(report.nodeCount > 20, `suspiciously few nodes: ${report.nodeCount}`);
   assert.ok(
     report.score >= 90,
     `fidelity score ${report.score}% below 90% floor (see ${report.files.mask})`
