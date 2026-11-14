@@ -155,11 +155,14 @@ async function launchChrome(timeoutMs: number): Promise<{ port: number; proc: Ch
     ],
     { stdio: 'ignore' }
   );
-  proc.on('exit', () => rmSync(userDataDir, { recursive: true, force: true }));
+  const cleanUserData = () => {
+    try { rmSync(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); } catch { /* ignore */ }
+  };
+  proc.on('exit', cleanUserData);
   let launchError: Error | undefined;
   proc.on('error', (error: Error) => {
     launchError = error;
-    rmSync(userDataDir, { recursive: true, force: true });
+    cleanUserData();
   });
 
   const deadline = Date.now() + timeoutMs;

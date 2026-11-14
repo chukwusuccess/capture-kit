@@ -28,6 +28,8 @@ export interface ImageReadinessOptions {
   timeoutMs?: number;
   /** Shared deadline per discovery pass, default 5000ms. */
   totalTimeoutMs?: number;
+  /** Stop waiting once no tracked image progresses for this long, default 300ms. */
+  idleMs?: number;
   /** Maximum pending browser decodes, default 8. */
   concurrency?: number;
   /** Optional explicit cap; all discovered images are considered by default. */
@@ -43,6 +45,8 @@ export interface SerializeOptions {
   fontTimeoutMs?: number;
   /** Asset operation deadline and total font embedding budget, default 2500ms. */
   assetTimeoutMs?: number;
+  /** Overall deadline shared across image readiness, font readiness/embedding, and asset fetches, default 4000ms. */
+  readinessBudgetMs?: number;
   /** Concurrent image asset fetches, default 8. */
   assetConcurrency?: number;
   /** Optional stage timing callback (stage name, elapsed ms). */
@@ -139,63 +143,139 @@ async function waitForImageElements(
 ): Promise<number> {
   const timeoutMs = boundedNumber(opts?.timeoutMs, 2500);
   const deadline = Math.min(Date.now() + boundedNumber(opts?.totalTimeoutMs, 5000), outerDeadline);
+  const idleMs = boundedNumber(opts?.idleMs, 800);
   const concurrency = Math.floor(boundedNumber(opts?.concurrency, 8, 1));
   const maxImages = opts?.maxImages === undefined ? Infinity : Math.floor(boundedNumber(opts.maxImages, Infinity));
   const images: HTMLImageElement[] = [];
   if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
   if (typeof root.querySelectorAll === 'function') images.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
   const doc = 'tagName' in root ? root.ownerDocument : root;
-  const viewportHeight = doc.defaultView?.innerHeight ?? 800;
-  const candidates = images.filter((img) => {
+  const view = doc.defaultView;
+  const viewportHeight = view?.innerHeight ?? 800;
+
+  const skippedReasons = new Map<string, number>();
+  const recordSkip = (reason: string) => {
+    skippedReasons.set(reason, (skippedReasons.get(reason) ?? 0) + 1);
+  };
+
+  const candidates: HTMLImageElement[] = [];
+  for (const img of images) {
     const source = resolveHighestDpiSrc(img);
-    if (!source || state.sources.get(img) === source) return false;
-    if (!visibleOnly) return true;
+    if (!source) {
+      recordSkip('no-source');
+      continue;
+    }
+    if (state.sources.get(img) === source) continue;
+    const cs = view?.getComputedStyle?.(img);
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) {
+      recordSkip('hidden');
+      continue;
+    }
     const rect = img.getBoundingClientRect();
-    return rect.bottom >= 0 && rect.top <= viewportHeight;
-  });
+    if (rect.width <= 0 || rect.height <= 0) {
+      recordSkip('zero-size');
+      continue;
+    }
+    if (visibleOnly) {
+      if (rect.bottom < 0 || rect.top > viewportHeight) continue;
+    }
+    candidates.push(img);
+  }
+
+  if (skippedReasons.size > 0) {
+    const totalSkipped = Array.from(skippedReasons.values()).reduce((a, b) => a + b, 0);
+    const summary = Array.from(skippedReasons.entries()).map(([r, n]) => `${n} ${r}`).join(', ');
+    state.report({
+      code: 'image_skipped',
+      severity: 'info',
+      message: `Skipped ${totalSkipped} image${totalSkipped === 1 ? '' : 's'} (${summary}).`,
+    });
+  }
+
   let next = 0;
   let decoded = 0;
-  await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, async () => {
-    while (next < candidates.length && state.considered < maxImages && state.pending < concurrency && Date.now() < deadline) {
-      const img = candidates[next++];
-      const source = resolveHighestDpiSrc(img);
-      state.sources.set(img, source);
-      state.considered++;
-      try {
-        if (img.complete) {
-          if (img.naturalWidth <= 0) throw new Error('Image has no decoded pixels');
-        } else if (typeof img.decode === 'function') {
-          const decoding = img.decode();
-          state.pending++;
-          const pending = decoding.finally(() => { state.pending--; });
-          await withTimeout(pending, Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
-        } else {
-          const { promise, resolve, reject } = Promise.withResolvers<void>();
-          const finish = (error?: Error) => {
-            clearTimeout(timer);
-            img.removeEventListener('load', loaded);
-            img.removeEventListener('error', failed);
-            error ? reject(error) : resolve();
-          };
-          const loaded = () => finish(img.naturalWidth > 0 ? undefined : new Error('Image has no decoded pixels'));
-          const failed = () => finish(new Error('Image loading failed'));
-          const timer = setTimeout(() => finish(new CaptureTimeout('Timed out')), Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
-          img.addEventListener('load', loaded);
-          img.addEventListener('error', failed);
-          if (img.complete) loaded();
-          await promise;
-        }
-        decoded++;
-        state.sources.set(img, resolveHighestDpiSrc(img));
-      } catch (error) {
-        warning(state.report, error instanceof CaptureTimeout ? 'image_timeout' : 'image_failed',
-          `${error instanceof CaptureTimeout ? 'Image readiness timed out' : 'Image could not be decoded'}: ${source}`);
-        // Decode cannot be cancelled. Do not start another image in this slot
-        // while a timed-out browser decode may still be pending.
-        if (error instanceof CaptureTimeout) return;
-      }
+  let idleTriggered = false;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const idleWaiters = new Set<() => void>();
+
+  const clearIdleTimer = () => {
+    if (idleTimer !== undefined) {
+      clearTimeout(idleTimer);
+      idleTimer = undefined;
     }
-  }));
+  };
+  const armIdleTimer = () => {
+    clearIdleTimer();
+    if (idleMs <= 0 || !Number.isFinite(idleMs)) return;
+    idleTimer = setTimeout(() => {
+      idleTriggered = true;
+      for (const wake of idleWaiters) wake();
+      idleWaiters.clear();
+    }, idleMs);
+  };
+  const raceIdle = <T>(pending: Promise<T>): Promise<T> => {
+    if (idleMs <= 0 || !Number.isFinite(idleMs)) return pending;
+    return new Promise<T>((resolve, reject) => {
+      const onIdle = () => reject(new CaptureTimeout('Image readiness idle'));
+      if (idleTriggered) { onIdle(); return; }
+      idleWaiters.add(onIdle);
+      pending.then(
+        (v) => { idleWaiters.delete(onIdle); resolve(v); },
+        (e) => { idleWaiters.delete(onIdle); reject(e); }
+      );
+    });
+  };
+
+  try {
+    await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, async () => {
+      while (next < candidates.length && state.considered < maxImages && state.pending < concurrency && Date.now() < deadline && !idleTriggered) {
+        const img = candidates[next++];
+        const source = resolveHighestDpiSrc(img);
+        state.sources.set(img, source);
+        state.considered++;
+        try {
+          if (img.complete) {
+            if (img.naturalWidth <= 0) throw new Error('Image has no decoded pixels');
+          } else if (typeof img.decode === 'function') {
+            armIdleTimer();
+            const decoding = img.decode();
+            state.pending++;
+            const pending = decoding.finally(() => { state.pending--; });
+            await raceIdle(withTimeout(pending, Math.min(timeoutMs, Math.max(0, deadline - Date.now()))));
+          } else {
+            armIdleTimer();
+            const { promise, resolve, reject } = Promise.withResolvers<void>();
+            const finish = (error?: Error) => {
+              clearTimeout(timer);
+              img.removeEventListener('load', loaded);
+              img.removeEventListener('error', failed);
+              error ? reject(error) : resolve();
+            };
+            const loaded = () => finish(img.naturalWidth > 0 ? undefined : new Error('Image has no decoded pixels'));
+            const failed = () => finish(new Error('Image loading failed'));
+            const timer = setTimeout(() => finish(new CaptureTimeout('Timed out')), Math.min(timeoutMs, Math.max(0, deadline - Date.now())));
+            img.addEventListener('load', loaded);
+            img.addEventListener('error', failed);
+            if (img.complete) loaded();
+            await raceIdle(promise);
+          }
+          decoded++;
+          armIdleTimer();
+          state.sources.set(img, resolveHighestDpiSrc(img));
+        } catch (error) {
+          warning(state.report, error instanceof CaptureTimeout ? 'image_timeout' : 'image_failed',
+            `${error instanceof CaptureTimeout ? 'Image readiness timed out' : 'Image could not be decoded'}: ${source}`);
+          // Decode cannot be cancelled. Do not start another image in this slot
+          // while a timed-out browser decode may still be pending.
+          if (error instanceof CaptureTimeout) return;
+          armIdleTimer();
+        }
+      }
+    }));
+  } finally {
+    clearIdleTimer();
+    idleWaiters.clear();
+  }
   if (next < candidates.length) {
     warning(state.report, 'image_budget_exhausted',
       `${candidates.length - next} images were not checked because the image ${state.considered >= maxImages ? 'count' : state.pending >= concurrency ? 'decode concurrency' : 'time'} budget was exhausted.`);
@@ -313,12 +393,84 @@ async function waitForFonts(
   }
 }
 
+function eagerLoadImages(root: Document | Element, doc: Document): void {
+  const origin = doc.defaultView?.location?.origin;
+  const images: HTMLImageElement[] = [];
+  if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
+  if (typeof root.querySelectorAll === 'function') images.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
+  for (const img of images) {
+    const existingSrcset = img.getAttribute?.('srcset');
+    if (!existingSrcset) {
+      const lazySrcset = img.getAttribute?.('data-srcset') || img.getAttribute?.('data-lazy-srcset');
+      if (lazySrcset) {
+        try { img.setAttribute?.('srcset', lazySrcset); } catch { /* ignore */ }
+      }
+    }
+    const existingSrc = img.getAttribute?.('src') || '';
+    const isPlaceholder = !existingSrc || /^data:image\/(gif|svg\+xml)/i.test(existingSrc);
+    if (isPlaceholder) {
+      const lazySrc = img.getAttribute?.('data-src') || img.getAttribute?.('data-lazy-src');
+      if (lazySrc) {
+        try { img.setAttribute?.('src', lazySrc); } catch { /* ignore */ }
+      }
+    }
+    const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
+    if (loadingAttr === 'lazy') {
+      const candidateSrc = resolveHighestDpiSrc(img);
+      let sameOrigin = !origin || !candidateSrc || candidateSrc.startsWith('data:') || candidateSrc.startsWith('blob:');
+      if (!sameOrigin && candidateSrc) {
+        try {
+          sameOrigin = new URL(candidateSrc, doc.baseURI || 'http://localhost/').origin === origin;
+        } catch {
+          sameOrigin = true;
+        }
+      }
+      if (sameOrigin) {
+        try { (img as HTMLImageElement).loading = 'eager'; } catch { /* ignore */ }
+        try { img.setAttribute?.('loading', 'eager'); } catch { /* ignore */ }
+      }
+    }
+  }
+}
+
+async function waitForStableScrollHeight(
+  doc: Document,
+  idleMs: number,
+  deadline: number,
+  initialHeight: number,
+  initialStableSince: number
+): Promise<void> {
+  if (idleMs <= 0 || !Number.isFinite(idleMs) || typeof doc.documentElement?.scrollHeight !== 'number') return;
+  const getHeight = () => Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
+  let lastHeight = initialHeight;
+  let stableSince = initialStableSince;
+  const current0 = getHeight();
+  if (current0 !== lastHeight) {
+    lastHeight = current0;
+    stableSince = Date.now();
+  }
+  const stepMs = Math.min(50, idleMs);
+  while (Date.now() < deadline) {
+    const remainingIdle = idleMs - (Date.now() - stableSince);
+    if (remainingIdle <= 0) return;
+    const waitMs = Math.min(stepMs, remainingIdle, Math.max(1, deadline - Date.now()));
+    if (waitMs <= 0) return;
+    await new Promise((r) => setTimeout(r, waitMs));
+    const current = getHeight();
+    if (current !== lastHeight) {
+      lastHeight = current;
+      stableSince = Date.now();
+    }
+  }
+}
+
 async function prepareCapture(
   root: Document | Element,
   doc: Document,
   opts: SerializeOptions | undefined,
-  scroll: boolean
-): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number }> {
+  scroll: boolean,
+  readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000)
+): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; fontDeadline: number }> {
   const diagnostics: CaptureDiagnostic[] = [];
   const seen = new Set<string>();
   const report: ReportDiagnostic = (diagnostic) => {
@@ -328,16 +480,21 @@ async function prepareCapture(
       diagnostics.push(diagnostic);
     }
   };
+  eagerLoadImages(root, doc);
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
+  const fontDeadline = Math.min(readinessDeadline, Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500));
   let scrollMs = 0;
   if (scroll && doc.defaultView) {
     const scrollStart = nowMs();
     try {
-      await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => Promise.all([
-        waitForImageElements(root, opts?.imageOptions, state, true, deadline),
-        waitForFonts(doc, Math.min(boundedNumber(opts?.fontTimeoutMs, 2500), Math.max(0, deadline - Date.now())), report, fontState),
-      ]), report);
+      await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => {
+        const capped = Math.min(deadline, readinessDeadline);
+        return Promise.all([
+          waitForImageElements(root, opts?.imageOptions, state, true, capped),
+          waitForFonts(doc, Math.min(Math.max(0, fontDeadline - Date.now()), Math.max(0, capped - Date.now())), report, fontState),
+        ]);
+      }, report);
     } catch (error) {
       warning(report, 'scroll_failed', `Page scrolling failed; lazy content may be incomplete: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -345,13 +502,32 @@ async function prepareCapture(
   }
   const waitImagesStart = nowMs();
   let waitImagesMs = 0;
-  await Promise.all([
-    waitForImageElements(root, opts?.imageOptions, state).finally(() => {
-      waitImagesMs = nowMs() - waitImagesStart;
-    }),
-    waitForFonts(doc, opts?.fontTimeoutMs, report, fontState),
-  ]);
-  return { diagnostics, scrollMs, waitImagesMs };
+  const idleMs = boundedNumber(opts?.imageOptions?.idleMs, 800);
+  const hasScrollHeight = typeof doc.documentElement?.scrollHeight === 'number';
+  const getHeight = () => Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
+  let trackedHeight = hasScrollHeight ? getHeight() : 0;
+  let stableSince = Date.now();
+  const heightPoll = hasScrollHeight && idleMs > 0
+    ? setInterval(() => {
+        const h = getHeight();
+        if (h !== trackedHeight) {
+          trackedHeight = h;
+          stableSince = Date.now();
+        }
+      }, Math.min(50, idleMs))
+    : undefined;
+  try {
+    await Promise.all([
+      waitForImageElements(root, opts?.imageOptions, state, false, readinessDeadline).finally(() => {
+        waitImagesMs = nowMs() - waitImagesStart;
+      }),
+      waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
+    ]);
+    await waitForStableScrollHeight(doc, idleMs, readinessDeadline, trackedHeight, stableSince);
+  } finally {
+    if (heightPoll !== undefined) clearInterval(heightPoll);
+  }
+  return { diagnostics, scrollMs, waitImagesMs, fontDeadline };
 }
 
 async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
@@ -1164,14 +1340,13 @@ function extractSvgPaths(
 
 
 
-async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
+export async function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.byteLength; i += 0x8000) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
   }
-  return btoa(binary);
+  return btoa(chunks.join(''));
 }
 
 function parseCornerRadius(computed: CSSStyleDeclaration): CornerRadius {
@@ -1388,25 +1563,142 @@ function extractPseudoElement(
     return null;
   }
 }
+interface MeasuredTextLine {
+  text: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function measureWrappedLines(
+  doc: Document,
+  textNode: globalThis.Node,
+  fullStr: string,
+  fontSize: number,
+  scrollX: number,
+  scrollY: number,
+  originX: number,
+  originY: number
+): { lines: MeasuredTextLine[]; measuredCalls: number } {
+  const range = doc.createRange();
+  range.selectNodeContents(textNode);
+  const rawRects = range.getClientRects?.();
+  if (!rawRects || rawRects.length <= 1) return { lines: [], measuredCalls: 0 };
+
+  const lineRects: Array<{ left: number; top: number; right: number; bottom: number }> = [];
+  for (let i = 0; i < rawRects.length; i++) {
+    const r = rawRects[i];
+    if (r.width === 0 && r.height === 0) continue;
+    const prev = lineRects[lineRects.length - 1];
+    if (prev && Math.abs(r.top - prev.top) <= fontSize * 0.4) {
+      prev.left = Math.min(prev.left, r.left);
+      prev.top = Math.min(prev.top, r.top);
+      prev.right = Math.max(prev.right, r.right);
+      prev.bottom = Math.max(prev.bottom, r.bottom);
+    } else {
+      lineRects.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    }
+  }
+  if (lineRects.length <= 1) return { lines: [], measuredCalls: 0 };
+
+  const probe = doc.createRange();
+  let measuredCalls = 0;
+  const hasClientRects = typeof probe.getClientRects === 'function';
+  const spillsPastLine = (start: number, end: number, lineTop: number): boolean => {
+    probe.setStart(textNode, start);
+    probe.setEnd(textNode, end);
+    measuredCalls++;
+    if (hasClientRects) {
+      const rects = probe.getClientRects();
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if ((r.width > 0 || r.height > 0) && r.top - lineTop > fontSize * 0.4) return true;
+      }
+      return false;
+    }
+    const r = probe.getBoundingClientRect();
+    return (r.width > 0 || r.height > 0) && r.top - lineTop > fontSize * 0.4;
+  };
+
+  const lines: MeasuredTextLine[] = [];
+  let start = 0;
+  for (let li = 0; li < lineRects.length; li++) {
+    const lr = lineRects[li];
+    let end = fullStr.length;
+    if (li < lineRects.length - 1 && start < fullStr.length) {
+      let lo = start + 1;
+      let hi = fullStr.length;
+      let best = start;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (spillsPastLine(start, mid, lr.top)) {
+          hi = mid - 1;
+        } else {
+          best = mid;
+          lo = mid + 1;
+        }
+      }
+      end = best;
+    }
+    const text = fullStr.slice(start, end).trim();
+    if (text) {
+      lines.push({
+        text,
+        x: lr.left + scrollX - originX,
+        y: lr.top + scrollY - originY,
+        w: lr.right - lr.left + 2,
+        h: lr.bottom - lr.top,
+      });
+    }
+    start = end;
+  }
+  return { lines, measuredCalls };
+}
+
+function normalizeFontFamily(raw: string): string {
+  return raw.replace(/^["']|["']$/g, '').trim().toLowerCase();
+}
+
+function normalizeFontWeight(raw: string | number | undefined): string {
+  const s = String(raw ?? '400').trim().toLowerCase();
+  if (s === 'normal') return '400';
+  if (s === 'bold') return '700';
+  return s || '400';
+}
+
 async function extractWebFonts(
   doc: Document,
   baseURI: string,
   assets: Record<string, Asset>,
   nextAssetId: () => string,
   report: ReportDiagnostic,
-  timeoutMs: number
+  deadline: number,
+  usedFamilies?: Set<string>,
+  usedFaces?: Set<string>,
+  concurrency = 8
 ): Promise<Font[]> {
   const fonts: Font[] = [];
   const seenFamilies = new Set<string>();
+  const loadedFaces = new Set<string>();
+  const loadedFamilies = new Set<string>();
   const defaultView = doc.defaultView ?? window;
-  const deadline = Date.now() + timeoutMs;
 
   // 1. Inspect doc.fonts (FontFaceSet API)
   if (doc.fonts && typeof doc.fonts.forEach === 'function') {
     try {
       doc.fonts.forEach((fontFace: FontFace) => {
         const family = fontFace.family.replace(/^["']|["']$/g, '').trim();
-        if (family && !seenFamilies.has(family)) {
+        if (!family) return;
+        const isLoaded = fontFace.status === undefined || fontFace.status === 'loaded';
+        if (isLoaded) {
+          const normFam = normalizeFontFamily(family);
+          const normWeight = normalizeFontWeight(fontFace.weight);
+          const normStyle = (fontFace.style || 'normal').trim().toLowerCase();
+          loadedFamilies.add(normFam);
+          loadedFaces.add(`${normFam}|${normWeight}|${normStyle}`);
+        }
+        if (!seenFamilies.has(family)) {
           seenFamilies.add(family);
           fonts.push({
             family,
@@ -1420,7 +1712,17 @@ async function extractWebFonts(
     }
   }
 
-  // 2. Inspect CSSStyleSheets for @font-face rules
+  // 2. Inspect CSSStyleSheets for @font-face rules, embedding only loaded & used faces in parallel.
+  const pendingFetches: Array<{
+    family: string;
+    weight: string;
+    fontStyle: string;
+    fontUrl: string;
+    resolvedHref: string;
+    fontIdentity: string;
+  }> = [];
+  const urlToAssetKey = new Map<string, string>();
+
   try {
     const styleSheets = doc.styleSheets;
     if (styleSheets) {
@@ -1433,85 +1735,118 @@ async function extractWebFonts(
           warning(report, 'asset_unavailable', 'A stylesheet could not be inspected for embedded font assets.');
           continue;
         }
-
         if (!rules) continue;
 
         for (let j = 0; j < rules.length; j++) {
           const rule = rules[j];
-          if (rule.type === 5) {
-            const fontRule = rule as CSSFontFaceRule;
-            const style = fontRule.style;
-            if (!style) continue;
+          if (rule.type !== 5) continue;
+          const fontRule = rule as CSSFontFaceRule;
+          const style = fontRule.style;
+          if (!style) continue;
 
-            const family = (style.fontFamily || '').replace(/^["']|["']$/g, '').trim();
-            if (!family) continue;
+          const family = (style.fontFamily || '').replace(/^["']|["']$/g, '').trim();
+          if (!family) continue;
 
-            const weight = style.fontWeight || '400';
-            const fontStyle = style.fontStyle || 'normal';
+          const weight = style.fontWeight || '400';
+          const fontStyle = style.fontStyle || 'normal';
+          const normFam = normalizeFontFamily(family);
+          const normWeight = normalizeFontWeight(weight);
+          const normStyle = fontStyle.trim().toLowerCase();
+          const faceKey = `${normFam}|${normWeight}|${normStyle}`;
 
-            let assetRef: string | undefined;
-            const srcDeclaration =
-              typeof style.getPropertyValue === 'function'
-                ? style.getPropertyValue('src')
-                : '';
-            const match = srcDeclaration.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
-            if (match && match[1]) {
-              const fontUrl = match[1];
-              if (fontUrl.startsWith('data:')) {
-                const dataMatch = fontUrl.match(/^data:([^;]+);base64,(.+)$/);
-                if (dataMatch) {
-                  const assetKey = nextAssetId();
-                  assets[assetKey] = {
-                    kind: 'font',
-                    mimeType: dataMatch[1],
-                    base64: dataMatch[2],
-                  };
-                  assetRef = assetKey;
-                } else {
-                  warning(report, 'asset_failed', `Font data could not be read: ${family}`);
-                }
+          if (usedFamilies && usedFamilies.size > 0 && !usedFamilies.has(normFam)) continue;
+          if (loadedFaces.size > 0) {
+            const isRangeWeight = normWeight.includes(' ');
+            const isLoaded = isRangeWeight ? loadedFamilies.has(normFam) : loadedFaces.has(faceKey);
+            if (!isLoaded) continue;
+            if (usedFaces && usedFaces.size > 0 && !isRangeWeight && !usedFaces.has(faceKey)) continue;
+          }
+
+          const fontIdentity = `${family}|${weight}|${fontStyle}`;
+          if (seenFamilies.has(fontIdentity)) continue;
+
+          const srcDeclaration = typeof style.getPropertyValue === 'function' ? style.getPropertyValue('src') : '';
+          const match = srcDeclaration.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
+          if (!match || !match[1]) {
+            seenFamilies.add(fontIdentity);
+            fonts.push({ family, weight, style: fontStyle });
+            continue;
+          }
+
+          const fontUrl = match[1];
+          if (fontUrl.startsWith('data:')) {
+            const existingKey = urlToAssetKey.get(fontUrl);
+            if (existingKey) {
+              seenFamilies.add(fontIdentity);
+              fonts.push({ family, weight, style: fontStyle, assetRef: existingKey });
+            } else {
+              const dataMatch = fontUrl.match(/^data:([^;]+);base64,(.+)$/);
+              if (dataMatch) {
+                const assetKey = nextAssetId();
+                assets[assetKey] = { kind: 'font', mimeType: dataMatch[1], base64: dataMatch[2] };
+                urlToAssetKey.set(fontUrl, assetKey);
+                seenFamilies.add(fontIdentity);
+                fonts.push({ family, weight, style: fontStyle, assetRef: assetKey });
               } else {
-                try {
-                  const resolved = new URL(fontUrl, baseURI);
-                  const isSameOrigin = resolved.origin === defaultView.location?.origin;
-                  if (isSameOrigin || resolved.protocol === 'blob:') {
-                    if (Date.now() >= deadline) throw new CaptureTimeout('Font asset budget exhausted');
-                    const blob = await fetchAssetBlob(resolved.href, Math.max(0, deadline - Date.now()));
-                    const buffer = await withTimeout(blob.arrayBuffer(), Math.max(0, deadline - Date.now()));
-                    const base64 = await arrayBufferToBase64(buffer);
-                    const assetKey = nextAssetId();
-                    assets[assetKey] = {
-                      kind: 'font',
-                      mimeType: blob.type || 'font/woff2',
-                      base64,
-                    };
-                    assetRef = assetKey;
-                  } else {
-                    warning(report, 'asset_unavailable', `Cross-origin font bytes were not embedded: ${resolved.href}`);
-                  }
-                } catch (error) {
-                  warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
-                    `Font asset could not be embedded: ${family} (${fontUrl})`);
-                }
+                warning(report, 'asset_failed', `Font data could not be read: ${family}`);
+                seenFamilies.add(fontIdentity);
+                fonts.push({ family, weight, style: fontStyle });
               }
             }
+            continue;
+          }
 
-            const fontIdentity = `${family}|${weight}|${fontStyle}`;
-            if (!seenFamilies.has(fontIdentity)) {
+          try {
+            const resolved = new URL(fontUrl, baseURI);
+            const isSameOrigin = resolved.origin === defaultView.location?.origin;
+            if (isSameOrigin || resolved.protocol === 'blob:') {
               seenFamilies.add(fontIdentity);
-              fonts.push({
-                family,
-                weight,
-                style: fontStyle,
-                assetRef,
-              });
+              pendingFetches.push({ family, weight, fontStyle, fontUrl, resolvedHref: resolved.href, fontIdentity });
+            } else {
+              warning(report, 'asset_unavailable', `Cross-origin font bytes were not embedded: ${resolved.href}`);
+              seenFamilies.add(fontIdentity);
+              fonts.push({ family, weight, style: fontStyle });
             }
+          } catch {
+            warning(report, 'asset_failed', `Font asset could not be embedded: ${family} (${fontUrl})`);
+            seenFamilies.add(fontIdentity);
+            fonts.push({ family, weight, style: fontStyle });
           }
         }
       }
     }
   } catch {
     warning(report, 'asset_unavailable', 'Stylesheets could not be inspected for font assets.');
+  }
+
+  // Dedupe URLs and fetch in bounded parallel batches under the shared deadline.
+  const uniqueUrls = Array.from(new Set(pendingFetches.map((f) => f.resolvedHref)));
+  let nextUrlIdx = 0;
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), uniqueUrls.length) }, async () => {
+    while (nextUrlIdx < uniqueUrls.length) {
+      const href = uniqueUrls[nextUrlIdx++];
+      try {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new CaptureTimeout('Font asset budget exhausted');
+        const blob = await fetchAssetBlob(href, remaining);
+        const rem2 = deadline - Date.now();
+        if (rem2 <= 0) throw new CaptureTimeout('Font asset budget exhausted');
+        const buffer = await withTimeout(blob.arrayBuffer(), rem2);
+        const base64 = await arrayBufferToBase64(buffer);
+        const assetKey = nextAssetId();
+        assets[assetKey] = { kind: 'font', mimeType: blob.type || 'font/woff2', base64 };
+        urlToAssetKey.set(href, assetKey);
+      } catch (error) {
+        const sample = pendingFetches.find((f) => f.resolvedHref === href);
+        warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+          `Font asset could not be embedded: ${sample?.family ?? href} (${sample?.fontUrl ?? href})`);
+      }
+    }
+  }));
+
+  for (const item of pendingFetches) {
+    const assetRef = urlToAssetKey.get(item.resolvedHref);
+    fonts.push({ family: item.family, weight: item.weight, style: item.fontStyle, ...(assetRef ? { assetRef } : {}) });
   }
 
   return fonts;
@@ -1571,7 +1906,9 @@ async function serializeSubtree(
   frameRect: { originX: number; originY: number; width: number; height: number },
   opts?: SerializeOptions,
   diagnostics: CaptureDiagnostic[] = [],
-  timingCtx?: TimingContext
+  timingCtx?: TimingContext,
+  fontDeadline?: number,
+  readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000)
 ): Promise<Capture> {
   const report: ReportDiagnostic = (diagnostic) => diagnostics.push(diagnostic);
   const assetTimeoutMs = boundedNumber(opts?.assetTimeoutMs, 2500);
@@ -1613,6 +1950,72 @@ async function serializeSubtree(
   const elementToIdMap = new Map<Element, string>();
   const urlToAssetKeyCache = new Map<string, string>();
   const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string }> = [];
+  const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
+  let nextFetch = 0;
+  let activeAssetWorkers = 0;
+  let assetsFetched = 0;
+  let assetsFailed = 0;
+  let assetsTimedOut = 0;
+  let assetBytes = 0;
+  let assetsStart = 0;
+  let assetsEnd = 0;
+  const activeAssetPromises: Promise<void>[] = [];
+  const runAssetWorker = async () => {
+    try {
+      while (nextFetch < pendingAssetFetches.length) {
+        const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
+        const budgetMs = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+        let failure: unknown;
+        try {
+          if (budgetMs <= 0) throw new CaptureTimeout('Readiness budget exhausted');
+          const blob = await fetchAssetBlob(url, budgetMs);
+          const rem1 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+          const transcoded = await transcodeToPng(blob, report, nodeId, rem1);
+          const finalBlob = transcoded ?? blob;
+          const rem2 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+          const buffer = await withTimeout(finalBlob.arrayBuffer(), rem2);
+          const base64 = await arrayBufferToBase64(buffer);
+          assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
+          assetsFetched++;
+          assetBytes += buffer.byteLength;
+        } catch (error) {
+          failure = error;
+          const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+          const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+          if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
+            try {
+              const remBg = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+              const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              if (bg?.success && bg.base64) {
+                assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
+                assetsFetched++;
+                assetBytes += Math.floor((bg.base64.length * 3) / 4);
+              }
+            } catch (error) {
+              failure = error;
+            }
+          }
+        }
+        if (!assets[assetKey]) {
+          if (failure instanceof CaptureTimeout) assetsTimedOut++;
+          else assetsFailed++;
+          warning(report, failure instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+            `Image asset could not be embedded: ${url}${failure instanceof Error ? ` (${failure.message})` : ''}`, nodeId);
+        }
+      }
+    } finally {
+      activeAssetWorkers--;
+      assetsEnd = nowMs();
+    }
+  };
+  const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string }) => {
+    if (!assetsStart) assetsStart = nowMs();
+    pendingAssetFetches.push(item);
+    if (activeAssetWorkers < assetConcurrency) {
+      activeAssetWorkers++;
+      activeAssetPromises.push(runAssetWorker());
+    }
+  };
   const hiddenAncestors = new Set<Element>();
 
   const elements: Element[] = [];
@@ -1863,7 +2266,7 @@ async function serializeSubtree(
             } else {
               const assetKey = `asset-${nextAssetId++}`;
               urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-              pendingAssetFetches.push({ url: resolvedUrl.href, assetKey, nodeId });
+              enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
               fills.push({ type: 'image', assetRef: assetKey, opacity: 1 });
             }
           } else {
@@ -2143,7 +2546,7 @@ async function serializeSubtree(
               } else {
                 const assetKey = `asset-${nextAssetId++}`;
                 urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-                pendingAssetFetches.push({ url: resolvedUrl.href, assetKey, nodeId });
+                enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
                 assetRef = assetKey;
               }
             } else {
@@ -2425,48 +2828,19 @@ async function serializeSubtree(
         try {
           const tNode = childTextNodes[0];
           const fullStr = tNode.textContent || '';
-          const range = doc.createRange();
-          range.selectNodeContents(tNode);
-          const clientRects = range.getClientRects();
-          if (clientRects && clientRects.length > 1) {
-            const lineRuns: Array<{ text: string; x?: number; y?: number; w?: number }> = [];
-            let currentLine = '';
-            let minL = Infinity, minT = Infinity, maxR = -Infinity;
-            let prevTop: number | null = null;
-            const charRange = doc.createRange();
-            const textStart = nowMs();
-            textCharsMeasured += fullStr.length;
-            for (let ci = 0; ci < fullStr.length; ci++) {
-              charRange.setStart(tNode, ci);
-              charRange.setEnd(tNode, ci + 1);
-              const cr = charRange.getBoundingClientRect();
-              if (cr.width === 0 && cr.height === 0) {
-                currentLine += fullStr[ci];
-                continue;
-              }
-              if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
-                if (currentLine.trim()) {
-                  lineRuns.push({
-                    text: currentLine.trim(),
-                    ...(minL < Infinity ? { x: round2(minL + scrollX - frameRect.originX), y: round2(minT + scrollY - frameRect.originY), w: round2(maxR - minL + 2) } : {}),
-                  });
-                }
-                currentLine = fullStr[ci];
-                minL = cr.left; minT = cr.top; maxR = cr.right;
-              } else {
-                currentLine += fullStr[ci];
-                minL = Math.min(minL, cr.left); minT = Math.min(minT, cr.top); maxR = Math.max(maxR, cr.right);
-              }
-              prevTop = cr.top;
-            }
-            textMs += nowMs() - textStart;
-            if (currentLine.trim()) {
-              lineRuns.push({
-                text: currentLine.trim(),
-                ...(minL < Infinity ? { x: round2(minL + scrollX - frameRect.originX), y: round2(minT + scrollY - frameRect.originY), w: round2(maxR - minL + 2) } : {}),
-              });
-            }
-            if (lineRuns.length > 1) runs = lineRuns;
+          const textStart = nowMs();
+          const { lines, measuredCalls } = measureWrappedLines(
+            doc, tNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+          );
+          textMs += nowMs() - textStart;
+          textCharsMeasured += measuredCalls;
+          if (lines.length > 1) {
+            runs = lines.map((l) => ({
+              text: l.text,
+              x: round2(l.x),
+              y: round2(l.y),
+              w: round2(l.w),
+            }));
           }
         } catch {
           // ignore
@@ -2552,44 +2926,17 @@ async function serializeSubtree(
 
       if (typeof doc.createRange === 'function') {
         try {
-          const range = doc.createRange();
-          range.selectNodeContents(textNode);
-          const clientRects = range.getClientRects?.();
           const fullStr = textNode.textContent || '';
-          if (clientRects && clientRects.length > 1) {
-            let curText = '';
-            let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
-            let prevTop: number | null = null;
-            const crRange = doc.createRange();
-            const textStart = nowMs();
-            textCharsMeasured += fullStr.length;
-            for (let ci = 0; ci < fullStr.length; ci++) {
-              crRange.setStart(textNode, ci);
-              crRange.setEnd(textNode, ci + 1);
-              const cr = crRange.getBoundingClientRect();
-              if (cr.width === 0 && cr.height === 0) {
-                curText += fullStr[ci];
-                continue;
-              }
-              if (prevTop !== null && Math.abs(cr.top - prevTop) > fontSize * 0.4) {
-                if (curText.trim() && minL < Infinity) {
-                  lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
-                }
-                curText = fullStr[ci];
-                minL = cr.left; minT = cr.top; maxR = cr.right; maxB = cr.bottom;
-              } else {
-                curText += fullStr[ci];
-                minL = Math.min(minL, cr.left); minT = Math.min(minT, cr.top);
-                maxR = Math.max(maxR, cr.right); maxB = Math.max(maxB, cr.bottom);
-              }
-              prevTop = cr.top;
-            }
-            textMs += nowMs() - textStart;
-            if (curText.trim() && minL < Infinity) {
-              lineBoxes.push({ text: curText.trim(), x: minL + scrollX - frameRect.originX, y: minT + scrollY - frameRect.originY, w: maxR - minL + 2, h: maxB - minT });
-            }
-          }
+          const textStart = nowMs();
+          const { lines, measuredCalls } = measureWrappedLines(
+            doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+          );
+          textMs += nowMs() - textStart;
+          textCharsMeasured += measuredCalls;
+          for (const l of lines) lineBoxes.push(l);
           if (lineBoxes.length === 0) {
+            const range = doc.createRange();
+            range.selectNodeContents(textNode);
             const rangeRect = range.getBoundingClientRect();
             if (rangeRect.width > 0 && rangeRect.height > 0) {
               lineBoxes.push({ text: textVal, x: rangeRect.left + scrollX - frameRect.originX, y: rangeRect.top + scrollY - frameRect.originY, w: rangeRect.width + 2, h: rangeRect.height });
@@ -2660,54 +3007,6 @@ async function serializeSubtree(
   }
   const nodesMs = nowMs() - nodesStart;
 
-  // Resolve assets with bounded concurrency, including the extension fallback.
-  let nextFetch = 0;
-  let assetsFetched = 0;
-  let assetsFailed = 0;
-  let assetsTimedOut = 0;
-  let assetBytes = 0;
-  const assetsStart = nowMs();
-  const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
-  await Promise.all(Array.from({ length: Math.min(assetConcurrency, pendingAssetFetches.length) }, async () => {
-    while (nextFetch < pendingAssetFetches.length) {
-      const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
-      let failure: unknown;
-      try {
-        const blob = await fetchAssetBlob(url, assetTimeoutMs);
-        const transcoded = await transcodeToPng(blob, report, nodeId, assetTimeoutMs);
-        const finalBlob = transcoded ?? blob;
-        const buffer = await withTimeout(finalBlob.arrayBuffer(), assetTimeoutMs);
-        const base64 = await arrayBufferToBase64(buffer);
-        assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
-        assetsFetched++;
-        assetBytes += buffer.byteLength;
-      } catch (error) {
-        failure = error;
-        const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
-        const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
-        if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
-          try {
-            const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), assetTimeoutMs)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
-            if (bg?.success && bg.base64) {
-              assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
-              assetsFetched++;
-              assetBytes += Math.floor((bg.base64.length * 3) / 4);
-            }
-          } catch (error) {
-            failure = error;
-          }
-        }
-      }
-      if (!assets[assetKey]) {
-        if (failure instanceof CaptureTimeout) assetsTimedOut++;
-        else assetsFailed++;
-        warning(report, failure instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
-          `Image asset could not be embedded: ${url}${failure instanceof Error ? ` (${failure.message})` : ''}`, nodeId);
-      }
-    }
-  }));
-  const assetsMs = nowMs() - assetsStart;
-
   for (const n of nodes) {
     n.box.x = round2(n.box.x);
     n.box.y = round2(n.box.y);
@@ -2715,10 +3014,39 @@ async function serializeSubtree(
     n.box.h = round2(n.box.h);
   }
   capture.nodes = nodes;
-  capture.assets = assets;
+  const usedFontFamilies = new Set<string>();
+  const usedFontFaces = new Set<string>();
+  for (const n of nodes) {
+    if (!n.text) continue;
+    const w = normalizeFontWeight(n.text.fontWeight);
+    const st = n.text.italic ? 'italic' : 'normal';
+    for (const part of n.text.fontFamily.split(',')) {
+      const fam = normalizeFontFamily(part);
+      if (!fam) continue;
+      usedFontFamilies.add(fam);
+      usedFontFaces.add(`${fam}|${w}|${st}`);
+    }
+  }
   const fontsStart = nowMs();
-  capture.fonts = await extractWebFonts(doc, baseURI, assets, () => `asset-${nextAssetId++}`, report, assetTimeoutMs);
+  const embedDeadline = Math.min(fontDeadline ?? Infinity, readinessDeadline, Date.now() + assetTimeoutMs);
+  const [, extractedFonts] = await Promise.all([
+    Promise.all(activeAssetPromises),
+    extractWebFonts(
+      doc,
+      baseURI,
+      assets,
+      () => `asset-${nextAssetId++}`,
+      report,
+      embedDeadline,
+      usedFontFamilies,
+      usedFontFaces,
+      assetConcurrency
+    ),
+  ]);
   const fontsMs = nowMs() - fontsStart;
+  const assetsMs = assetsStart ? Math.max(0, (assetsEnd || nowMs()) - assetsStart) : 0;
+  capture.assets = assets;
+  capture.fonts = extractedFonts;
   if (diagnostics.length) capture.diagnostics = diagnostics;
 
   if (timingCtx?.wantTimings) {
@@ -2750,8 +3078,9 @@ export async function serializeDocument(
   const defaultView = doc.defaultView ?? window;
   const totalStart = nowMs();
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
+  const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
 
-  const { diagnostics, scrollMs, waitImagesMs } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
+  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -2794,7 +3123,9 @@ export async function serializeDocument(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    fontDeadline,
+    readinessDeadline
   );
 }
 
@@ -2804,9 +3135,10 @@ export async function serializeElement(
 ): Promise<Capture> {
   const totalStart = nowMs();
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
+  const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const { diagnostics, scrollMs, waitImagesMs } = await prepareCapture(el, doc, opts, false);
+  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -2827,7 +3159,9 @@ export async function serializeElement(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    fontDeadline,
+    readinessDeadline
   );
 }
 

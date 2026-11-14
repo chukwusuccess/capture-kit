@@ -20,7 +20,7 @@ interface Ctx {
   pending: Map<string, Promise<string | null>>;
 }
 
-const FETCH_LIMIT = 6;
+const FETCH_LIMIT = 24;
 let active = 0;
 const waiting: Array<() => void> = [];
 async function limited<T>(fn: () => Promise<T>): Promise<T> {
