@@ -45,6 +45,8 @@ export interface SerializeOptions {
   fontTimeoutMs?: number;
   /** Asset operation deadline and total font embedding budget, default 2500ms. */
   assetTimeoutMs?: number;
+  /** Overall deadline shared across image readiness, font readiness/embedding, and asset fetches, default 4000ms. */
+  readinessBudgetMs?: number;
   /** Concurrent image asset fetches, default 8. */
   assetConcurrency?: number;
   /** Optional stage timing callback (stage name, elapsed ms). */
@@ -401,7 +403,8 @@ async function prepareCapture(
   root: Document | Element,
   doc: Document,
   opts: SerializeOptions | undefined,
-  scroll: boolean
+  scroll: boolean,
+  readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000)
 ): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; fontDeadline: number }> {
   const diagnostics: CaptureDiagnostic[] = [];
   const seen = new Set<string>();
@@ -414,15 +417,18 @@ async function prepareCapture(
   };
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
-  const fontDeadline = Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500);
+  const fontDeadline = Math.min(readinessDeadline, Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500));
   let scrollMs = 0;
   if (scroll && doc.defaultView) {
     const scrollStart = nowMs();
     try {
-      await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => Promise.all([
-        waitForImageElements(root, opts?.imageOptions, state, true, deadline),
-        waitForFonts(doc, Math.min(Math.max(0, fontDeadline - Date.now()), Math.max(0, deadline - Date.now())), report, fontState),
-      ]), report);
+      await scrollPage(doc.defaultView, opts?.scrollOptions, (deadline) => {
+        const capped = Math.min(deadline, readinessDeadline);
+        return Promise.all([
+          waitForImageElements(root, opts?.imageOptions, state, true, capped),
+          waitForFonts(doc, Math.min(Math.max(0, fontDeadline - Date.now()), Math.max(0, capped - Date.now())), report, fontState),
+        ]);
+      }, report);
     } catch (error) {
       warning(report, 'scroll_failed', `Page scrolling failed; lazy content may be incomplete: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -431,7 +437,7 @@ async function prepareCapture(
   const waitImagesStart = nowMs();
   let waitImagesMs = 0;
   await Promise.all([
-    waitForImageElements(root, opts?.imageOptions, state).finally(() => {
+    waitForImageElements(root, opts?.imageOptions, state, false, readinessDeadline).finally(() => {
       waitImagesMs = nowMs() - waitImagesStart;
     }),
     waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
@@ -1724,7 +1730,8 @@ async function serializeSubtree(
   opts?: SerializeOptions,
   diagnostics: CaptureDiagnostic[] = [],
   timingCtx?: TimingContext,
-  fontDeadline?: number
+  fontDeadline?: number,
+  readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000)
 ): Promise<Capture> {
   const report: ReportDiagnostic = (diagnostic) => diagnostics.push(diagnostic);
   const assetTimeoutMs = boundedNumber(opts?.assetTimeoutMs, 2500);
@@ -1766,6 +1773,72 @@ async function serializeSubtree(
   const elementToIdMap = new Map<Element, string>();
   const urlToAssetKeyCache = new Map<string, string>();
   const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string }> = [];
+  const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
+  let nextFetch = 0;
+  let activeAssetWorkers = 0;
+  let assetsFetched = 0;
+  let assetsFailed = 0;
+  let assetsTimedOut = 0;
+  let assetBytes = 0;
+  let assetsStart = 0;
+  let assetsEnd = 0;
+  const activeAssetPromises: Promise<void>[] = [];
+  const runAssetWorker = async () => {
+    try {
+      while (nextFetch < pendingAssetFetches.length) {
+        const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
+        const budgetMs = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+        let failure: unknown;
+        try {
+          if (budgetMs <= 0) throw new CaptureTimeout('Readiness budget exhausted');
+          const blob = await fetchAssetBlob(url, budgetMs);
+          const rem1 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+          const transcoded = await transcodeToPng(blob, report, nodeId, rem1);
+          const finalBlob = transcoded ?? blob;
+          const rem2 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+          const buffer = await withTimeout(finalBlob.arrayBuffer(), rem2);
+          const base64 = await arrayBufferToBase64(buffer);
+          assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
+          assetsFetched++;
+          assetBytes += buffer.byteLength;
+        } catch (error) {
+          failure = error;
+          const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+          const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+          if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
+            try {
+              const remBg = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+              const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              if (bg?.success && bg.base64) {
+                assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
+                assetsFetched++;
+                assetBytes += Math.floor((bg.base64.length * 3) / 4);
+              }
+            } catch (error) {
+              failure = error;
+            }
+          }
+        }
+        if (!assets[assetKey]) {
+          if (failure instanceof CaptureTimeout) assetsTimedOut++;
+          else assetsFailed++;
+          warning(report, failure instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+            `Image asset could not be embedded: ${url}${failure instanceof Error ? ` (${failure.message})` : ''}`, nodeId);
+        }
+      }
+    } finally {
+      activeAssetWorkers--;
+      assetsEnd = nowMs();
+    }
+  };
+  const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string }) => {
+    if (!assetsStart) assetsStart = nowMs();
+    pendingAssetFetches.push(item);
+    if (activeAssetWorkers < assetConcurrency) {
+      activeAssetWorkers++;
+      activeAssetPromises.push(runAssetWorker());
+    }
+  };
   const hiddenAncestors = new Set<Element>();
 
   const elements: Element[] = [];
@@ -2016,7 +2089,7 @@ async function serializeSubtree(
             } else {
               const assetKey = `asset-${nextAssetId++}`;
               urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-              pendingAssetFetches.push({ url: resolvedUrl.href, assetKey, nodeId });
+              enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
               fills.push({ type: 'image', assetRef: assetKey, opacity: 1 });
             }
           } else {
@@ -2296,7 +2369,7 @@ async function serializeSubtree(
               } else {
                 const assetKey = `asset-${nextAssetId++}`;
                 urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-                pendingAssetFetches.push({ url: resolvedUrl.href, assetKey, nodeId });
+                enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
                 assetRef = assetKey;
               }
             } else {
@@ -2813,54 +2886,6 @@ async function serializeSubtree(
   }
   const nodesMs = nowMs() - nodesStart;
 
-  // Resolve assets with bounded concurrency, including the extension fallback.
-  let nextFetch = 0;
-  let assetsFetched = 0;
-  let assetsFailed = 0;
-  let assetsTimedOut = 0;
-  let assetBytes = 0;
-  const assetsStart = nowMs();
-  const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
-  await Promise.all(Array.from({ length: Math.min(assetConcurrency, pendingAssetFetches.length) }, async () => {
-    while (nextFetch < pendingAssetFetches.length) {
-      const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
-      let failure: unknown;
-      try {
-        const blob = await fetchAssetBlob(url, assetTimeoutMs);
-        const transcoded = await transcodeToPng(blob, report, nodeId, assetTimeoutMs);
-        const finalBlob = transcoded ?? blob;
-        const buffer = await withTimeout(finalBlob.arrayBuffer(), assetTimeoutMs);
-        const base64 = await arrayBufferToBase64(buffer);
-        assets[assetKey] = { kind: 'image', mimeType: finalBlob.type || 'image/png', base64 };
-        assetsFetched++;
-        assetBytes += buffer.byteLength;
-      } catch (error) {
-        failure = error;
-        const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
-        const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
-        if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
-          try {
-            const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), assetTimeoutMs)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
-            if (bg?.success && bg.base64) {
-              assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
-              assetsFetched++;
-              assetBytes += Math.floor((bg.base64.length * 3) / 4);
-            }
-          } catch (error) {
-            failure = error;
-          }
-        }
-      }
-      if (!assets[assetKey]) {
-        if (failure instanceof CaptureTimeout) assetsTimedOut++;
-        else assetsFailed++;
-        warning(report, failure instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
-          `Image asset could not be embedded: ${url}${failure instanceof Error ? ` (${failure.message})` : ''}`, nodeId);
-      }
-    }
-  }));
-  const assetsMs = nowMs() - assetsStart;
-
   for (const n of nodes) {
     n.box.x = round2(n.box.x);
     n.box.y = round2(n.box.y);
@@ -2868,7 +2893,6 @@ async function serializeSubtree(
     n.box.h = round2(n.box.h);
   }
   capture.nodes = nodes;
-  capture.assets = assets;
   const usedFontFamilies = new Set<string>();
   const usedFontFaces = new Set<string>();
   for (const n of nodes) {
@@ -2883,19 +2907,25 @@ async function serializeSubtree(
     }
   }
   const fontsStart = nowMs();
-  const embedDeadline = Math.min(fontDeadline ?? Infinity, Date.now() + assetTimeoutMs);
-  capture.fonts = await extractWebFonts(
-    doc,
-    baseURI,
-    assets,
-    () => `asset-${nextAssetId++}`,
-    report,
-    embedDeadline,
-    usedFontFamilies,
-    usedFontFaces,
-    assetConcurrency
-  );
+  const embedDeadline = Math.min(fontDeadline ?? Infinity, readinessDeadline, Date.now() + assetTimeoutMs);
+  const [, extractedFonts] = await Promise.all([
+    Promise.all(activeAssetPromises),
+    extractWebFonts(
+      doc,
+      baseURI,
+      assets,
+      () => `asset-${nextAssetId++}`,
+      report,
+      embedDeadline,
+      usedFontFamilies,
+      usedFontFaces,
+      assetConcurrency
+    ),
+  ]);
   const fontsMs = nowMs() - fontsStart;
+  const assetsMs = assetsStart ? Math.max(0, (assetsEnd || nowMs()) - assetsStart) : 0;
+  capture.assets = assets;
+  capture.fonts = extractedFonts;
   if (diagnostics.length) capture.diagnostics = diagnostics;
 
   if (timingCtx?.wantTimings) {
@@ -2927,8 +2957,9 @@ export async function serializeDocument(
   const defaultView = doc.defaultView ?? window;
   const totalStart = nowMs();
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
+  const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
 
-  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch);
+  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -2972,7 +3003,8 @@ export async function serializeDocument(
     opts,
     diagnostics,
     wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
-    fontDeadline
+    fontDeadline,
+    readinessDeadline
   );
 }
 
@@ -2982,9 +3014,10 @@ export async function serializeElement(
 ): Promise<Capture> {
   const totalStart = nowMs();
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
+  const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(el, doc, opts, false);
+  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -3006,7 +3039,8 @@ export async function serializeElement(
     opts,
     diagnostics,
     wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
-    fontDeadline
+    fontDeadline,
+    readinessDeadline
   );
 }
 
