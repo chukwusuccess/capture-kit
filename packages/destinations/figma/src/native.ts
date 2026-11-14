@@ -42,19 +42,20 @@ export function parseNativeCaptures(input: unknown): Capture[] {
   const values = Array.isArray(input) ? input : [input];
   if (!values.length) throw new Error('The capture array is empty.');
   return values.map((value, index) => {
-    const parsed = CaptureSchema.safeParse(value);
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      throw new Error(`Capture ${index + 1}: ${issue.path.join('.') || 'payload'}: ${issue.message}`);
-    }
-    const capture = parsed.data;
+    // Before the schema: zod 4 rejects Infinity itself, with a less helpful message.
     const finiteNumbers = (value: unknown): boolean => {
       if (typeof value === 'number') return Number.isFinite(value);
       if (Array.isArray(value)) return value.every(finiteNumbers);
       if (value && typeof value === 'object') return Object.values(value).every(finiteNumbers);
       return true;
     };
-    if (!finiteNumbers(capture)) throw new Error(`Capture ${index + 1}: all numeric values must be finite.`);
+    if (!finiteNumbers(value)) throw new Error(`Capture ${index + 1}: all numeric values must be finite.`);
+    const parsed = CaptureSchema.safeParse(value);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      throw new Error(`Capture ${index + 1}: ${issue.path.join('.') || 'payload'}: ${issue.message}`);
+    }
+    const capture = parsed.data;
     if (capture.nodes.length > 25000) throw new Error(`Capture ${index + 1}: exceeds the 25,000 layer import limit.`);
     const nodes = new Map<string, Node>();
     for (const node of capture.nodes) {
