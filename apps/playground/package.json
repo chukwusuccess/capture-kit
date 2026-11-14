@@ -17,7 +17,7 @@
     "@capture-kit/serializer": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
+    "typescript": "^7.0.2",
     "vite": "^6.2.0"
   }
 }
