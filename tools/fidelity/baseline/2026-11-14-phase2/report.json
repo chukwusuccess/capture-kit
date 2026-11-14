@@ -9,66 +9,66 @@
       "width": 1440,
       "status": "ok",
       "runs": 3,
-      "wallMs": 14735,
-      "score": 90.95,
-      "strictScore": 77.31,
+      "wallMs": 18964,
+      "score": 75.96,
+      "strictScore": 55.74,
       "widthDelta": 0,
-      "heightDelta": 26,
-      "nodeCount": 1322,
+      "heightDelta": 0,
+      "nodeCount": 1582,
       "stages": {
         "scroll": 0,
-        "waitImages": 579.1,
-        "walk": 8.2,
-        "freezeTransforms": 33.2,
-        "nodes": 209,
-        "text": 8.6,
+        "waitImages": 1276.4,
+        "walk": 7.9,
+        "freezeTransforms": 34.4,
+        "nodes": 277.4,
+        "text": 11,
         "assets": 0,
-        "fonts": 1.7,
-        "total": 837.5
+        "fonts": 0.9,
+        "total": 1602.6
       },
       "counts": {
-        "elementsWalked": 1823,
-        "nodesEmitted": 1322,
-        "textCharsMeasured": 541,
-        "transformedElements": 180,
+        "elementsWalked": 1825,
+        "nodesEmitted": 1582,
+        "textCharsMeasured": 565,
+        "transformedElements": 158,
         "assetsFetched": 0,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 0,
-        "jsonBytes": 1130567
+        "jsonBytes": 1387915
       },
-      "jsonMB": 1.078,
+      "jsonMB": 1.324,
       "slowestStage": {
         "stage": "waitImages",
-        "ms": 579.1
+        "ms": 1276.4
       },
       "hotspots": [
         {
-          "cell": "r0c6",
-          "mismatchPct": 33.7,
-          "x": 1080,
+          "cell": "r0c4",
+          "mismatchPct": 48.9,
+          "x": 720,
           "y": 0,
           "width": 180,
           "height": 1880,
-          "mismatchedPixels": 114017
+          "mismatchedPixels": 165322
         },
         {
-          "cell": "r0c7",
-          "mismatchPct": 32.6,
-          "x": 1260,
-          "y": 0,
+          "cell": "r6c1",
+          "mismatchPct": 44.6,
+          "x": 180,
+          "y": 11280,
           "width": 180,
           "height": 1880,
-          "mismatchedPixels": 110195
+          "mismatchedPixels": 151026
         },
         {
-          "cell": "r0c5",
-          "mismatchPct": 29.3,
-          "x": 900,
-          "y": 0,
+          "cell": "r2c1",
+          "mismatchPct": 43.9,
+          "x": 180,
+          "y": 3760,
           "width": 180,
           "height": 1880,
-          "mismatchedPixels": 99045
+          "mismatchedPixels": 148527
         }
       ],
       "files": {
@@ -79,173 +79,215 @@
       "diagnostics": [
         {
           "code": "image_skipped",
-          "message": "Skipped 34 images (14 zero-size, 20 lazy-offscreen).",
+          "message": "Skipped 14 images (14 zero-size).",
           "severity": "info"
         },
         {
           "code": "image_timeout",
-          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=1028&q=90",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
           "severity": "warning"
         },
         {
           "code": "image_timeout",
-          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
           "severity": "warning"
         },
         {
           "code": "image_timeout",
-          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "12 images were not checked because the image decode concurrency budget was exhausted.",
           "severity": "warning"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://b.stripecdn.com/mkt-ssr-statics/assets/_next/static/media/wave-fallback-desktop-1x.fba6fa88.webp",
           "severity": "warning",
-          "nodeId": "node-198"
+          "nodeId": "node-209"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/vYmk6v8n7oDAwbDpwhjV6/846f9b3e214549b8f14e2b8c8cfe9343/payment-bento-background.jpg?w=860&fm=webp&q=80",
           "severity": "warning",
-          "nodeId": "node-219"
+          "nodeId": "node-230"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1Vf8oT9Fm6dEwpnEx5PgK1/055956f38d7fd8b0cc7419692ef29778/bento-terminal.png?w=616&q=90",
+          "severity": "warning",
+          "nodeId": "node-239"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-458"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5Dr3Oc550drIrxyzzXgFbq/f6e4fb0b8b4b40d73e94fdf7c9bc7028/payments-hoodie.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-465"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1UE1lPgwbfQRH586XfTWKM/f90bfc79f87b3e60a4189cc0f5a03228/showflix-streaming.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-474"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-481"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=514&fm=webp&q=90",
           "severity": "warning",
-          "nodeId": "node-320"
+          "nodeId": "node-632"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=447&fm=webp&q=90",
           "severity": "warning",
-          "nodeId": "node-338"
+          "nodeId": "node-650"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
-          "severity": "warning",
-          "nodeId": "node-355"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
-          "severity": "warning",
-          "nodeId": "node-371"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
-          "severity": "warning",
-          "nodeId": "node-384"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
-          "severity": "warning",
-          "nodeId": "node-467"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
-          "severity": "warning",
-          "nodeId": "node-495"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
-          "severity": "warning",
-          "nodeId": "node-523"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
-          "severity": "warning",
-          "nodeId": "node-552"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
-          "severity": "warning",
-          "nodeId": "node-637"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
-          "severity": "warning",
-          "nodeId": "node-652"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=447&fm=webp&q=90",
           "severity": "warning",
           "nodeId": "node-667"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
           "severity": "warning",
-          "nodeId": "node-682"
+          "nodeId": "node-683"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
           "severity": "warning",
-          "nodeId": "node-697"
+          "nodeId": "node-696"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
           "severity": "warning",
-          "nodeId": "node-712"
+          "nodeId": "node-779"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
-          "severity": "warning",
-          "nodeId": "node-727"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
-          "severity": "warning",
-          "nodeId": "node-742"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
-          "severity": "warning",
-          "nodeId": "node-804"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
-          "severity": "warning",
-          "nodeId": "node-853"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
-          "severity": "warning",
-          "nodeId": "node-867"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
-          "severity": "warning",
-          "nodeId": "node-881"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
           "severity": "warning",
           "nodeId": "node-895"
         },
         {
           "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-910"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-925"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-940"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-955"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-970"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-985"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-1000"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-1062"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1111"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1125"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1139"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1153"
+        },
+        {
+          "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90",
           "severity": "warning",
-          "nodeId": "node-1060"
+          "nodeId": "node-1318"
         },
         {
           "code": "asset_unavailable",
@@ -276,282 +318,327 @@
       "width": 390,
       "status": "ok",
       "runs": 3,
-      "wallMs": 10003,
-      "score": 72.55,
-      "strictScore": 43.62,
+      "wallMs": 10346,
+      "score": 87.94,
+      "strictScore": 63.31,
       "widthDelta": 0,
-      "heightDelta": 1550,
-      "nodeCount": 1228,
+      "heightDelta": 0,
+      "nodeCount": 1241,
       "stages": {
         "scroll": 0,
-        "waitImages": 2,
-        "walk": 7.5,
-        "freezeTransforms": 21,
-        "nodes": 183.7,
-        "text": 9,
+        "waitImages": 1106.6,
+        "walk": 7.4,
+        "freezeTransforms": 17.2,
+        "nodes": 175.9,
+        "text": 8.5,
         "assets": 0,
-        "fonts": 0.7,
-        "total": 219.5
+        "fonts": 0.8,
+        "total": 1461.4
       },
       "counts": {
-        "elementsWalked": 1495,
-        "nodesEmitted": 1228,
+        "elementsWalked": 1498,
+        "nodesEmitted": 1241,
         "textCharsMeasured": 734,
-        "transformedElements": 121,
+        "transformedElements": 99,
         "assetsFetched": 0,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 0,
-        "jsonBytes": 1020079
+        "jsonBytes": 1033229
       },
-      "jsonMB": 0.973,
+      "jsonMB": 0.985,
       "slowestStage": {
-        "stage": "nodes",
-        "ms": 183.7
+        "stage": "waitImages",
+        "ms": 1106.6
       },
       "hotspots": [
         {
-          "cell": "r5c1",
-          "mismatchPct": 66,
-          "x": 49,
-          "y": 12950,
+          "cell": "r0c4",
+          "mismatchPct": 31,
+          "x": 196,
+          "y": 0,
           "width": 49,
           "height": 2590,
-          "mismatchedPixels": 83774
+          "mismatchedPixels": 39280
         },
         {
-          "cell": "r5c2",
-          "mismatchPct": 64.8,
-          "x": 98,
-          "y": 12950,
-          "width": 49,
+          "cell": "r0c7",
+          "mismatchPct": 30.9,
+          "x": 343,
+          "y": 0,
+          "width": 47,
           "height": 2590,
-          "mismatchedPixels": 82223
+          "mismatchedPixels": 37614
         },
         {
-          "cell": "r5c3",
-          "mismatchPct": 64,
+          "cell": "r0c3",
+          "mismatchPct": 29.7,
           "x": 147,
-          "y": 12950,
+          "y": 0,
           "width": 49,
           "height": 2590,
-          "mismatchedPixels": 81219
+          "mismatchedPixels": 37714
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-1/diff-mask.png"
       },
       "diagnostics": [
         {
           "code": "image_skipped",
-          "message": "Skipped 37 images (5 zero-size, 32 lazy-offscreen).",
+          "message": "Skipped 5 images (5 zero-size).",
           "severity": "info"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "23 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://b.stripecdn.com/mkt-ssr-statics/assets/_next/static/media/wave-fallback-mobile-1x.80eb433a.webp",
           "severity": "warning",
-          "nodeId": "node-186"
+          "nodeId": "node-197"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/m9HBEK464p46FeNIhs2PV/f5054a93c8a0a6aabdd1c47675d610ae/wave_crop.jpg?w=396&fm=webp&q=80",
           "severity": "warning",
-          "nodeId": "node-205"
+          "nodeId": "node-216"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=1028&q=90",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=514&fm=webp&q=90",
           "severity": "warning",
-          "nodeId": "node-306"
+          "nodeId": "node-317"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
           "severity": "warning",
-          "nodeId": "node-324"
+          "nodeId": "node-335"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
           "severity": "warning",
-          "nodeId": "node-341"
+          "nodeId": "node-352"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
           "severity": "warning",
-          "nodeId": "node-357"
+          "nodeId": "node-368"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
           "severity": "warning",
-          "nodeId": "node-370"
+          "nodeId": "node-381"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
           "severity": "warning",
-          "nodeId": "node-404"
+          "nodeId": "node-415"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
           "severity": "warning",
-          "nodeId": "node-432"
+          "nodeId": "node-443"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
           "severity": "warning",
-          "nodeId": "node-463"
+          "nodeId": "node-474"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
           "severity": "warning",
-          "nodeId": "node-494"
+          "nodeId": "node-505"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
           "severity": "warning",
-          "nodeId": "node-525"
+          "nodeId": "node-536"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-610"
+          "nodeId": "node-621"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-625"
+          "nodeId": "node-636"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-632"
+          "nodeId": "node-643"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-639"
+          "nodeId": "node-650"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-646"
+          "nodeId": "node-657"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-653"
+          "nodeId": "node-664"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-660"
+          "nodeId": "node-671"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
           "severity": "warning",
-          "nodeId": "node-667"
+          "nodeId": "node-678"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
           "severity": "warning",
-          "nodeId": "node-714"
+          "nodeId": "node-725"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
           "severity": "warning",
-          "nodeId": "node-763"
+          "nodeId": "node-774"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
           "severity": "warning",
-          "nodeId": "node-777"
+          "nodeId": "node-788"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
           "severity": "warning",
-          "nodeId": "node-791"
+          "nodeId": "node-802"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
           "severity": "warning",
-          "nodeId": "node-805"
+          "nodeId": "node-816"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/yqIFyZRGU5zDwdUsWtUyM/25b9f23c748c4d54079a09016fde59d8/annual-letter-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-934"
+          "nodeId": "node-945"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6yE6G454SGCJnJgEYsS2MB/70b405a1dce904bc0c6f2698223fb966/the-happenings-bfcm-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-947"
+          "nodeId": "node-958"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/33xcv8eCmXzMzWXicVQ4cF/83d91fa419ff8d1b9466739b4ecdcb1d/the-happenings-tidemark-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-952"
+          "nodeId": "node-963"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/t03tXrgvnHUPGwxYUgSxN/bd8da003434c9e9fb72c719b9edb429b/the-happenings-cheeky-pint-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-957"
+          "nodeId": "node-968"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/Pd2JQ7FZ1pYMIMGDwvMdV/13e7e021ca23d042da8ac07be829f7ef/the-happenings-payment-processing-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-962"
+          "nodeId": "node-973"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4LaZVLqDqGf9091wqUAmFp/fbe9fc307e1336b69bcd9be4ec5c4752/the-happenings-crypto-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-967"
+          "nodeId": "node-978"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1k7ckFceNFlxqF47hWJUlM/eaa4d8b3f8e4b76ba3dd7df7da88e099/the-happenings-agentic-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-972"
+          "nodeId": "node-983"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7EVLwfXmG3pl1vhBssMrFB/b6d8612b1f567922c1355d864c279678/the-happenings-payment-retailers-mobile.png?w=672&q=90",
           "severity": "warning",
-          "nodeId": "node-977"
+          "nodeId": "node-988"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90",
           "severity": "warning",
-          "nodeId": "node-1003"
+          "nodeId": "node-1014"
         },
         {
           "code": "asset_unavailable",
@@ -582,38 +669,38 @@
       "width": 1440,
       "status": "ok",
       "runs": 3,
-      "wallMs": 12711,
-      "score": 92.6,
-      "strictScore": 62.16,
+      "wallMs": 12352,
+      "score": 92.61,
+      "strictScore": 62.19,
       "widthDelta": 0,
       "heightDelta": 0,
-      "nodeCount": 1824,
+      "nodeCount": 1827,
       "stages": {
         "scroll": 0,
-        "waitImages": 3.8,
+        "waitImages": 554.6,
         "walk": 11.5,
-        "freezeTransforms": 17.2,
-        "nodes": 268.7,
-        "text": 7.5,
-        "assets": 1311.4,
-        "fonts": 1087.7,
-        "total": 1396.9
+        "freezeTransforms": 17,
+        "nodes": 268.4,
+        "text": 8.3,
+        "assets": 1280.3,
+        "fonts": 1056.6,
+        "total": 2265.3
       },
       "counts": {
-        "elementsWalked": 2174,
-        "nodesEmitted": 1824,
+        "elementsWalked": 2176,
+        "nodesEmitted": 1827,
         "textCharsMeasured": 275,
         "transformedElements": 56,
         "assetsFetched": 22,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 1230875,
-        "jsonBytes": 2929192
+        "jsonBytes": 2920689
       },
-      "jsonMB": 2.793,
+      "jsonMB": 2.785,
       "slowestStage": {
         "stage": "assets",
-        "ms": 1311.4
+        "ms": 1280.3
       },
       "hotspots": [
         {
@@ -645,33 +732,33 @@
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-3/diff-mask.png"
       },
       "diagnostics": [
         {
           "code": "image_skipped",
-          "message": "Skipped 28 images (4 zero-size, 24 lazy-offscreen).",
+          "message": "Skipped 4 images (4 zero-size).",
           "severity": "info"
         },
         {
           "code": "asset_failed",
           "message": "Background image data could not be read.",
           "severity": "warning",
-          "nodeId": "node-1106"
+          "nodeId": "node-1109"
         },
         {
           "code": "asset_failed",
           "message": "Background image data could not be read.",
           "severity": "warning",
-          "nodeId": "node-1134"
+          "nodeId": "node-1137"
         },
         {
           "code": "asset_failed",
           "message": "Background image data could not be read.",
           "severity": "warning",
-          "nodeId": "node-1176"
+          "nodeId": "node-1179"
         }
       ]
     },
@@ -682,77 +769,77 @@
       "width": 390,
       "status": "ok",
       "runs": 3,
-      "wallMs": 8194,
-      "score": 89.7,
-      "strictScore": 59.41,
+      "wallMs": 7423,
+      "score": 89.55,
+      "strictScore": 56.39,
       "widthDelta": 0,
       "heightDelta": 0,
-      "nodeCount": 412,
+      "nodeCount": 415,
       "stages": {
         "scroll": 0,
-        "waitImages": 5,
-        "walk": 47.2,
-        "freezeTransforms": 39.7,
-        "nodes": 106,
-        "text": 4.6,
-        "assets": 1420.9,
-        "fonts": 1372.9,
-        "total": 1581.7
+        "waitImages": 348.5,
+        "walk": 23.6,
+        "freezeTransforms": 18.6,
+        "nodes": 73.5,
+        "text": 2.9,
+        "assets": 994.7,
+        "fonts": 959.2,
+        "total": 1884.1
       },
       "counts": {
-        "elementsWalked": 2174,
-        "nodesEmitted": 412,
+        "elementsWalked": 2176,
+        "nodesEmitted": 415,
         "textCharsMeasured": 207,
         "transformedElements": 21,
         "assetsFetched": 6,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 2753386,
-        "jsonBytes": 4081230
+        "jsonBytes": 4083120
       },
-      "jsonMB": 3.892,
+      "jsonMB": 3.894,
       "slowestStage": {
         "stage": "assets",
-        "ms": 1420.9
+        "ms": 994.7
       },
       "hotspots": [
         {
-          "cell": "r5c2",
-          "mismatchPct": 34.2,
-          "x": 98,
-          "y": 3710,
+          "cell": "r6c4",
+          "mismatchPct": 30.7,
+          "x": 196,
+          "y": 4452,
           "width": 49,
           "height": 742,
-          "mismatchedPixels": 12445
+          "mismatchedPixels": 11180
+        },
+        {
+          "cell": "r6c5",
+          "mismatchPct": 30.5,
+          "x": 245,
+          "y": 4452,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 11078
         },
         {
           "cell": "r5c1",
-          "mismatchPct": 33.5,
+          "mismatchPct": 29.5,
           "x": 49,
           "y": 3710,
           "width": 49,
           "height": 742,
-          "mismatchedPixels": 12176
-        },
-        {
-          "cell": "r5c3",
-          "mismatchPct": 30.8,
-          "x": 147,
-          "y": 3710,
-          "width": 49,
-          "height": 742,
-          "mismatchedPixels": 11216
+          "mismatchedPixels": 10708
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-3/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-3/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-3/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-2/diff-mask.png"
       },
       "diagnostics": [
         {
           "code": "image_skipped",
-          "message": "Skipped 32 images (25 zero-size, 7 lazy-offscreen).",
+          "message": "Skipped 25 images (25 zero-size).",
           "severity": "info"
         }
       ]
@@ -764,66 +851,66 @@
       "width": 1440,
       "status": "ok",
       "runs": 3,
-      "wallMs": 16179,
-      "score": 84.61,
-      "strictScore": 70.17,
+      "wallMs": 13166,
+      "score": 81.2,
+      "strictScore": 62.37,
       "widthDelta": 0,
       "heightDelta": 0,
-      "nodeCount": 1044,
+      "nodeCount": 1041,
       "stages": {
         "scroll": 0,
-        "waitImages": 1.9,
-        "walk": 3.5,
-        "freezeTransforms": 7.6,
-        "nodes": 127.8,
-        "text": 10,
+        "waitImages": 802.4,
+        "walk": 3.7,
+        "freezeTransforms": 6.3,
+        "nodes": 929.7,
+        "text": 8.7,
         "assets": 0,
-        "fonts": 1.7,
-        "total": 146.3
+        "fonts": 1.6,
+        "total": 2046.9
       },
       "counts": {
-        "elementsWalked": 1253,
-        "nodesEmitted": 1044,
-        "textCharsMeasured": 1117,
+        "elementsWalked": 1250,
+        "nodesEmitted": 1041,
+        "textCharsMeasured": 1124,
         "transformedElements": 12,
         "assetsFetched": 0,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 0,
-        "jsonBytes": 491003
+        "jsonBytes": 495090
       },
-      "jsonMB": 0.468,
+      "jsonMB": 0.472,
       "slowestStage": {
         "stage": "nodes",
-        "ms": 127.8
+        "ms": 929.7
       },
       "hotspots": [
         {
-          "cell": "r0c3",
-          "mismatchPct": 65.2,
-          "x": 540,
+          "cell": "r0c0",
+          "mismatchPct": 96.1,
+          "x": 0,
           "y": 0,
           "width": 180,
           "height": 823,
-          "mismatchedPixels": 96568
+          "mismatchedPixels": 142371
         },
         {
-          "cell": "r0c4",
-          "mismatchPct": 63.7,
-          "x": 720,
+          "cell": "r0c1",
+          "mismatchPct": 79.8,
+          "x": 180,
           "y": 0,
           "width": 180,
           "height": 823,
-          "mismatchedPixels": 94429
+          "mismatchedPixels": 118185
         },
         {
-          "cell": "r0c5",
-          "mismatchPct": 59.6,
-          "x": 900,
+          "cell": "r0c2",
+          "mismatchPct": 78,
+          "x": 360,
           "y": 0,
           "width": 180,
           "height": 823,
-          "mismatchedPixels": 88337
+          "mismatchedPixels": 115501
         }
       ],
       "files": {
@@ -833,13 +920,59 @@
       },
       "diagnostics": [
         {
-          "code": "image_skipped",
-          "message": "Skipped 14 images (14 lazy-offscreen).",
-          "severity": "info"
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/5f18/live/9b3a5370-df98-11f1-a9ad-6774a3284d10.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0a5e/live/65a2f270-dfad-11f1-be1f-9dae57fabf82.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ea6/live/8d0137e0-e00d-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/2d86/live/54377b90-df86-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/3625/live/09cc54b0-e01f-11f1-ad34-45f8f10f7c55.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "6 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/3326052006735372490",
+          "message": "Embedded document is unavailable or cross-origin; its content was not captured.",
+          "severity": "warning",
+          "nodeId": "node-4"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/4710893782186657949",
           "severity": "warning",
           "nodeId": "node-20"
         },
@@ -859,187 +992,187 @@
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/d028/live/47c10ab0-e013-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-107"
+          "nodeId": "node-109"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/172e/live/be162960-dfc9-11f1-81be-1f9bcd2a4214.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-125"
+          "nodeId": "node-127"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/1c12/live/8c3025e0-e005-11f1-93e1-3b657b665bcf.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-143"
+          "nodeId": "node-145"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/1a28/live/45df2820-e00f-11f1-9fd4-8b3c9f9dfc89.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-161"
+          "nodeId": "node-163"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/800/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-227"
+          "nodeId": "node-229"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-251"
+          "nodeId": "node-253"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/480/cpsprodpb/7a8d/live/606ff370-df85-11f1-93e1-3b657b665bcf.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-297"
+          "nodeId": "node-301"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-315"
+          "nodeId": "node-319"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/41c9/live/7d390f90-dfcc-11f1-b441-2b33b063138f.jpg.webp",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/3b10/live/cc8fb3e0-df55-11f1-b8ca-0348146d1a32.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-333"
+          "nodeId": "node-337"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
-          "severity": "warning",
-          "nodeId": "node-366"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
           "severity": "warning",
           "nodeId": "node-367"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-391"
+          "nodeId": "node-368"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/880d/live/7334ea60-dfad-11f1-b441-2b33b063138f.jpg.webp",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
           "nodeId": "node-392"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
-          "severity": "warning",
-          "nodeId": "node-441"
-        },
-        {
-          "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/5f18/live/9b3a5370-df98-11f1-a9ad-6774a3284d10.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-442"
+          "nodeId": "node-393"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-460"
+          "nodeId": "node-439"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0a5e/live/65a2f270-dfad-11f1-be1f-9dae57fabf82.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-440"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-458"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ea6/live/8d0137e0-e00d-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-461"
+          "nodeId": "node-459"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-477"
+          "nodeId": "node-475"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/2d86/live/54377b90-df86-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-478"
+          "nodeId": "node-476"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-671"
+          "nodeId": "node-669"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/3625/live/09cc54b0-e01f-11f1-ad34-45f8f10f7c55.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-670"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-694"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-672"
+          "nodeId": "node-695"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-696"
+          "nodeId": "node-741"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-697"
+          "nodeId": "node-742"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-743"
+          "nodeId": "node-760"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-744"
+          "nodeId": "node-761"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-762"
+          "nodeId": "node-779"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/7e38/live/cc5f4c70-e002-11f1-a3e2-bfb07c67d49c.png.webp",
           "severity": "warning",
-          "nodeId": "node-763"
+          "nodeId": "node-780"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-781"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a078/live/ecafe1b0-df85-11f1-a8e2-5b59832bb2f1.jpg.webp",
-          "severity": "warning",
-          "nodeId": "node-782"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
-          "severity": "warning",
-          "nodeId": "node-804"
+          "nodeId": "node-802"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/4234/live/ccb11760-566c-11f0-9074-8989d8c97d87.png.webp",
           "severity": "warning",
-          "nodeId": "node-805"
+          "nodeId": "node-803"
         },
         {
           "code": "asset_unavailable",
@@ -1075,306 +1208,358 @@
       "width": 390,
       "status": "ok",
       "runs": 3,
-      "wallMs": 7466,
-      "score": 88.48,
-      "strictScore": 75.24,
+      "wallMs": 11532,
+      "score": 83.55,
+      "strictScore": 70.49,
       "widthDelta": 0,
       "heightDelta": 0,
-      "nodeCount": 923,
+      "nodeCount": 934,
       "stages": {
         "scroll": 0,
-        "waitImages": 1.9,
-        "walk": 4.1,
-        "freezeTransforms": 6.9,
-        "nodes": 106.6,
+        "waitImages": 804.1,
+        "walk": 3.7,
+        "freezeTransforms": 6.7,
+        "nodes": 907.1,
         "text": 6.7,
         "assets": 0,
         "fonts": 1.7,
-        "total": 124.5
+        "total": 1728.2
       },
       "counts": {
-        "elementsWalked": 1200,
-        "nodesEmitted": 923,
-        "textCharsMeasured": 690,
+        "elementsWalked": 1217,
+        "nodesEmitted": 934,
+        "textCharsMeasured": 709,
         "transformedElements": 12,
         "assetsFetched": 0,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 0,
-        "jsonBytes": 437373
+        "jsonBytes": 446411
       },
-      "jsonMB": 0.417,
+      "jsonMB": 0.426,
       "slowestStage": {
         "stage": "nodes",
-        "ms": 106.6
+        "ms": 907.1
       },
       "hotspots": [
         {
           "cell": "r0c1",
-          "mismatchPct": 42.9,
+          "mismatchPct": 78.9,
           "x": 49,
           "y": 0,
           "width": 49,
-          "height": 1317,
-          "mismatchedPixels": 27690
+          "height": 1329,
+          "mismatchedPixels": 51364
         },
         {
           "cell": "r0c2",
-          "mismatchPct": 42.8,
+          "mismatchPct": 78.7,
           "x": 98,
           "y": 0,
           "width": 49,
-          "height": 1317,
-          "mismatchedPixels": 27638
+          "height": 1329,
+          "mismatchedPixels": 51261
         },
         {
           "cell": "r0c0",
-          "mismatchPct": 34,
+          "mismatchPct": 73.1,
           "x": 0,
           "y": 0,
           "width": 49,
-          "height": 1317,
-          "mismatchedPixels": 21911
+          "height": 1329,
+          "mismatchedPixels": 47615
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-3/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-3/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-3/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-1/diff-mask.png"
       },
       "diagnostics": [
         {
-          "code": "image_skipped",
-          "message": "Skipped 16 images (16 lazy-offscreen).",
-          "severity": "info"
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/7a8d/live/606ff370-df85-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3b10/live/cc8fb3e0-df55-11f1-b8ca-0348146d1a32.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/5f18/live/9b3a5370-df98-11f1-a9ad-6774a3284d10.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0a5e/live/65a2f270-dfad-11f1-be1f-9dae57fabf82.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "16 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Embedded document is unavailable or cross-origin; its content was not captured.",
+          "severity": "warning",
+          "nodeId": "node-4"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/12658512464754796672",
+          "severity": "warning",
+          "nodeId": "node-20"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/480/cpsprodpb/d61b/live/3ce2aaf0-e01c-11f1-a701-fddedf244c16.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-27"
+          "nodeId": "node-35"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/14ef/live/f4aae840-dfd7-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-49"
+          "nodeId": "node-57"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/d028/live/47c10ab0-e013-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-94"
+          "nodeId": "node-104"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/172e/live/be162960-dfc9-11f1-81be-1f9bcd2a4214.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-111"
+          "nodeId": "node-121"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/1c12/live/8c3025e0-e005-11f1-93e1-3b657b665bcf.jpg.webp",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/da9e/live/d437a0b0-e010-11f1-b884-a9f52ca7a4b1.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-128"
+          "nodeId": "node-138"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/1a28/live/45df2820-e00f-11f1-9fd4-8b3c9f9dfc89.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-145"
+          "nodeId": "node-155"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-210"
+          "nodeId": "node-220"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-211"
+          "nodeId": "node-221"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-233"
+          "nodeId": "node-243"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-234"
+          "nodeId": "node-244"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-279"
+          "nodeId": "node-291"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/7a8d/live/606ff370-df85-11f1-93e1-3b657b665bcf.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-280"
+          "nodeId": "node-292"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-297"
+          "nodeId": "node-309"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-298"
+          "nodeId": "node-310"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-315"
+          "nodeId": "node-327"
         },
         {
           "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/41c9/live/7d390f90-dfcc-11f1-b441-2b33b063138f.jpg.webp",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3b10/live/cc8fb3e0-df55-11f1-b8ca-0348146d1a32.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-316"
+          "nodeId": "node-328"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-348"
+          "nodeId": "node-357"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-349"
+          "nodeId": "node-358"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-371"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/880d/live/7334ea60-dfad-11f1-b441-2b33b063138f.jpg.webp",
-          "severity": "warning",
-          "nodeId": "node-372"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
-          "severity": "warning",
-          "nodeId": "node-420"
+          "nodeId": "node-380"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/5f18/live/9b3a5370-df98-11f1-a9ad-6774a3284d10.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-421"
+          "nodeId": "node-381"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-438"
+          "nodeId": "node-426"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0a5e/live/65a2f270-dfad-11f1-be1f-9dae57fabf82.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-427"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-444"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ea6/live/8d0137e0-e00d-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-439"
+          "nodeId": "node-445"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-454"
+          "nodeId": "node-460"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/2d86/live/54377b90-df86-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-455"
+          "nodeId": "node-461"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-647"
+          "nodeId": "node-653"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/3625/live/09cc54b0-e01f-11f1-ad34-45f8f10f7c55.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-654"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-676"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-648"
+          "nodeId": "node-677"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-670"
+          "nodeId": "node-722"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-671"
+          "nodeId": "node-723"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-716"
+          "nodeId": "node-740"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
           "severity": "warning",
-          "nodeId": "node-717"
+          "nodeId": "node-741"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-734"
+          "nodeId": "node-758"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/7e38/live/cc5f4c70-e002-11f1-a3e2-bfb07c67d49c.png.webp",
           "severity": "warning",
-          "nodeId": "node-735"
+          "nodeId": "node-759"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
           "severity": "warning",
-          "nodeId": "node-752"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a078/live/ecafe1b0-df85-11f1-a8e2-5b59832bb2f1.jpg.webp",
-          "severity": "warning",
-          "nodeId": "node-753"
-        },
-        {
-          "code": "asset_unavailable",
-          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
-          "severity": "warning",
-          "nodeId": "node-774"
+          "nodeId": "node-780"
         },
         {
           "code": "asset_unavailable",
           "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/4234/live/ccb11760-566c-11f0-9074-8989d8c97d87.png.webp",
           "severity": "warning",
-          "nodeId": "node-775"
+          "nodeId": "node-781"
         },
         {
           "code": "asset_unavailable",
@@ -1410,38 +1595,38 @@
       "width": 1440,
       "status": "ok",
       "runs": 3,
-      "wallMs": 13796,
-      "score": 94.05,
-      "strictScore": 86.18,
+      "wallMs": 13730,
+      "score": 94.57,
+      "strictScore": 87.55,
       "widthDelta": 0,
       "heightDelta": 0,
-      "nodeCount": 1158,
+      "nodeCount": 1178,
       "stages": {
         "scroll": 0,
-        "waitImages": 3.1,
-        "walk": 13.7,
-        "freezeTransforms": 58,
-        "nodes": 162.6,
-        "text": 44.1,
-        "assets": 199.3,
-        "fonts": 119.5,
-        "total": 364.5
+        "waitImages": 2.7,
+        "walk": 14.4,
+        "freezeTransforms": 57.6,
+        "nodes": 159.6,
+        "text": 46.1,
+        "assets": 243.1,
+        "fonts": 109.9,
+        "total": 1153.7
       },
       "counts": {
         "elementsWalked": 2630,
-        "nodesEmitted": 1158,
+        "nodesEmitted": 1178,
         "textCharsMeasured": 4163,
-        "transformedElements": 380,
-        "assetsFetched": 7,
+        "transformedElements": 377,
+        "assetsFetched": 12,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
-        "assetBytes": 153730,
-        "jsonBytes": 1993752
+        "assetBytes": 178591,
+        "jsonBytes": 2034968
       },
-      "jsonMB": 1.901,
+      "jsonMB": 1.941,
       "slowestStage": {
         "stage": "assets",
-        "ms": 199.3
+        "ms": 243.1
       },
       "hotspots": [
         {
@@ -1473,9 +1658,9 @@
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-2/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-2/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-2/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-1/diff-mask.png"
       },
       "diagnostics": [
         {
@@ -1497,7 +1682,7 @@
       "width": 390,
       "status": "ok",
       "runs": 3,
-      "wallMs": 13173,
+      "wallMs": 11563,
       "score": 90.1,
       "strictScore": 76.44,
       "widthDelta": 0,
@@ -1505,30 +1690,30 @@
       "nodeCount": 1843,
       "stages": {
         "scroll": 0,
-        "waitImages": 4,
-        "walk": 23.1,
-        "freezeTransforms": 37.8,
-        "nodes": 241.6,
-        "text": 105.6,
-        "assets": 333,
-        "fonts": 96.2,
-        "total": 415.8
+        "waitImages": 2.9,
+        "walk": 21.2,
+        "freezeTransforms": 36.5,
+        "nodes": 198.5,
+        "text": 86.5,
+        "assets": 283.9,
+        "fonts": 88.6,
+        "total": 1161.5
       },
       "counts": {
         "elementsWalked": 2630,
         "nodesEmitted": 1843,
         "textCharsMeasured": 12774,
-        "transformedElements": 146,
+        "transformedElements": 144,
         "assetsFetched": 12,
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 92709,
-        "jsonBytes": 2268601
+        "jsonBytes": 2268520
       },
-      "jsonMB": 2.164,
+      "jsonMB": 2.163,
       "slowestStage": {
         "stage": "assets",
-        "ms": 333
+        "ms": 283.9
       },
       "hotspots": [
         {
@@ -1560,9 +1745,9 @@
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-2/diff-mask.png"
       },
       "diagnostics": [
         {
@@ -1584,22 +1769,22 @@
       "width": 1440,
       "status": "ok",
       "runs": 3,
-      "wallMs": 9830,
-      "score": 91.41,
-      "strictScore": 90.96,
+      "wallMs": 7888,
+      "score": 91.44,
+      "strictScore": 90.97,
       "widthDelta": 0,
       "heightDelta": 0,
       "nodeCount": 554,
       "stages": {
         "scroll": 0,
-        "waitImages": 302.6,
-        "walk": 7.4,
-        "freezeTransforms": 26,
-        "nodes": 76.8,
-        "text": 4.5,
-        "assets": 75.7,
-        "fonts": 33.4,
-        "total": 1459
+        "waitImages": 574.6,
+        "walk": 6.3,
+        "freezeTransforms": 22.8,
+        "nodes": 66.1,
+        "text": 3.6,
+        "assets": 64.9,
+        "fonts": 29.2,
+        "total": 1315.4
       },
       "counts": {
         "elementsWalked": 1256,
@@ -1610,12 +1795,12 @@
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 7574,
-        "jsonBytes": 277177
+        "jsonBytes": 276226
       },
-      "jsonMB": 0.264,
+      "jsonMB": 0.263,
       "slowestStage": {
         "stage": "waitImages",
-        "ms": 302.6
+        "ms": 574.6
       },
       "hotspots": [
         {
@@ -1638,49 +1823,24 @@
         },
         {
           "cell": "r2c3",
-          "mismatchPct": 43.8,
+          "mismatchPct": 43.7,
           "x": 540,
           "y": 3572,
           "width": 180,
           "height": 1786,
-          "mismatchedPixels": 140967
+          "mismatchedPixels": 140502
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-3/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-3/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-3/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-1/diff-mask.png"
       },
       "diagnostics": [
         {
           "code": "image_skipped",
           "message": "Skipped 14 images (14 zero-size).",
           "severity": "info"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79e8d09a7d00ffe4d50a46_Banner%20Line%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_budget_exhausted",
-          "message": "46 images were not checked because the image decode concurrency budget was exhausted.",
-          "severity": "warning"
         },
         {
           "code": "asset_unavailable",
@@ -1875,22 +2035,22 @@
       "width": 390,
       "status": "ok",
       "runs": 3,
-      "wallMs": 5662,
-      "score": 93.86,
+      "wallMs": 4880,
+      "score": 93.87,
       "strictScore": 85.87,
       "widthDelta": 0,
       "heightDelta": 0,
       "nodeCount": 516,
       "stages": {
         "scroll": 0,
-        "waitImages": 305.2,
-        "walk": 8.3,
-        "freezeTransforms": 20.7,
-        "nodes": 67.2,
-        "text": 3.6,
-        "assets": 60.5,
-        "fonts": 25.3,
-        "total": 1361.6
+        "waitImages": 734.3,
+        "walk": 7.5,
+        "freezeTransforms": 19,
+        "nodes": 61.8,
+        "text": 3.2,
+        "assets": 56.6,
+        "fonts": 23.2,
+        "total": 1290.9
       },
       "counts": {
         "elementsWalked": 1270,
@@ -1901,12 +2061,12 @@
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 7574,
-        "jsonBytes": 260209
+        "jsonBytes": 259226
       },
-      "jsonMB": 0.248,
+      "jsonMB": 0.247,
       "slowestStage": {
         "stage": "waitImages",
-        "ms": 305.2
+        "ms": 734.3
       },
       "hotspots": [
         {
@@ -1916,62 +2076,37 @@
           "y": 1140,
           "width": 49,
           "height": 1140,
-          "mismatchedPixels": 18294
+          "mismatchedPixels": 18251
         },
         {
           "cell": "r1c1",
-          "mismatchPct": 31.3,
+          "mismatchPct": 31.2,
           "x": 49,
           "y": 1140,
           "width": 49,
           "height": 1140,
-          "mismatchedPixels": 17483
+          "mismatchedPixels": 17446
         },
         {
           "cell": "r1c3",
-          "mismatchPct": 29.6,
+          "mismatchPct": 29.5,
           "x": 147,
           "y": 1140,
           "width": 49,
           "height": 1140,
-          "mismatchedPixels": 16517
+          "mismatchedPixels": 16458
         }
       ],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-3/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-3/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-3/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-2/diff-mask.png"
       },
       "diagnostics": [
         {
           "code": "image_skipped",
           "message": "Skipped 22 images (19 zero-size, 3 hidden).",
           "severity": "info"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_timeout",
-          "message": "Image readiness timed out: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a7973e0f6ef788d0e0f48bc_Primary%20Button%20White%20Icon.svg",
-          "severity": "warning"
-        },
-        {
-          "code": "image_budget_exhausted",
-          "message": "38 images were not checked because the image decode concurrency budget was exhausted.",
-          "severity": "warning"
         },
         {
           "code": "asset_unavailable",
@@ -2142,7 +2277,7 @@
       "width": 1440,
       "status": "ok",
       "runs": 3,
-      "wallMs": 2209,
+      "wallMs": 2413,
       "score": 100,
       "strictScore": 98.9,
       "widthDelta": 0,
@@ -2150,14 +2285,14 @@
       "nodeCount": 29,
       "stages": {
         "scroll": 0,
-        "waitImages": 2,
-        "walk": 1,
-        "freezeTransforms": 1.1,
-        "nodes": 10.5,
-        "text": 0.6,
+        "waitImages": 1.2,
+        "walk": 0.8,
+        "freezeTransforms": 0.8,
+        "nodes": 9.4,
+        "text": 0.4,
         "assets": 0,
         "fonts": 0.7,
-        "total": 18.2
+        "total": 818.1
       },
       "counts": {
         "elementsWalked": 25,
@@ -2168,18 +2303,18 @@
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 0,
-        "jsonBytes": 15051
+        "jsonBytes": 15055
       },
       "jsonMB": 0.014,
       "slowestStage": {
         "stage": "nodes",
-        "ms": 10.5
+        "ms": 9.4
       },
       "hotspots": [],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-2/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-2/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-2/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-3/diff-mask.png"
       },
       "diagnostics": []
     },
@@ -2190,7 +2325,7 @@
       "width": 390,
       "status": "ok",
       "runs": 3,
-      "wallMs": 2049,
+      "wallMs": 2587,
       "score": 100,
       "strictScore": 99.34,
       "widthDelta": 1,
@@ -2198,14 +2333,14 @@
       "nodeCount": 29,
       "stages": {
         "scroll": 0,
-        "waitImages": 1.9,
+        "waitImages": 1.2,
         "walk": 0.7,
         "freezeTransforms": 1,
-        "nodes": 10.2,
-        "text": 0.6,
+        "nodes": 9,
+        "text": 0.7,
         "assets": 0,
-        "fonts": 0.7,
-        "total": 17.2
+        "fonts": 0.6,
+        "total": 825.2
       },
       "counts": {
         "elementsWalked": 25,
@@ -2216,18 +2351,18 @@
         "assetsFailed": 0,
         "assetsTimedOut": 0,
         "assetBytes": 0,
-        "jsonBytes": 15054
+        "jsonBytes": 15052
       },
       "jsonMB": 0.014,
       "slowestStage": {
         "stage": "nodes",
-        "ms": 10.2
+        "ms": 9
       },
       "hotspots": [],
       "files": {
-        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-3/original.png",
-        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-3/rendered.png",
-        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-3/diff-mask.png"
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-1/diff-mask.png"
       },
       "diagnostics": []
     }
