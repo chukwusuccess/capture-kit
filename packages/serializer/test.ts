@@ -723,7 +723,30 @@ async function runReadinessTests() {
     assert.ok(Date.now() - t0 < 500, 'idleMs should exit stalled decodes before totalTimeoutMs');
     const skipped = diagnostics.filter((d) => d.code === 'image_skipped');
     assert.strictEqual(skipped.length, 1);
-    assert.ok(skipped[0].message.includes('3 images'));
+    assert.ok(skipped[0].message.includes('2 images'));
+  }
+
+  // Lazy images (loading="lazy", data-src, data-srcset) are promoted to eager at capture start.
+  {
+    const { doc, body } = createMockDocument();
+    const lazyImg = new MockElement('img');
+    const attrs = new Map<string, string>([
+      ['loading', 'lazy'],
+      ['data-src', '/real.png'],
+      ['data-srcset', '/real-2x.png 2x'],
+    ]);
+    lazyImg.getAttribute = (name: string) => attrs.get(name) ?? null;
+    (lazyImg as unknown as { setAttribute: (k: string, v: string) => void }).setAttribute = (k: string, v: string) => {
+      attrs.set(k, v);
+      if (k === 'src') lazyImg.src = v;
+    };
+    (lazyImg as unknown as { loading: string }).loading = 'lazy';
+    lazyImg.rect = { left: 0, top: 3000, width: 100, height: 100 };
+    body.appendChild(lazyImg);
+    await serializeDocument(doc as unknown as Document, { scrollStitch: false, imageOptions: { idleMs: 20 } });
+    assert.strictEqual(attrs.get('loading'), 'eager');
+    assert.strictEqual(attrs.get('src'), '/real.png');
+    assert.strictEqual(attrs.get('srcset'), '/real-2x.png 2x');
   }
 
   // Multi-line text runs use binary search over clientRects with O(lines * log chars) calls.

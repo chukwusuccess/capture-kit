@@ -178,12 +178,6 @@ async function waitForImageElements(
     }
     if (visibleOnly) {
       if (rect.bottom < 0 || rect.top > viewportHeight) continue;
-    } else {
-      const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
-      if (loadingAttr === 'lazy' && (rect.bottom < -viewportHeight || rect.top > viewportHeight * 2)) {
-        recordSkip('lazy-offscreen');
-        continue;
-      }
     }
     candidates.push(img);
   }
@@ -399,6 +393,65 @@ async function waitForFonts(
   }
 }
 
+function eagerLoadImages(root: Document | Element): void {
+  const images: HTMLImageElement[] = [];
+  if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
+  if (typeof root.querySelectorAll === 'function') images.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
+  for (const img of images) {
+    const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
+    if (loadingAttr === 'lazy') {
+      try { (img as HTMLImageElement).loading = 'eager'; } catch { /* ignore */ }
+      try { img.setAttribute?.('loading', 'eager'); } catch { /* ignore */ }
+    }
+    const existingSrcset = img.getAttribute?.('srcset');
+    if (!existingSrcset) {
+      const lazySrcset = img.getAttribute?.('data-srcset') || img.getAttribute?.('data-lazy-srcset');
+      if (lazySrcset) {
+        try { img.setAttribute?.('srcset', lazySrcset); } catch { /* ignore */ }
+      }
+    }
+    const existingSrc = img.getAttribute?.('src') || '';
+    const isPlaceholder = !existingSrc || /^data:image\/(gif|svg\+xml)/i.test(existingSrc);
+    if (isPlaceholder) {
+      const lazySrc = img.getAttribute?.('data-src') || img.getAttribute?.('data-lazy-src');
+      if (lazySrc) {
+        try { img.setAttribute?.('src', lazySrc); } catch { /* ignore */ }
+      }
+    }
+  }
+}
+
+async function waitForStableScrollHeight(
+  doc: Document,
+  idleMs: number,
+  deadline: number,
+  initialHeight: number,
+  initialStableSince: number
+): Promise<void> {
+  if (idleMs <= 0 || !Number.isFinite(idleMs) || typeof doc.documentElement?.scrollHeight !== 'number') return;
+  const getHeight = () => Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
+  let lastHeight = initialHeight;
+  let stableSince = initialStableSince;
+  const current0 = getHeight();
+  if (current0 !== lastHeight) {
+    lastHeight = current0;
+    stableSince = Date.now();
+  }
+  const stepMs = Math.min(50, idleMs);
+  while (Date.now() < deadline) {
+    const remainingIdle = idleMs - (Date.now() - stableSince);
+    if (remainingIdle <= 0) return;
+    const waitMs = Math.min(stepMs, remainingIdle, Math.max(1, deadline - Date.now()));
+    if (waitMs <= 0) return;
+    await new Promise((r) => setTimeout(r, waitMs));
+    const current = getHeight();
+    if (current !== lastHeight) {
+      lastHeight = current;
+      stableSince = Date.now();
+    }
+  }
+}
+
 async function prepareCapture(
   root: Document | Element,
   doc: Document,
@@ -415,6 +468,7 @@ async function prepareCapture(
       diagnostics.push(diagnostic);
     }
   };
+  eagerLoadImages(root);
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
   const fontDeadline = Math.min(readinessDeadline, Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500));
@@ -436,12 +490,31 @@ async function prepareCapture(
   }
   const waitImagesStart = nowMs();
   let waitImagesMs = 0;
-  await Promise.all([
-    waitForImageElements(root, opts?.imageOptions, state, false, readinessDeadline).finally(() => {
-      waitImagesMs = nowMs() - waitImagesStart;
-    }),
-    waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
-  ]);
+  const idleMs = boundedNumber(opts?.imageOptions?.idleMs, 300);
+  const hasScrollHeight = typeof doc.documentElement?.scrollHeight === 'number';
+  const getHeight = () => Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
+  let trackedHeight = hasScrollHeight ? getHeight() : 0;
+  let stableSince = Date.now();
+  const heightPoll = hasScrollHeight && idleMs > 0
+    ? setInterval(() => {
+        const h = getHeight();
+        if (h !== trackedHeight) {
+          trackedHeight = h;
+          stableSince = Date.now();
+        }
+      }, Math.min(50, idleMs))
+    : undefined;
+  try {
+    await Promise.all([
+      waitForImageElements(root, opts?.imageOptions, state, false, readinessDeadline).finally(() => {
+        waitImagesMs = nowMs() - waitImagesStart;
+      }),
+      waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
+    ]);
+    await waitForStableScrollHeight(doc, idleMs, readinessDeadline, trackedHeight, stableSince);
+  } finally {
+    if (heightPoll !== undefined) clearInterval(heightPoll);
+  }
   return { diagnostics, scrollMs, waitImagesMs, fontDeadline };
 }
 
