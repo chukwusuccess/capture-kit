@@ -438,6 +438,18 @@ async function runSerializerAccuracyTests() {
   assert.ok(mockFont, 'Web font MockHeadingFont not found in capture.fonts');
   assert.strictEqual(mockFont.weight, '700');
 
+  // Timings are observation only: same nodes, each stage reported once.
+  const seenStages: string[] = [];
+  const timed = await serializeDocument(doc as unknown as Document, {
+    onTiming: (stage) => seenStages.push(stage),
+  });
+  assert.deepStrictEqual(timed.nodes, capture.nodes, 'onTiming changed the serialized nodes');
+  assert.deepStrictEqual(Object.keys(timed.timings?.stages ?? {}).sort(), [...seenStages].sort());
+  assert.strictEqual(new Set(seenStages).size, seenStages.length, 'a stage was reported twice');
+  for (const stage of ['scroll', 'waitImages', 'walk', 'freezeTransforms', 'nodes', 'text', 'assets', 'fonts', 'total']) {
+    assert.ok(seenStages.includes(stage), `missing timing stage: ${stage}`);
+  }
+
   console.log('packages/serializer accuracy tests passed: all scenarios verified');
 }
 

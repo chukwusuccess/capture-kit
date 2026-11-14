@@ -1,0 +1,3364 @@
+{
+  "date": "2026-11-14",
+  "runsPerCase": 3,
+  "entries": [
+    {
+      "id": "marketing",
+      "url": "https://stripe.com",
+      "why": "gradients, transforms, heavy fonts",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 18230,
+      "score": 86.74,
+      "strictScore": 78.93,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1582,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 3144.2,
+        "walk": 9,
+        "freezeTransforms": 24.9,
+        "nodes": 293,
+        "text": 35.2,
+        "assets": 0,
+        "fonts": 0.7,
+        "total": 3475.4
+      },
+      "counts": {
+        "elementsWalked": 1825,
+        "nodesEmitted": 1582,
+        "textCharsMeasured": 5337,
+        "transformedElements": 158,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 1388530
+      },
+      "jsonMB": 1.324,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 3144.2
+      },
+      "hotspots": [
+        {
+          "cell": "r0c4",
+          "mismatchPct": 48.9,
+          "x": 720,
+          "y": 0,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 165612
+        },
+        {
+          "cell": "r2c1",
+          "mismatchPct": 43.9,
+          "x": 180,
+          "y": 3760,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 148480
+        },
+        {
+          "cell": "r2c2",
+          "mismatchPct": 43.2,
+          "x": 360,
+          "y": 3760,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 146245
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-1440/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/m9HBEK464p46FeNIhs2PV/f5054a93c8a0a6aabdd1c47675d610ae/wave_crop.jpg?w=1104&q=80",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "26 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://b.stripecdn.com/mkt-ssr-statics/assets/_next/static/media/wave-fallback-desktop-1x.fba6fa88.webp",
+          "severity": "warning",
+          "nodeId": "node-209"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/vYmk6v8n7oDAwbDpwhjV6/846f9b3e214549b8f14e2b8c8cfe9343/payment-bento-background.jpg?w=860&fm=webp&q=80",
+          "severity": "warning",
+          "nodeId": "node-230"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1Vf8oT9Fm6dEwpnEx5PgK1/055956f38d7fd8b0cc7419692ef29778/bento-terminal.png?w=308&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-239"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=80&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-458"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5Dr3Oc550drIrxyzzXgFbq/f6e4fb0b8b4b40d73e94fdf7c9bc7028/payments-hoodie.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-465"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1UE1lPgwbfQRH586XfTWKM/f90bfc79f87b3e60a4189cc0f5a03228/showflix-streaming.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-474"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=80&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-481"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=514&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-632"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=447&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-650"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=447&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-667"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
+          "severity": "warning",
+          "nodeId": "node-683"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
+          "severity": "warning",
+          "nodeId": "node-696"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-779"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-895"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-910"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-925"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-940"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-955"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-970"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-985"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-1000"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-1062"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1111"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1125"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1139"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1153"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90",
+          "severity": "warning",
+          "nodeId": "node-1318"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "url": "https://stripe.com",
+      "why": "gradients, transforms, heavy fonts",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 15014,
+      "score": 88.75,
+      "strictScore": 80.73,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1542,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2917.7,
+        "walk": 10.9,
+        "freezeTransforms": 25.8,
+        "nodes": 319.5,
+        "text": 37.4,
+        "assets": 0.1,
+        "fonts": 0.8,
+        "total": 3279
+      },
+      "counts": {
+        "elementsWalked": 1825,
+        "nodesEmitted": 1542,
+        "textCharsMeasured": 5393,
+        "transformedElements": 160,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 1319251
+      },
+      "jsonMB": 1.258,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 2917.7
+      },
+      "hotspots": [
+        {
+          "cell": "r1c2",
+          "mismatchPct": 34,
+          "x": 98,
+          "y": 2590,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 43200
+        },
+        {
+          "cell": "r1c3",
+          "mismatchPct": 34,
+          "x": 147,
+          "y": 2590,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 43116
+        },
+        {
+          "cell": "r1c4",
+          "mismatchPct": 32.2,
+          "x": 196,
+          "y": 2590,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 40860
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/marketing-390/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/vYmk6v8n7oDAwbDpwhjV6/846f9b3e214549b8f14e2b8c8cfe9343/payment-bento-background.jpg?w=1720&q=80",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "26 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://b.stripecdn.com/mkt-ssr-statics/assets/_next/static/media/wave-fallback-mobile-1x.80eb433a.webp",
+          "severity": "warning",
+          "nodeId": "node-197"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/m9HBEK464p46FeNIhs2PV/f5054a93c8a0a6aabdd1c47675d610ae/wave_crop.jpg?w=396&fm=webp&q=80",
+          "severity": "warning",
+          "nodeId": "node-216"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1Vf8oT9Fm6dEwpnEx5PgK1/055956f38d7fd8b0cc7419692ef29778/bento-terminal.png?w=308&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-225"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=80&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-444"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5Dr3Oc550drIrxyzzXgFbq/f6e4fb0b8b4b40d73e94fdf7c9bc7028/payments-hoodie.jpg?w=80&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-451"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1UE1lPgwbfQRH586XfTWKM/f90bfc79f87b3e60a4189cc0f5a03228/showflix-streaming.jpg?w=160&q=90",
+          "severity": "warning",
+          "nodeId": "node-460"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=80&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-467"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/78eaknFXeySTtfpQUh4lD2/e2a97240d78e6e239bcfe045d5b21239/particles.png?w=514&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-618"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=447&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-636"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=447&fm=webp&q=90",
+          "severity": "warning",
+          "nodeId": "node-653"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+          "severity": "warning",
+          "nodeId": "node-669"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+          "severity": "warning",
+          "nodeId": "node-682"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+          "severity": "warning",
+          "nodeId": "node-716"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-744"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-775"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-806"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-837"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-922"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-937"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-944"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-951"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-958"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-965"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-972"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90",
+          "severity": "warning",
+          "nodeId": "node-979"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90",
+          "severity": "warning",
+          "nodeId": "node-1026"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1075"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1089"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1103"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90",
+          "severity": "warning",
+          "nodeId": "node-1117"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/yqIFyZRGU5zDwdUsWtUyM/25b9f23c748c4d54079a09016fde59d8/annual-letter-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1246"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/6yE6G454SGCJnJgEYsS2MB/70b405a1dce904bc0c6f2698223fb966/the-happenings-bfcm-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1259"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/33xcv8eCmXzMzWXicVQ4cF/83d91fa419ff8d1b9466739b4ecdcb1d/the-happenings-tidemark-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1264"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/t03tXrgvnHUPGwxYUgSxN/bd8da003434c9e9fb72c719b9edb429b/the-happenings-cheeky-pint-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1269"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/Pd2JQ7FZ1pYMIMGDwvMdV/13e7e021ca23d042da8ac07be829f7ef/the-happenings-payment-processing-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1274"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/4LaZVLqDqGf9091wqUAmFp/fbe9fc307e1336b69bcd9be4ec5c4752/the-happenings-crypto-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1279"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1k7ckFceNFlxqF47hWJUlM/eaa4d8b3f8e4b76ba3dd7df7da88e099/the-happenings-agentic-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1284"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/7EVLwfXmG3pl1vhBssMrFB/b6d8612b1f567922c1355d864c279678/the-happenings-payment-retailers-mobile.png?w=672&q=90",
+          "severity": "warning",
+          "nodeId": "node-1289"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90",
+          "severity": "warning",
+          "nodeId": "node-1315"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "saas",
+      "url": "https://linear.app",
+      "why": "dark UI, blur, dense components",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 14449,
+      "score": 92.81,
+      "strictScore": 61.82,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 2106,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2576,
+        "walk": 10.7,
+        "freezeTransforms": 18.1,
+        "nodes": 340.7,
+        "text": 13.9,
+        "assets": 903,
+        "fonts": 2.4,
+        "total": 3854.2
+      },
+      "counts": {
+        "elementsWalked": 2174,
+        "nodesEmitted": 2106,
+        "textCharsMeasured": 2526,
+        "transformedElements": 56,
+        "assetsFetched": 24,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 1396828,
+        "jsonBytes": 3359220
+      },
+      "jsonMB": 3.204,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 2576
+      },
+      "hotspots": [
+        {
+          "cell": "r6c4",
+          "mismatchPct": 39.7,
+          "x": 720,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 89343
+        },
+        {
+          "cell": "r6c1",
+          "mismatchPct": 39.3,
+          "x": 180,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 88321
+        },
+        {
+          "cell": "r6c3",
+          "mismatchPct": 39.1,
+          "x": 540,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 87863
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/6600ca96-e49b-4fd9-c03a-7979faddad00/f=auto,fit=scale-down,metadata=none,width=2560",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/086b510a-f5da-414b-bc9d-228afb968600/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/302b16a5-f9ca-42f2-dbae-3c76f19b2d00/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/1eb8f8b2-3593-473f-ba8a-acac99aa0300/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/6550520e-9e50-441d-b9e8-579be321f900/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/4d3381aa-fb2f-4d3d-1a06-957fc616d400/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/7ea107e7-c1a0-4c99-756d-5837fd91f200/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/c8aeedda-7726-4a4f-226a-f573f85d8d00/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "23 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://webassets.linear.app/images/ornj730p/production/f79251b06e9edeeacbf2875384defe629e000b3c-352x352.png?w=72&q=95&auto=format&dpr=2",
+          "severity": "warning",
+          "nodeId": "node-184"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://webassets.linear.app/images/ornj730p/production/f79251b06e9edeeacbf2875384defe629e000b3c-352x352.png?w=72&q=95&auto=format&dpr=2",
+          "severity": "warning",
+          "nodeId": "node-214"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://webassets.linear.app/images/ornj730p/production/f79251b06e9edeeacbf2875384defe629e000b3c-352x352.png?w=72&q=95&auto=format&dpr=2",
+          "severity": "warning",
+          "nodeId": "node-284"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Background image data could not be read.",
+          "severity": "warning",
+          "nodeId": "node-1388"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Background image data could not be read.",
+          "severity": "warning",
+          "nodeId": "node-1416"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Background image data could not be read.",
+          "severity": "warning",
+          "nodeId": "node-1458"
+        }
+      ]
+    },
+    {
+      "id": "saas",
+      "url": "https://linear.app",
+      "why": "dark UI, blur, dense components",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 11200,
+      "score": 89.44,
+      "strictScore": 59.62,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 673,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 4180.7,
+        "walk": 22.8,
+        "freezeTransforms": 16.7,
+        "nodes": 86.5,
+        "text": 5.6,
+        "assets": 1161,
+        "fonts": 1.8,
+        "total": 5473.1
+      },
+      "counts": {
+        "elementsWalked": 2174,
+        "nodesEmitted": 673,
+        "textCharsMeasured": 1695,
+        "transformedElements": 21,
+        "assetsFetched": 9,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 3462779,
+        "jsonBytes": 5234589
+      },
+      "jsonMB": 4.992,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 4180.7
+      },
+      "hotspots": [
+        {
+          "cell": "r5c2",
+          "mismatchPct": 34.2,
+          "x": 98,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 12445
+        },
+        {
+          "cell": "r5c1",
+          "mismatchPct": 33.5,
+          "x": 49,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 12176
+        },
+        {
+          "cell": "r5c3",
+          "mismatchPct": 30.8,
+          "x": 147,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 11216
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/saas-390/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/6600ca96-e49b-4fd9-c03a-7979faddad00/f=auto,fit=scale-down,metadata=none,width=2560",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/c7fa8f5f-d439-4329-6a65-de549b51e300/f=auto,fit=scale-down,metadata=none,width=2560",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/086b510a-f5da-414b-bc9d-228afb968600/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/302b16a5-f9ca-42f2-dbae-3c76f19b2d00/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/1eb8f8b2-3593-473f-ba8a-acac99aa0300/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/6550520e-9e50-441d-b9e8-579be321f900/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/4d3381aa-fb2f-4d3d-1a06-957fc616d400/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://linear.app/cdn-cgi/imagedelivery/fO02fVwohEs9s9UHFwon6A/7ea107e7-c1a0-4c99-756d-5837fd91f200/f=auto,fit=scale-down,metadata=none",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "24 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://webassets.linear.app/images/ornj730p/production/f79251b06e9edeeacbf2875384defe629e000b3c-352x352.png?w=72&q=95&auto=format&dpr=2",
+          "severity": "warning",
+          "nodeId": "node-172"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://webassets.linear.app/images/ornj730p/production/f79251b06e9edeeacbf2875384defe629e000b3c-352x352.png?w=72&q=95&auto=format&dpr=2",
+          "severity": "warning",
+          "nodeId": "node-202"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://webassets.linear.app/images/ornj730p/production/f79251b06e9edeeacbf2875384defe629e000b3c-352x352.png?w=72&q=95&auto=format&dpr=2",
+          "severity": "warning",
+          "nodeId": "node-272"
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "url": "https://www.bbc.com/news",
+      "why": "long page, many images, lazy load",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 14431,
+      "score": 85.06,
+      "strictScore": 69.23,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1015,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2503,
+        "walk": 3.1,
+        "freezeTransforms": 5.5,
+        "nodes": 122.5,
+        "text": 25.2,
+        "assets": 0.9,
+        "fonts": 542.6,
+        "total": 3180.5
+      },
+      "counts": {
+        "elementsWalked": 1225,
+        "nodesEmitted": 1015,
+        "textCharsMeasured": 6513,
+        "transformedElements": 12,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 485634
+      },
+      "jsonMB": 0.463,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 2503
+      },
+      "hotspots": [
+        {
+          "cell": "r0c3",
+          "mismatchPct": 62.6,
+          "x": 540,
+          "y": 0,
+          "width": 180,
+          "height": 827,
+          "mismatchedPixels": 93236
+        },
+        {
+          "cell": "r0c4",
+          "mismatchPct": 61.9,
+          "x": 720,
+          "y": 0,
+          "width": 180,
+          "height": 827,
+          "mismatchedPixels": 92214
+        },
+        {
+          "cell": "r0c5",
+          "mismatchPct": 57.4,
+          "x": 900,
+          "y": 0,
+          "width": 180,
+          "height": 827,
+          "mismatchedPixels": 85383
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc91/live/640bd240-dded-11f1-9204-cdcddf7d901c.png.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0b01/live/7a54b2f0-c723-11f1-b881-4391ac746e04.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1c85/live/160022d0-df88-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/566c/live/8649d9e0-df84-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "6 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/14738153602471164002",
+          "severity": "warning",
+          "nodeId": "node-18"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/2b8a/live/5fe195b0-dfff-11f1-951d-dd6d4c2d3829.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-33"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/41c9/live/7d390f90-dfcc-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-57"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/172e/live/be162960-dfc9-11f1-81be-1f9bcd2a4214.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-108"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/0a5e/live/65a2f270-dfad-11f1-be1f-9dae57fabf82.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-126"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/880d/live/7334ea60-dfad-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-144"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/1c12/live/8c3025e0-e005-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-165"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/800/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-231"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-255"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/14ef/live/f4aae840-dfd7-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-301"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-319"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/480/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-337"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-367"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-368"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-392"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc91/live/640bd240-dded-11f1-9204-cdcddf7d901c.png.webp",
+          "severity": "warning",
+          "nodeId": "node-393"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-411"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0b01/live/7a54b2f0-c723-11f1-b881-4391ac746e04.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-412"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-430"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1c85/live/160022d0-df88-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-431"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-449"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/566c/live/8649d9e0-df84-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-450"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-643"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-644"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-668"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-669"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-715"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-716"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-734"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/7e38/live/cc5f4c70-e002-11f1-a3e2-bfb07c67d49c.png.webp",
+          "severity": "warning",
+          "nodeId": "node-735"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-753"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a078/live/ecafe1b0-df85-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-754"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-776"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/4234/live/ccb11760-566c-11f0-9074-8989d8c97d87.png.webp",
+          "severity": "warning",
+          "nodeId": "node-777"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_LtIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_It.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_MdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_BdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_ExBdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_LtIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_It.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_MdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_BdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_ExBdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Freight Disp Light (/https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/Freight_Disp_Light.woff2)",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "url": "https://www.bbc.com/news",
+      "why": "long page, many images, lazy load",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 12531,
+      "score": 85.27,
+      "strictScore": 69.96,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 908,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2504,
+        "walk": 3,
+        "freezeTransforms": 5.4,
+        "nodes": 89.8,
+        "text": 17,
+        "assets": 0.5,
+        "fonts": 545.9,
+        "total": 3150.8
+      },
+      "counts": {
+        "elementsWalked": 1196,
+        "nodesEmitted": 908,
+        "textCharsMeasured": 4713,
+        "transformedElements": 12,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 437379
+      },
+      "jsonMB": 0.417,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 2504
+      },
+      "hotspots": [
+        {
+          "cell": "r0c1",
+          "mismatchPct": 71.1,
+          "x": 49,
+          "y": 0,
+          "width": 49,
+          "height": 1280,
+          "mismatchedPixels": 44622
+        },
+        {
+          "cell": "r0c0",
+          "mismatchPct": 68.5,
+          "x": 0,
+          "y": 0,
+          "width": 49,
+          "height": 1280,
+          "mismatchedPixels": 42984
+        },
+        {
+          "cell": "r0c2",
+          "mismatchPct": 66.4,
+          "x": 98,
+          "y": 0,
+          "width": 49,
+          "height": 1280,
+          "mismatchedPixels": 41647
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/news-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/14ef/live/f4aae840-dfd7-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc91/live/640bd240-dded-11f1-9204-cdcddf7d901c.png.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0b01/live/7a54b2f0-c723-11f1-b881-4391ac746e04.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "16 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/12658512464754796672",
+          "severity": "warning",
+          "nodeId": "node-18"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/480/cpsprodpb/2b8a/live/5fe195b0-dfff-11f1-951d-dd6d4c2d3829.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-33"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/41c9/live/7d390f90-dfcc-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-55"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/172e/live/be162960-dfc9-11f1-81be-1f9bcd2a4214.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-103"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/0a5e/live/65a2f270-dfad-11f1-be1f-9dae57fabf82.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-120"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/880d/live/7334ea60-dfad-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-137"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/240/cpsprodpb/1c12/live/8c3025e0-e005-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-157"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-222"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/3c24/live/0b3d63c0-dfc5-11f1-81d0-51c2d6384bd2.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-223"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-245"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/05c7/live/ef232fd0-df7e-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-246"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-291"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/14ef/live/f4aae840-dfd7-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-292"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-309"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8212/live/9b2ab3f0-df54-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-310"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-327"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9975/live/51088590-df40-11f1-a48c-75dd2efdacb5.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-328"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-357"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/9ca7/live/511b1870-df1a-11f1-8440-dbadd0414f54.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-358"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-380"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc91/live/640bd240-dded-11f1-9204-cdcddf7d901c.png.webp",
+          "severity": "warning",
+          "nodeId": "node-381"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-398"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0b01/live/7a54b2f0-c723-11f1-b881-4391ac746e04.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-399"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-416"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1c85/live/160022d0-df88-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-417"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-434"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/566c/live/8649d9e0-df84-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-435"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-627"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8125/live/1aaff900-dfb9-11f1-b154-657b8bcda5ea.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-628"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-650"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/438c/live/e3344b00-dff6-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-651"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-696"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/cc84/live/b9694be0-e005-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-697"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-714"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/7e38/live/cc5f4c70-e002-11f1-a3e2-bfb07c67d49c.png.webp",
+          "severity": "warning",
+          "nodeId": "node-715"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-732"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a078/live/ecafe1b0-df85-11f1-a8e2-5b59832bb2f1.jpg.webp",
+          "severity": "warning",
+          "nodeId": "node-733"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/grey-placeholder.png",
+          "severity": "warning",
+          "nodeId": "node-754"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/4234/live/ccb11760-566c-11f0-9074-8989d8c97d87.png.webp",
+          "severity": "warning",
+          "nodeId": "node-755"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_LtIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_It.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_MdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_BdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_ExBdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSans_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Lt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Rg.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Md.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_Bd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_ExBd.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_LtIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_It.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_MdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_BdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin font bytes were not embedded: https://static.files.bbci.co.uk/fonts/reith/2.512/BBCReithSerif_W_ExBdIt.woff2",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Freight Disp Light (/https://static.files.bbci.co.uk/bbcdotcom/web/20261110-133831-0053d0afea-web-3.28.0-4/Freight_Disp_Light.woff2)",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "url": "https://www.apple.com/iphone/",
+      "why": "scroll animation, huge images",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 14190,
+      "score": 94.01,
+      "strictScore": 86.14,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1154,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 0.9,
+        "walk": 13.2,
+        "freezeTransforms": 48.4,
+        "nodes": 765.2,
+        "text": 655.4,
+        "assets": 42.7,
+        "fonts": 2503,
+        "total": 3376
+      },
+      "counts": {
+        "elementsWalked": 2630,
+        "nodesEmitted": 1154,
+        "textCharsMeasured": 78135,
+        "transformedElements": 380,
+        "assetsFetched": 6,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 150356,
+        "jsonBytes": 910701
+      },
+      "jsonMB": 0.869,
+      "slowestStage": {
+        "stage": "fonts",
+        "ms": 2503
+      },
+      "hotspots": [
+        {
+          "cell": "r5c2",
+          "mismatchPct": 16.6,
+          "x": 360,
+          "y": 10125,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 60667
+        },
+        {
+          "cell": "r4c2",
+          "mismatchPct": 16.3,
+          "x": 360,
+          "y": 8100,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 59382
+        },
+        {
+          "cell": "r4c3",
+          "mismatchPct": 16.1,
+          "x": 540,
+          "y": 8100,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 58824
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-1440/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "font_failed",
+          "message": "Font failed to load: Apple Legacy Icons",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_ultralight.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Icons 100 (../assets/ac-footer/legacy/appleicons_ultralight.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_thin.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Icons 200 (../assets/ac-footer/legacy/appleicons_thin.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_thin.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Icons 300 (../assets/ac-footer/legacy/appleicons_thin.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 400 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 500 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 600 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 700 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 800 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 900 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_ultralight.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_ultralight-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_thin.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_thin-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_light.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_light-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_regular.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_regular-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_medium.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_medium-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_semibold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_semibold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_bold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_bold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_heavy.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_heavy-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_black.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_black-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_ultralight.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_ultralight-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_thin.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_thin-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_light.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_light-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_regular.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_regular-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_medium.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_medium-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_semibold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_semibold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_bold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_bold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_heavy.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_heavy-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_black.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_black-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_ultralight.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_thin.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_light.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_regular.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_medium.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_semibold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_bold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_heavy.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_black.woff2)",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "url": "https://www.apple.com/iphone/",
+      "why": "scroll animation, huge images",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 16350,
+      "score": 89.79,
+      "strictScore": 75.78,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1812,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1.3,
+        "walk": 25.6,
+        "freezeTransforms": 46,
+        "nodes": 1002.3,
+        "text": 853.7,
+        "assets": 61.4,
+        "fonts": 2504.1,
+        "total": 3644
+      },
+      "counts": {
+        "elementsWalked": 2630,
+        "nodesEmitted": 1812,
+        "textCharsMeasured": 80058,
+        "transformedElements": 157,
+        "assetsFetched": 7,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 67848,
+        "jsonBytes": 1144150
+      },
+      "jsonMB": 1.091,
+      "slowestStage": {
+        "stage": "fonts",
+        "ms": 2504.1
+      },
+      "hotspots": [
+        {
+          "cell": "r5c1",
+          "mismatchPct": 16.5,
+          "x": 49,
+          "y": 19550,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 31556
+        },
+        {
+          "cell": "r5c4",
+          "mismatchPct": 16.5,
+          "x": 196,
+          "y": 19550,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 31669
+        },
+        {
+          "cell": "r5c2",
+          "mismatchPct": 16.3,
+          "x": 98,
+          "y": 19550,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 31186
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/motion-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "font_failed",
+          "message": "Font failed to load: Apple Legacy Icons",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_ultralight.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Icons 100 (../assets/ac-footer/legacy/appleicons_ultralight.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_thin.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Icons 200 (../assets/ac-footer/legacy/appleicons_thin.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_thin.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Icons 300 (../assets/ac-footer/legacy/appleicons_thin.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_failed",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 400 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 500 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 600 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 700 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 800 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Legacy Chevron (../assets/ac-footer/legacy/appleicons_text.woff)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: Apple Icons 900 (../assets/ac-footer/legacy/appleicons_text.eot)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_ultralight.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_ultralight-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_thin.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_thin-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_light.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_light-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_regular.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_regular-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_medium.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_medium-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_semibold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_semibold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_bold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_bold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_heavy.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_heavy-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_black.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Display (/wss/fonts/SF-Pro-Display/v3/sf-pro-display_black-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_ultralight.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_ultralight-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_thin.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_thin-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_light.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_light-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_regular.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_regular-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_medium.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_medium-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_semibold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_semibold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_bold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_bold-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_heavy.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_heavy-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_black.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Text (/wss/fonts/SF-Pro-Text/v3/sf-pro-text_black-italic.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_ultralight.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_thin.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_light.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_regular.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_medium.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_semibold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_bold.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_heavy.woff2)",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Font asset could not be embedded: SF Pro Icons (/wss/fonts/SF-Pro-Icons/v3/sf-pro-icons_black.woff2)",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "own",
+      "url": "http://127.0.0.1:4173/",
+      "why": "our real target",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 8931,
+      "score": 91.41,
+      "strictScore": 90.94,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 554,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 941.3,
+        "walk": 7.7,
+        "freezeTransforms": 26.8,
+        "nodes": 73,
+        "text": 2.3,
+        "assets": 32,
+        "fonts": 1.5,
+        "total": 1655.1
+      },
+      "counts": {
+        "elementsWalked": 1256,
+        "nodesEmitted": 554,
+        "textCharsMeasured": 370,
+        "transformedElements": 252,
+        "assetsFetched": 1,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 7574,
+        "jsonBytes": 276121
+      },
+      "jsonMB": 0.263,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 941.3
+      },
+      "hotspots": [
+        {
+          "cell": "r1c6",
+          "mismatchPct": 81.2,
+          "x": 1080,
+          "y": 1786,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 261195
+        },
+        {
+          "cell": "r1c7",
+          "mismatchPct": 74.2,
+          "x": 1260,
+          "y": 1786,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 238486
+        },
+        {
+          "cell": "r2c3",
+          "mismatchPct": 43.4,
+          "x": 540,
+          "y": 3572,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 139558
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79e8d09a7d00ffe4d50a46_Banner%20Line%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-8"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-19"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-20"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-25"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-33"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-39"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-45"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-51"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79e0d3548fb53224983311_Banner%20Information%20Scanner.svg",
+          "severity": "warning",
+          "nodeId": "node-55"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a7973e0f6ef788d0e0f48bc_Primary%20Button%20White%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-91"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2786c96c21c947d0a8_Main%20About%20Us%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-114"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2819a7f5705fec3bd7_Main%20About%20Us%20Image2.webp",
+          "severity": "warning",
+          "nodeId": "node-115"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a6e5f21a498cf825561_Project%20Image6.webp",
+          "severity": "warning",
+          "nodeId": "node-117"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a6e5f21a498cf825561_Project%20Image6.webp",
+          "severity": "warning",
+          "nodeId": "node-132"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9ae0b3e4237cab7fe42f_Project%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-151"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a558ec6a2138822da75_Project%20Image7.webp",
+          "severity": "warning",
+          "nodeId": "node-152"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-186"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4f48ffd2ac932b6b3_Work%20Card%20Icon1.svg",
+          "severity": "warning",
+          "nodeId": "node-190"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-193"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4ee817048104c0b1a_Work%20Card%20Icon4.svg",
+          "severity": "warning",
+          "nodeId": "node-197"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-201"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c43b0f8d65e70b6958_Work%20Card%20Icon2.svg",
+          "severity": "warning",
+          "nodeId": "node-205"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-208"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c49a5a92e694d581a2_Work%20Card%20Icon3.svg",
+          "severity": "warning",
+          "nodeId": "node-212"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff9ddcfaf2ddbd6a5e38e_Work%20Card%20Pluse%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-214"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-223"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-224"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-243"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-244"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "own",
+      "url": "http://127.0.0.1:4173/",
+      "why": "our real target",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 6397,
+      "score": 93.84,
+      "strictScore": 85.85,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 516,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 748.4,
+        "walk": 9.3,
+        "freezeTransforms": 24.5,
+        "nodes": 87,
+        "text": 3.3,
+        "assets": 31.4,
+        "fonts": 1.5,
+        "total": 1484.1
+      },
+      "counts": {
+        "elementsWalked": 1270,
+        "nodesEmitted": 516,
+        "textCharsMeasured": 509,
+        "transformedElements": 196,
+        "assetsFetched": 1,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 7574,
+        "jsonBytes": 259122
+      },
+      "jsonMB": 0.247,
+      "slowestStage": {
+        "stage": "waitImages",
+        "ms": 748.4
+      },
+      "hotspots": [
+        {
+          "cell": "r1c2",
+          "mismatchPct": 33,
+          "x": 98,
+          "y": 1140,
+          "width": 49,
+          "height": 1140,
+          "mismatchedPixels": 18432
+        },
+        {
+          "cell": "r1c1",
+          "mismatchPct": 31.4,
+          "x": 49,
+          "y": 1140,
+          "width": 49,
+          "height": 1140,
+          "mismatchedPixels": 17564
+        },
+        {
+          "cell": "r1c3",
+          "mismatchPct": 29.5,
+          "x": 147,
+          "y": 1140,
+          "width": 49,
+          "height": 1140,
+          "mismatchedPixels": 16501
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/own-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-17"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-18"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d62e0731bf4e437cc9d0_Banner%20Services%20Title%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-23"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-31"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-37"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-43"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d8985cfc569db83a1206_Banner%20Services%20Link%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-49"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a7973e0f6ef788d0e0f48bc_Primary%20Button%20White%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-91"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2786c96c21c947d0a8_Main%20About%20Us%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-112"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9edc2819a7f5705fec3bd7_Main%20About%20Us%20Image2.webp",
+          "severity": "warning",
+          "nodeId": "node-113"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a6e5f21a498cf825561_Project%20Image6.webp",
+          "severity": "warning",
+          "nodeId": "node-122"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9ae0b3e4237cab7fe42f_Project%20Image1.webp",
+          "severity": "warning",
+          "nodeId": "node-141"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a81cfb523ca7a92f4738e2f/6aca9a558ec6a2138822da75_Project%20Image7.webp",
+          "severity": "warning",
+          "nodeId": "node-142"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-179"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4f48ffd2ac932b6b3_Work%20Card%20Icon1.svg",
+          "severity": "warning",
+          "nodeId": "node-183"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-186"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c4ee817048104c0b1a_Work%20Card%20Icon4.svg",
+          "severity": "warning",
+          "nodeId": "node-190"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-193"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c43b0f8d65e70b6958_Work%20Card%20Icon2.svg",
+          "severity": "warning",
+          "nodeId": "node-197"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff393f70274ecef76c719_Work%20Card%20Shape.svg",
+          "severity": "warning",
+          "nodeId": "node-200"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a9ff6c49a5a92e694d581a2_Work%20Card%20Icon3.svg",
+          "severity": "warning",
+          "nodeId": "node-204"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-214"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-215"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-234"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cdn.prod.website-files.com/6a788bc535833385e54d650c/6a79d2c1c1184efcb206e694_Primary%20Button%20Black%20Icon.svg",
+          "severity": "warning",
+          "nodeId": "node-235"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "fixture",
+      "url": "tools/fidelity/fixture.html",
+      "why": "control — must stay 100%",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 2807,
+      "score": 100,
+      "strictScore": 98.9,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 29,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 3,
+        "walk": 1.1,
+        "freezeTransforms": 1.2,
+        "nodes": 11.2,
+        "text": 0,
+        "assets": 0,
+        "fonts": 0.6,
+        "total": 20.8
+      },
+      "counts": {
+        "elementsWalked": 25,
+        "nodesEmitted": 29,
+        "textCharsMeasured": 0,
+        "transformedElements": 1,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 15051
+      },
+      "jsonMB": 0.014,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 11.2
+      },
+      "hotspots": [],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-1440/run-1/diff-mask.png"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "fixture",
+      "url": "tools/fidelity/fixture.html",
+      "why": "control — must stay 100%",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 2563,
+      "score": 100,
+      "strictScore": 99.34,
+      "widthDelta": 1,
+      "heightDelta": 2,
+      "nodeCount": 29,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2,
+        "walk": 0.9,
+        "freezeTransforms": 1.2,
+        "nodes": 11,
+        "text": 0,
+        "assets": 0,
+        "fonts": 0.6,
+        "total": 19
+      },
+      "counts": {
+        "elementsWalked": 25,
+        "nodesEmitted": 29,
+        "textCharsMeasured": 0,
+        "transformedElements": 1,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 15048
+      },
+      "jsonMB": 0.014,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 11
+      },
+      "hotspots": [],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-14/fixture-390/run-2/diff-mask.png"
+      },
+      "diagnostics": []
+    }
+  ]
+}

@@ -61,6 +61,7 @@ export interface FidelityReport {
   hotspots: Hotspot[];
   destination: 'html';
   diagnostics: NonNullable<Capture['diagnostics']>;
+  timings?: Capture['timings'];
   sourceSize: { width: number; height: number };
   renderedSize: { width: number; height: number };
   files: { original: string; rendered: string; mask: string; html: string; capture: string };
@@ -441,6 +442,7 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
       hotspots: diff.hotspots,
       destination: 'html',
       diagnostics: capture.diagnostics ?? [],
+      ...(capture.timings ? { timings: capture.timings } : {}),
       sourceSize: diff.sourceSize,
       renderedSize: diff.renderedSize,
       files: { original: originalPath, rendered: renderedPath, mask: maskPath, html: renderPath, capture: capturePath },

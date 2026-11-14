@@ -3,10 +3,11 @@ import {
   serializeElement,
   replicateDocument,
   startElementPicker,
+  type SerializeOptions,
 } from '@capture-kit/serializer';
 
 interface WindowWithCaptureKit {
-  __captureKitSerialize?: (opts?: { scrollStitch?: boolean }) => Promise<unknown>;
+  __captureKitSerialize?: (opts?: SerializeOptions) => Promise<unknown>;
   __captureKitPickElement?: () => Promise<unknown>;
   __captureKitCancelPick?: () => void;
   __captureKitReplica?: () => Promise<string>;
@@ -16,7 +17,7 @@ const customWindow = window as unknown as WindowWithCaptureKit;
 let cancelPick: (() => void) | undefined;
 customWindow.__captureKitCancelPick = () => cancelPick?.();
 
-customWindow.__captureKitSerialize = async (opts?: { scrollStitch?: boolean }): Promise<unknown> => {
+customWindow.__captureKitSerialize = async (opts?: SerializeOptions): Promise<unknown> => {
   return await serializeDocument(document, opts);
 };
 

@@ -15,10 +15,17 @@ interface CaptureResponse {
 }
 
 interface WindowWithCaptureKit {
-  __captureKitSerialize?: (opts?: { scrollStitch?: boolean }) => Promise<unknown>;
+  __captureKitSerialize?: (opts?: { scrollStitch?: boolean; collectTimings?: boolean }) => Promise<unknown>;
   __captureKitPickElement?: () => Promise<unknown>;
   __captureKitCancelPick?: () => void;
 }
+
+const roundTiming = (ms: number): number => Math.round(ms * 100) / 100;
+let lastRunTimings: { injectMs: number; serializeMs: number; replicaMs: number } = {
+  injectMs: 0,
+  serializeMs: 0,
+  replicaMs: 0,
+};
 
 async function getActiveTabId(): Promise<number> {
   const [lastFocused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -258,7 +265,11 @@ async function injectSerializer(tabId: number): Promise<void> {
 }
 
 async function runSerializer(tabId: number, scrollStitch: boolean, replica = false): Promise<Capture> {
+  const injectStart = performance.now();
   await injectSerializer(tabId);
+  const injectMs = roundTiming(performance.now() - injectStart);
+
+  const serializeStart = performance.now();
   const [execResult] = await chrome.scripting.executeScript<unknown>({
     target: { tabId },
     args: [scrollStitch],
@@ -268,7 +279,7 @@ async function runSerializer(tabId: number, scrollStitch: boolean, replica = fal
       if (!customWindow.__captureKitSerialize) {
         throw new Error('Capture-kit serializer is not available on page');
       }
-      return await customWindow.__captureKitSerialize({ scrollStitch: stitch });
+      return await customWindow.__captureKitSerialize({ scrollStitch: stitch, collectTimings: true });
     },
   });
 
@@ -277,7 +288,15 @@ async function runSerializer(tabId: number, scrollStitch: boolean, replica = fal
   }
 
   const capture = CaptureSchema.parse(execResult.result);
-  if (replica) capture.replica = await runReplica(tabId);
+  const serializeMs = roundTiming(performance.now() - serializeStart);
+
+  let replicaMs = 0;
+  if (replica) {
+    const replicaStart = performance.now();
+    capture.replica = await runReplica(tabId);
+    replicaMs = roundTiming(performance.now() - replicaStart);
+  }
+  lastRunTimings = { injectMs, serializeMs, replicaMs };
   return capture;
 }
 
@@ -671,7 +690,19 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
       }
       // Persistence failures stop the run. Never substitute an ephemeral message
       // for a saved result, and never mark a job complete before this resolves.
+      const storageWriteStart = performance.now();
       await sessionStore.completeJob(session.id, job.id, captures);
+      const storageWriteMs = roundTiming(performance.now() - storageWriteStart);
+      console.info('[capture-kit] timings', JSON.stringify({
+        phase: 'capture',
+        url: job.url,
+        width: job.width,
+        format: session.format,
+        ...lastRunTimings,
+        storageWriteMs,
+        serializer: captures[0]?.timings?.stages ?? null,
+        counts: captures[0]?.timings?.counts ?? null,
+      }));
       announceSession(session.id);
     }
     const finished = await sessionStore.finish(session.id);

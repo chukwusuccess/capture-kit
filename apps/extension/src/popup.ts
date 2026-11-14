@@ -767,9 +767,20 @@ async function finishSessionRun(sessionId: string | undefined): Promise<void> {
     return;
   }
   try {
+    const readStart = performance.now();
     const captures = await readSessionCaptures(session);
+    const storageReadMs = Math.round((performance.now() - readStart) * 100) / 100;
     latestCaptures = captures;
+    const exportStart = performance.now();
     const output = await exportCaptures(captures, session.format, session.includeDesignSystem);
+    const exportMs = Math.round((performance.now() - exportStart) * 100) / 100;
+    console.info('[capture-kit] timings', JSON.stringify({
+      phase: 'export',
+      format: session.format,
+      captures: captures.length,
+      storageReadMs,
+      exportMs,
+    }));
     if (figmaBtn) figmaBtn.hidden = session.format !== 'figma';
     setStatus(output, 'ok');
     setSessionFeedback(`Saved results exported using ${session.format}.`);
@@ -813,11 +824,22 @@ async function handleSessionAction(event: Event): Promise<void> {
   button.disabled = true;
   try {
     if (action === 'export' || action === 'export-current') {
+      const readStart = performance.now();
       const captures = await readSessionCaptures(session);
+      const storageReadMs = Math.round((performance.now() - readStart) * 100) / 100;
       latestCaptures = captures;
       const format = action === 'export' ? session.format : getFormat();
       const includeDesignSystem = action === 'export' ? session.includeDesignSystem : optDesignSystem?.checked ?? false;
+      const exportStart = performance.now();
       const output = await exportCaptures(captures, format, includeDesignSystem);
+      const exportMs = Math.round((performance.now() - exportStart) * 100) / 100;
+      console.info('[capture-kit] timings', JSON.stringify({
+        phase: 'export',
+        format,
+        captures: captures.length,
+        storageReadMs,
+        exportMs,
+      }));
       if (figmaBtn) figmaBtn.hidden = format !== 'figma';
       setSessionFeedback(`${output}${action === 'export-current' ? ' (current format)' : ' (saved format)'}`);
       setStatus(output, 'ok');
