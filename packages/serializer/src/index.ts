@@ -706,125 +706,218 @@ function resolveHighestDpiSrc(img: HTMLImageElement): string {
 // at any real zoom, but long float tails make exports non-repeatable.
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-function parseCssGradients(bgImage: string): Fill[] {
+function splitTopLevelCommas(input: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '(') depth++;
+    else if (ch === ')' && depth > 0) depth--;
+    else if (ch === ',' && depth === 0) {
+      out.push(input.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  const tail = input.slice(start).trim();
+  if (tail) out.push(tail);
+  return out;
+}
+
+function parseCssAngle(token: string): number | undefined {
+  const t = token.trim().toLowerCase();
+  if (t.endsWith('deg')) return parseFloat(t);
+  if (t.endsWith('turn')) return (parseFloat(t) || 0) * 360;
+  if (t.endsWith('rad')) return ((parseFloat(t) || 0) * 180) / Math.PI;
+  if (t.endsWith('grad')) return (parseFloat(t) || 0) * 0.9;
+  return undefined;
+}
+
+function parseAtPosition(preamble: string): { cx?: number; cy?: number } {
+  const atMatch = preamble.match(/\bat\s+([^\s,]+)(?:\s+([^\s,]+))?/i);
+  if (!atMatch) return {};
+  const parseAxis = (tok: string | undefined): number => {
+    if (!tok || tok === 'center') return 0.5;
+    if (tok === 'left' || tok === 'top') return 0;
+    if (tok === 'right' || tok === 'bottom') return 1;
+    if (tok.endsWith('%')) return Math.max(0, Math.min(1, (parseFloat(tok) || 50) / 100));
+    return 0.5;
+  };
+  return { cx: parseAxis(atMatch[1]), cy: parseAxis(atMatch[2] ?? atMatch[1]) };
+}
+
+function parseGradientStops(rawStops: string[], isConic = false): Array<{ color: string; position: number; positionPx?: number }> {
+  const parsed: Array<{ color: string; position?: number; positionPx?: number }> = [];
+  const colorRe = /^(rgba?\([^)]+\)|hsla?\([^)]+\)|#[0-9a-fA-F]+|[a-zA-Z]+)(.*)$/i;
+  const parsePos = (tok: string): { position?: number; positionPx?: number } | undefined => {
+    const t = tok.trim().toLowerCase();
+    if (t.endsWith('%')) return { position: Math.max(0, Math.min(1, parseFloat(t) / 100)) };
+    if (t.endsWith('px')) {
+      const px = parseFloat(t);
+      if (!Number.isNaN(px)) return { position: Math.max(0, Math.min(1, px / 200)), positionPx: px };
+    }
+    if (isConic) {
+      const ang = parseCssAngle(t);
+      if (ang !== undefined) return { position: Math.max(0, Math.min(1, ang / 360)) };
+    }
+    if (t === '0') return { position: 0 };
+    return undefined;
+  };
+
+  for (const raw of rawStops) {
+    const s = raw.trim();
+    if (!s) continue;
+    // Pure color-stop hint (no color): e.g. "40%"
+    if (/^[\d.]+(?:%|px|deg|turn|rad|grad)?$/i.test(s)) continue;
+    const m = s.match(colorRe);
+    if (!m) continue;
+    const color = m[1];
+    const rest = m[2].trim();
+    if (!rest) {
+      parsed.push({ color });
+      continue;
+    }
+    const posTokens = rest.split(/\s+/).map(parsePos).filter((p): p is { position?: number; positionPx?: number } => p !== undefined);
+    if (posTokens.length === 0) {
+      parsed.push({ color });
+    } else {
+      for (const p of posTokens) parsed.push({ color, ...p });
+    }
+  }
+
+  if (parsed.length === 0) return [];
+  if (parsed[0].position === undefined) parsed[0].position = 0;
+  if (parsed.length > 1 && parsed[parsed.length - 1].position === undefined) parsed[parsed.length - 1].position = 1;
+  for (let i = 0; i < parsed.length; i++) {
+    if (parsed[i].position !== undefined) continue;
+    let nextIdx = i + 1;
+    while (nextIdx < parsed.length && parsed[nextIdx].position === undefined) nextIdx++;
+    const prevPos = parsed[i - 1].position ?? 0;
+    const nextPos = parsed[nextIdx]?.position ?? 1;
+    const span = nextIdx - (i - 1);
+    parsed[i].position = prevPos + ((nextPos - prevPos) * 1) / span;
+  }
+  return parsed.map((p) => ({
+    color: p.color,
+    position: Math.max(0, Math.min(1, p.position ?? 0)),
+    ...(p.positionPx !== undefined ? { positionPx: p.positionPx } : {}),
+  }));
+}
+
+function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string, bgRepeat?: string): Fill[] {
   if (!bgImage || bgImage === 'none') return [];
   const fills: Fill[] = [];
+  const layers = splitTopLevelCommas(bgImage);
+  const sizes = bgSize && bgSize !== 'auto' ? splitTopLevelCommas(bgSize) : [];
+  const positions = bgPosition && bgPosition !== '0% 0%' ? splitTopLevelCommas(bgPosition) : [];
+  const repeats = bgRepeat && bgRepeat !== 'repeat' ? splitTopLevelCommas(bgRepeat) : [];
 
-  const linearMatches = bgImage.matchAll(/linear-gradient\(\s*([^()]+|\([^()]*\))+\)/gi);
-  for (const m of linearMatches) {
-    const inside = m[0].replace(/^linear-gradient\(\s*|\s*\)$/gi, '').trim();
-    const parts = inside.split(/,(?![^(]*\))/).map((s) => s.trim());
-    if (parts.length >= 2) {
+  for (let idx = 0; idx < layers.length; idx++) {
+    const layer = layers[idx];
+    const gm = layer.match(/^(repeating-)?(linear|radial|conic)-gradient\(([\s\S]*)\)$/i);
+    if (!gm) continue;
+    const repeating = Boolean(gm[1]);
+    const kind = gm[2].toLowerCase() as 'linear' | 'radial' | 'conic';
+    const parts = splitTopLevelCommas(gm[3]);
+    if (parts.length < 1) continue;
+
+    const layerMeta: Partial<Fill> = {
+      ...(repeating ? { repeating: true } : {}),
+      ...(sizes.length > 0 ? { backgroundSize: sizes[idx % sizes.length] } : {}),
+      ...(positions.length > 0 ? { backgroundPosition: positions[idx % positions.length] } : {}),
+      ...(repeats.length > 0 ? { backgroundRepeat: repeats[idx % repeats.length] } : {}),
+    };
+
+    if (kind === 'linear') {
       let angle = 180;
       let stopStartIndex = 0;
-
       const first = parts[0].toLowerCase();
-      if (first.includes('deg')) {
-        angle = parseFloat(first) || 180;
+      const parsedAng = parseCssAngle(first);
+      if (parsedAng !== undefined) {
+        angle = parsedAng;
         stopStartIndex = 1;
-      } else if (first.includes('to right') && first.includes('top')) {
-        angle = 45;
+      } else if (first.startsWith('to ')) {
         stopStartIndex = 1;
-      } else if (first.includes('to right') && first.includes('bottom')) {
-        angle = 135;
-        stopStartIndex = 1;
-      } else if (first.includes('to left') && first.includes('bottom')) {
-        angle = 225;
-        stopStartIndex = 1;
-      } else if (first.includes('to left') && first.includes('top')) {
-        angle = 315;
-        stopStartIndex = 1;
-      } else if (first.includes('to right')) {
-        angle = 90;
-        stopStartIndex = 1;
-      } else if (first.includes('to left')) {
-        angle = 270;
-        stopStartIndex = 1;
-      } else if (first.includes('to top')) {
-        angle = 0;
-        stopStartIndex = 1;
-      } else if (first.includes('to bottom')) {
-        angle = 180;
-        stopStartIndex = 1;
+        if (first.includes('right') && first.includes('top')) angle = 45;
+        else if (first.includes('right') && first.includes('bottom')) angle = 135;
+        else if (first.includes('left') && first.includes('bottom')) angle = 225;
+        else if (first.includes('left') && first.includes('top')) angle = 315;
+        else if (first.includes('right')) angle = 90;
+        else if (first.includes('left')) angle = 270;
+        else if (first.includes('top')) angle = 0;
+        else if (first.includes('bottom')) angle = 180;
       }
-
-      const rawStops = parts.slice(stopStartIndex);
-      const stops: Array<{ color: string; position: number }> = [];
-
-      for (let i = 0; i < rawStops.length; i++) {
-        const s = rawStops[i];
-        const match = s.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+)(?:\s+([\d.]+)%)?/i);
-        if (match) {
-          const color = match[1];
-          const defaultPos = rawStops.length > 1 ? i / (rawStops.length - 1) : 0;
-          const position = match[2] ? parseFloat(match[2]) / 100 : defaultPos;
-          stops.push({ color, position: Math.max(0, Math.min(1, position)) });
-        }
+      const stops = parseGradientStops(parts.slice(stopStartIndex));
+      if (stops.length >= 2) {
+        fills.push({ type: 'gradient', gradientType: 'linear', angle, stops, opacity: 1, ...layerMeta });
       }
-
+    } else if (kind === 'radial') {
+      let stopStartIndex = 0;
+      let radialShape: 'circle' | 'ellipse' | undefined;
+      let radialSize: string | undefined;
+      let cx: number | undefined;
+      let cy: number | undefined;
+      const first = parts[0].toLowerCase();
+      if (
+        first.includes('circle') ||
+        first.includes('ellipse') ||
+        first.includes('closest') ||
+        first.includes('farthest') ||
+        first.includes('at ') ||
+        /^\d/.test(first)
+      ) {
+        stopStartIndex = 1;
+        if (first.includes('circle')) radialShape = 'circle';
+        else if (first.includes('ellipse')) radialShape = 'ellipse';
+        const pos = parseAtPosition(first);
+        cx = pos.cx;
+        cy = pos.cy;
+        const beforeAt = first.split(/\bat\b/i)[0].replace(/\b(circle|ellipse)\b/gi, '').trim();
+        if (beforeAt) radialSize = beforeAt;
+      }
+      const stops = parseGradientStops(parts.slice(stopStartIndex));
       if (stops.length >= 2) {
         fills.push({
           type: 'gradient',
-          gradientType: 'linear',
-          angle,
+          gradientType: 'radial',
           stops,
           opacity: 1,
+          ...(radialShape ? { radialShape } : {}),
+          ...(radialSize ? { radialSize } : {}),
+          ...(cx !== undefined ? { cx } : {}),
+          ...(cy !== undefined ? { cy } : {}),
+          ...layerMeta,
+        });
+      }
+    } else if (kind === 'conic') {
+      let stopStartIndex = 0;
+      let angle: number | undefined;
+      let cx: number | undefined;
+      let cy: number | undefined;
+      const first = parts[0].toLowerCase();
+      if (first.includes('from ') || first.includes('at ')) {
+        stopStartIndex = 1;
+        const fromMatch = first.match(/\bfrom\s+([^\s,]+)/i);
+        if (fromMatch) angle = parseCssAngle(fromMatch[1]);
+        const pos = parseAtPosition(first);
+        cx = pos.cx;
+        cy = pos.cy;
+      }
+      const stops = parseGradientStops(parts.slice(stopStartIndex), true);
+      if (stops.length >= 2) {
+        fills.push({
+          type: 'gradient',
+          gradientType: 'conic',
+          stops,
+          opacity: 1,
+          ...(angle !== undefined ? { angle } : {}),
+          ...(cx !== undefined ? { cx } : {}),
+          ...(cy !== undefined ? { cy } : {}),
+          ...layerMeta,
         });
       }
     }
   }
-  const radialMatches = bgImage.matchAll(/radial-gradient\(\s*([^()]+|\([^()]*\))+\)/gi);
-  for (const m of radialMatches) {
-    const inside = m[0].replace(/^radial-gradient\(\s*|\s*\)$/gi, '').trim();
-    const parts = inside.split(/,(?![^(]*\))/).map((s) => s.trim());
-    if (parts.length < 1) continue;
-
-    // Skip the optional shape/size/position preamble (circle, ellipse, at center…).
-    let stopStartIndex = 0;
-    let cx: number | undefined;
-    let cy: number | undefined;
-    const first = parts[0].toLowerCase();
-    if (first.includes('circle') || first.includes('ellipse') || first.includes('closest') || first.includes('farthest') || first.includes('at ') || /^\d/.test(first)) {
-      stopStartIndex = 1;
-      const atMatch = first.match(/at\s+([^\s,]+)(?:\s+([^\s,]+))?/);
-      if (atMatch) {
-        const parseAxis = (tok: string | undefined): number => {
-          if (!tok || tok === 'center') return 0.5;
-          if (tok === 'left' || tok === 'top') return 0;
-          if (tok === 'right' || tok === 'bottom') return 1;
-          if (tok.endsWith('%')) return Math.max(0, Math.min(1, (parseFloat(tok) || 50) / 100));
-          return 0.5;
-        };
-        cx = parseAxis(atMatch[1]);
-        cy = parseAxis(atMatch[2] ?? atMatch[1]);
-      }
-    }
-    const rawStops = parts.slice(stopStartIndex);
-    const stops: Array<{ color: string; position: number }> = [];
-
-    for (let i = 0; i < rawStops.length; i++) {
-      const s = rawStops[i];
-      const match = s.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+)(?:\s+([\d.]+)%)?/i);
-      if (match) {
-        const color = match[1];
-        const defaultPos = rawStops.length > 1 ? i / (rawStops.length - 1) : 0;
-        const position = match[2] ? parseFloat(match[2]) / 100 : defaultPos;
-        stops.push({ color, position: Math.max(0, Math.min(1, position)) });
-      }
-    }
-
-    if (stops.length >= 2) {
-      fills.push({
-        type: 'gradient',
-        gradientType: 'radial',
-        stops,
-        opacity: 1,
-        ...(cx !== undefined ? { cx } : {}),
-        ...(cy !== undefined ? { cy } : {}),
-      });
-    }
-  }
-
 
   return fills;
 }
@@ -1967,11 +2060,12 @@ async function serializeSubtree(
 
   let rootBackground: string | undefined;
   try {
-    const rootEl = doc.documentElement;
-    if (rootEl) {
+    for (const rootEl of [doc.documentElement, doc.body]) {
+      if (!rootEl) continue;
       const rootBg = defaultView.getComputedStyle(rootEl).backgroundColor;
       if (rootBg && rootBg !== 'transparent' && rootBg !== 'rgba(0, 0, 0, 0)') {
         rootBackground = rootBg;
+        break;
       }
     }
   } catch {
@@ -2354,7 +2448,12 @@ async function serializeSubtree(
       }
     }
     // CSS gradient resolution
-    const gradients = parseCssGradients(computed.backgroundImage);
+    const gradients = parseCssGradients(
+      computed.backgroundImage,
+      computed.backgroundSize,
+      computed.backgroundPosition,
+      computed.backgroundRepeat
+    );
     fills.push(...gradients);
 
 
