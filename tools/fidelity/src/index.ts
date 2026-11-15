@@ -398,6 +398,31 @@ async function installBenchRuntimeShim(cdp: Cdp, sessionId: string): Promise<() 
       let reply: Record<string, unknown> = { success: false };
       if (req.action === 'fetch-asset' && typeof req.url === 'string') {
         reply = await fetchAssetInNode(req.url, req.as);
+      } else if (req.action === 'capture-element-rects' && Array.isArray((req as { items?: unknown }).items)) {
+        const items = (req as { items: Array<{ key: string; box: { x: number; y: number; w: number; h: number } }> }).items;
+        const results: Array<{ key: string; success: boolean; mimeType?: string; base64?: string }> = [];
+        for (const item of items) {
+          if (!(item.box && item.box.w > 0 && item.box.h > 0)) {
+            results.push({ key: item.key, success: false });
+            continue;
+          }
+          try {
+            const shot = await cdp.send<{ data: string }>(
+              'Page.captureScreenshot',
+              {
+                format: 'png',
+                captureBeyondViewport: true,
+                fromSurface: true,
+                clip: { x: item.box.x, y: item.box.y, width: item.box.w, height: item.box.h, scale: 1 },
+              },
+              sessionId
+            );
+            results.push(shot.data ? { key: item.key, success: true, mimeType: 'image/png', base64: shot.data } : { key: item.key, success: false });
+          } catch {
+            results.push({ key: item.key, success: false });
+          }
+        }
+        reply = { success: true, results };
       } else if (req.action === 'capture-element-rect' && req.box && req.box.w > 0 && req.box.h > 0) {
         try {
           const shot = await cdp.send<{ data: string }>(
