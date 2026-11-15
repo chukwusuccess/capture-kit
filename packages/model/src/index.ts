@@ -207,6 +207,10 @@ export const CaptureTimingsSchema = z.object({
     text: z.number(),
     assets: z.number(),
     fonts: z.number(),
+    prepare: z.number().optional(),
+    raster: z.number().optional(),
+    fetchBridge: z.number().optional(),
+    svgInline: z.number().optional(),
     total: z.number(),
   }),
   counts: z.object({

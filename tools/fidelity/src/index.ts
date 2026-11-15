@@ -398,6 +398,31 @@ async function installBenchRuntimeShim(cdp: Cdp, sessionId: string): Promise<() 
       let reply: Record<string, unknown> = { success: false };
       if (req.action === 'fetch-asset' && typeof req.url === 'string') {
         reply = await fetchAssetInNode(req.url, req.as);
+      } else if (req.action === 'capture-element-rects' && Array.isArray((req as { items?: unknown }).items)) {
+        const items = (req as { items: Array<{ key: string; box: { x: number; y: number; w: number; h: number } }> }).items;
+        const results: Array<{ key: string; success: boolean; mimeType?: string; base64?: string }> = [];
+        for (const item of items) {
+          if (!(item.box && item.box.w > 0 && item.box.h > 0)) {
+            results.push({ key: item.key, success: false });
+            continue;
+          }
+          try {
+            const shot = await cdp.send<{ data: string }>(
+              'Page.captureScreenshot',
+              {
+                format: 'png',
+                captureBeyondViewport: true,
+                fromSurface: true,
+                clip: { x: item.box.x, y: item.box.y, width: item.box.w, height: item.box.h, scale: 1 },
+              },
+              sessionId
+            );
+            results.push(shot.data ? { key: item.key, success: true, mimeType: 'image/png', base64: shot.data } : { key: item.key, success: false });
+          } catch {
+            results.push({ key: item.key, success: false });
+          }
+        }
+        reply = { success: true, results };
       } else if (req.action === 'capture-element-rect' && req.box && req.box.w > 0 && req.box.h > 0) {
         try {
           const shot = await cdp.send<{ data: string }>(
@@ -504,8 +529,50 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
       unsubscribeShim();
     }
     // Readiness can grow the page. The reference must be taken AFTER it, not
-    // before lazy sections exist. Do not scroll nested surfaces or reload here.
-    await evaluate(cdp, s, '(() => { const { promise, resolve } = Promise.withResolvers(); requestAnimationFrame(() => requestAnimationFrame(resolve)); return promise; })()', true);
+    // before lazy sections exist. Force lazy/placeholder images to load for
+    // the reference shot so cross-origin lazy photos aren't missing from it.
+    await evaluate(
+      cdp,
+      s,
+      `(() => {
+        for (const srcEl of Array.from(document.querySelectorAll('picture source[data-srcset]'))) {
+          if (!srcEl.getAttribute('srcset')) {
+            const v = srcEl.getAttribute('data-srcset');
+            if (v) srcEl.setAttribute('srcset', v);
+          }
+        }
+        for (const img of Array.from(document.images)) {
+          if (!img.getAttribute('srcset')) {
+            const ls = img.getAttribute('data-srcset') || img.getAttribute('data-lazy-srcset');
+            if (ls) img.setAttribute('srcset', ls);
+          }
+          const cur = img.getAttribute('src') || '';
+          if (!cur || /^data:image\\/(gif|svg\\+xml)/i.test(cur)) {
+            const lsrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
+            if (lsrc) img.setAttribute('src', lsrc);
+          }
+          try { img.loading = 'eager'; } catch {}
+          try { img.setAttribute('loading', 'eager'); } catch {}
+        }
+        const decodeAll = Promise.all(
+          Array.from(document.images, (img) =>
+            (img.complete && img.naturalWidth > 0
+              ? Promise.resolve()
+              : new Promise((res) => {
+                  img.addEventListener('load', res, { once: true });
+                  img.addEventListener('error', res, { once: true });
+                })
+            ).then(() => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : undefined))
+          )
+        );
+        return Promise.race([decodeAll, new Promise((r) => setTimeout(r, 10000))]).then(() => {
+          const { promise, resolve } = Promise.withResolvers();
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+          return promise;
+        });
+      })()`,
+      true
+    );
     const shotOriginal = await screenshot(cdp, s);
     const originalPath = join(outDir, 'original.png');
     const capturePath = join(outDir, 'capture.json');

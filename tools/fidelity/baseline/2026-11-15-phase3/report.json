@@ -1,0 +1,373 @@
+{
+  "date": "2026-11-15",
+  "branch": "agent/phase-3-fidelity",
+  "suite": [
+    {
+      "name": "original-desktop",
+      "score": 100,
+      "strictScore": 98.35,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/original-desktop/diff-mask.png"
+    },
+    {
+      "name": "growing-lazy-desktop",
+      "score": 100,
+      "strictScore": 100,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/growing-lazy-desktop/diff-mask.png"
+    },
+    {
+      "name": "growing-lazy-mobile",
+      "score": 100,
+      "strictScore": 100,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/growing-lazy-mobile/diff-mask.png"
+    },
+    {
+      "name": "wrapped-typography-desktop",
+      "score": 99.98,
+      "strictScore": 99.95,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/wrapped-typography-desktop/diff-mask.png"
+    },
+    {
+      "name": "wrapped-typography-mobile",
+      "score": 99.76,
+      "strictScore": 99.66,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/wrapped-typography-mobile/diff-mask.png"
+    },
+    {
+      "name": "nested-scroll-desktop",
+      "score": 98.89,
+      "strictScore": 90.87,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/nested-scroll-desktop/diff-mask.png"
+    },
+    {
+      "name": "nested-scroll-mobile",
+      "score": 98.33,
+      "strictScore": 93.66,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/nested-scroll-mobile/diff-mask.png"
+    },
+    {
+      "name": "svg-heavy-desktop",
+      "score": 88.89,
+      "strictScore": 88.23,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/svg-heavy-desktop/diff-mask.png"
+    },
+    {
+      "name": "svg-heavy-mobile",
+      "score": 88.87,
+      "strictScore": 88.36,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/svg-heavy-mobile/diff-mask.png"
+    },
+    {
+      "name": "responsive-desktop",
+      "score": 100,
+      "strictScore": 100,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/responsive-desktop/diff-mask.png"
+    },
+    {
+      "name": "responsive-mobile",
+      "score": 100,
+      "strictScore": 100,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/responsive-mobile/diff-mask.png"
+    },
+    {
+      "name": "images-desktop",
+      "score": 100,
+      "strictScore": 98.83,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/images-desktop/diff-mask.png"
+    },
+    {
+      "name": "images-mobile",
+      "score": 100,
+      "strictScore": 100,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/images-mobile/diff-mask.png"
+    },
+    {
+      "name": "text-metrics-desktop",
+      "score": 99.99,
+      "strictScore": 99.99,
+      "diagnostics": 4,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/text-metrics-desktop/diff-mask.png"
+    },
+    {
+      "name": "text-metrics-mobile",
+      "score": 99.97,
+      "strictScore": 99.96,
+      "diagnostics": 4,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/text-metrics-mobile/diff-mask.png"
+    },
+    {
+      "name": "backgrounds-desktop",
+      "score": 100,
+      "strictScore": 99.86,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/backgrounds-desktop/diff-mask.png"
+    },
+    {
+      "name": "backgrounds-mobile",
+      "score": 100,
+      "strictScore": 99.71,
+      "diagnostics": 0,
+      "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/suite/backgrounds-mobile/diff-mask.png"
+    }
+  ],
+  "ab": [
+    {
+      "id": "fixture",
+      "width": 390,
+      "main": {
+        "score": 100,
+        "totalMs": 15.2,
+        "assetsFetched": 0
+      },
+      "phase3": {
+        "score": 100,
+        "totalMs": 16.4,
+        "assetsFetched": 0
+      }
+    },
+    {
+      "id": "fixture",
+      "width": 1440,
+      "main": {
+        "score": 100,
+        "totalMs": 16.1,
+        "assetsFetched": 0
+      },
+      "phase3": {
+        "score": 100,
+        "totalMs": 16.5,
+        "assetsFetched": 0
+      }
+    },
+    {
+      "id": "marketing",
+      "width": 390,
+      "main": {
+        "score": 86.84,
+        "totalMs": 1521.1,
+        "assetsFetched": 0
+      },
+      "phase3": {
+        "score": 92.66,
+        "totalMs": 4009.6,
+        "assetsFetched": 8
+      }
+    },
+    {
+      "id": "marketing",
+      "width": 1440,
+      "main": {
+        "score": 78.33,
+        "totalMs": 1747.8,
+        "assetsFetched": 0
+      },
+      "phase3": {
+        "score": 80.99,
+        "totalMs": 4003.2,
+        "assetsFetched": 9
+      }
+    },
+    {
+      "id": "motion",
+      "width": 390,
+      "main": {
+        "score": 90.03,
+        "totalMs": 347.3,
+        "assetsFetched": 8
+      },
+      "phase3": {
+        "score": 95.5,
+        "totalMs": 337.6,
+        "assetsFetched": 12
+      }
+    },
+    {
+      "id": "motion",
+      "width": 1440,
+      "main": {
+        "score": 94.06,
+        "totalMs": 312.6,
+        "assetsFetched": 7
+      },
+      "phase3": {
+        "score": 97.37,
+        "totalMs": 322.2,
+        "assetsFetched": 7
+      }
+    },
+    {
+      "id": "news",
+      "width": 390,
+      "main": {
+        "score": 88.81,
+        "totalMs": 904.6,
+        "assetsFetched": 0
+      },
+      "phase3": {
+        "score": 81.73,
+        "totalMs": 4104.9,
+        "assetsFetched": 24
+      }
+    },
+    {
+      "id": "news",
+      "width": 1440,
+      "main": {
+        "score": 86.54,
+        "totalMs": 910.3,
+        "assetsFetched": 0
+      },
+      "phase3": {
+        "score": 69.08,
+        "totalMs": 4191.8,
+        "assetsFetched": 22
+      }
+    },
+    {
+      "id": "own",
+      "width": 390,
+      "main": {
+        "score": 93.87,
+        "totalMs": 1290.3,
+        "assetsFetched": 1
+      },
+      "phase3": {
+        "score": 98.32,
+        "totalMs": 1431.8,
+        "assetsFetched": 15
+      }
+    },
+    {
+      "id": "own",
+      "width": 1440,
+      "main": {
+        "score": 91.44,
+        "totalMs": 1314.7,
+        "assetsFetched": 1
+      },
+      "phase3": {
+        "score": 98.68,
+        "totalMs": 1434.1,
+        "assetsFetched": 18
+      }
+    },
+    {
+      "id": "saas",
+      "width": 390,
+      "main": {
+        "score": 89.66,
+        "totalMs": 2142.9,
+        "assetsFetched": 6
+      },
+      "phase3": {
+        "score": 95.05,
+        "totalMs": 2349.2,
+        "assetsFetched": 6
+      }
+    },
+    {
+      "id": "saas",
+      "width": 1440,
+      "main": {
+        "score": 92.61,
+        "totalMs": 2583.9,
+        "assetsFetched": 22
+      },
+      "phase3": {
+        "score": 94.67,
+        "totalMs": 2874.7,
+        "assetsFetched": 22
+      }
+    }
+  ],
+  "diagnosticsCensus": {
+    "fixture-1440": {},
+    "fixture-390": {},
+    "marketing-1440": {
+      "image_skipped": 1,
+      "image_timeout": 8,
+      "image_budget_exhausted": 1,
+      "asset_unavailable": 6,
+      "asset_timeout": 16,
+      "font_missing": 1
+    },
+    "marketing-390": {
+      "image_skipped": 1,
+      "image_timeout": 8,
+      "image_budget_exhausted": 1,
+      "asset_unavailable": 4,
+      "asset_timeout": 30,
+      "font_missing": 1
+    },
+    "motion-1440": {
+      "image_skipped": 1,
+      "font_failed": 1,
+      "font_missing": 3
+    },
+    "motion-390": {
+      "image_skipped": 1,
+      "font_failed": 1,
+      "font_missing": 3
+    },
+    "news-1440": {
+      "image_timeout": 8,
+      "image_budget_exhausted": 1,
+      "asset_timeout": 2,
+      "font_missing": 2
+    },
+    "news-390": {
+      "image_timeout": 8,
+      "image_budget_exhausted": 1,
+      "asset_unavailable": 1,
+      "font_missing": 2
+    },
+    "own-1440": {
+      "image_skipped": 1,
+      "asset_unavailable": 2,
+      "font_missing": 2
+    },
+    "own-390": {
+      "image_skipped": 1,
+      "asset_unavailable": 2,
+      "font_missing": 2
+    },
+    "saas-1440": {
+      "image_skipped": 1,
+      "asset_failed": 3
+    },
+    "saas-390": {
+      "image_skipped": 1,
+      "font_missing": 2
+    }
+  },
+  "benchExtension": {
+    "own_figma": {
+      "beforeCaptureS": 10.9,
+      "afterCaptureS": 54.15
+    },
+    "own_html": {
+      "beforeCaptureS": 12.15,
+      "afterCaptureS": 19.26
+    },
+    "stripe_figma": {
+      "beforeCaptureS": 30.69,
+      "afterCaptureS": 44.74
+    },
+    "stripe_html": {
+      "beforeCaptureS": 31.91,
+      "afterCaptureS": 37.16
+    }
+  }
+}

@@ -59,6 +59,7 @@ interface TimingContext {
   totalStart: number;
   scrollMs: number;
   waitImagesMs: number;
+  prepareMs: number;
   wantTimings: boolean;
   onTiming?: (stage: string, ms: number) => void;
 }
@@ -76,12 +77,13 @@ function roundMs(ms: number): number {
 function finalizeTimings(
   capture: Capture,
   ctx: TimingContext,
-  stages: Omit<CaptureTimings['stages'], 'scroll' | 'waitImages' | 'total'>,
+  stages: Omit<CaptureTimings['stages'], 'scroll' | 'waitImages' | 'prepare' | 'total'>,
   counts: Omit<CaptureTimings['counts'], 'jsonBytes'>
 ): void {
   const fullStages: CaptureTimings['stages'] = {
     scroll: roundMs(ctx.scrollMs),
     waitImages: roundMs(ctx.waitImagesMs),
+    prepare: roundMs(ctx.prepareMs),
     ...stages,
     total: roundMs(nowMs() - ctx.totalStart),
   };
@@ -476,7 +478,8 @@ async function prepareCapture(
   opts: SerializeOptions | undefined,
   scroll: boolean,
   readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000)
-): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; fontDeadline: number }> {
+): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; prepareMs: number; fontDeadline: number }> {
+  const prepareStart = nowMs();
   const diagnostics: CaptureDiagnostic[] = [];
   const seen = new Set<string>();
   const report: ReportDiagnostic = (diagnostic) => {
@@ -530,11 +533,14 @@ async function prepareCapture(
       waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
     ]);
     // ponytail: nothing loading → height can't shift from images; skip the idleMs floor.
-    if (layoutMayShift) await waitForStableScrollHeight(doc, idleMs, readinessDeadline, trackedHeight, stableSince);
+    if (layoutMayShift) {
+      const settleIdleMs = state.pending === 0 ? Math.min(idleMs, 50) : idleMs;
+      await waitForStableScrollHeight(doc, settleIdleMs, readinessDeadline, trackedHeight, stableSince);
+    }
   } finally {
     if (heightPoll !== undefined) clearInterval(heightPoll);
   }
-  return { diagnostics, scrollMs, waitImagesMs, fontDeadline };
+  return { diagnostics, scrollMs, waitImagesMs, prepareMs: nowMs() - prepareStart, fontDeadline };
 }
 
 async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
@@ -1993,25 +1999,53 @@ async function extractWebFonts(
 }
 
 
+export interface TranscodeStats {
+  toJpeg: number;
+  toPng: number;
+  downscaled: number;
+}
+
+function hasBitmapAlpha(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const totalPixels = width * height;
+  const step = totalPixels <= 1_000_000 ? 1 : Math.max(1, Math.ceil(totalPixels / 250_000));
+  for (let i = 0; i < totalPixels; i += step) {
+    if (data[i * 4 + 3] < 255) return true;
+  }
+  return false;
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 /**
- * Transcode rasters that vector importers reject (webp/avif/bmp) to PNG via
- * an offscreen canvas. Returns null when no transcode is needed or possible,
- * in which case the caller keeps the original bytes.
+ * Transcode rasters that vector importers reject (webp/avif/bmp) and downscale
+ * oversized rasters for Figma/Sketch destinations. Opaque rasters encode as
+ * JPEG (0.9); images with alpha encode as PNG. Returns null when the original
+ * bytes should be kept as-is.
  */
-async function transcodeToPng(
+export async function transcodeForDestinations(
   blob: Blob,
   report: ReportDiagnostic,
   nodeId: string,
-  timeoutMs: number
+  timeoutMs: number,
+  options?: { maxWidth?: number; stats?: TranscodeStats }
 ): Promise<Blob | null> {
   const t = (blob.type || '').toLowerCase();
-  if (t === 'image/png' || t === 'image/jpeg' || t === 'image/gif' || t === 'image/svg+xml') {
-    return null;
-  }
+  if (t === 'image/svg+xml' || t === 'image/gif') return null;
+  const needsFormatTranscode = t !== 'image/png' && t !== 'image/jpeg';
+  const maxW = Math.max(1, Math.min(4096, Math.round(options?.maxWidth ?? 4096)));
+  if (!needsFormatTranscode && blob.size <= 100_000 && maxW >= 4096) return null;
+
   let bitmap: ImageBitmap | undefined;
   let expired = false;
   try {
     if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') {
+      if (!needsFormatTranscode) return null;
       throw new Error('Image conversion is unavailable');
     }
     const decoded = await withTimeout(createImageBitmap(blob).then((value) => {
@@ -2019,21 +2053,37 @@ async function transcodeToPng(
       return value;
     }), timeoutMs);
     bitmap = decoded;
+
+    const oversized = decoded.width > maxW;
+    if (!needsFormatTranscode && !oversized) return null;
+
+    const scale = oversized ? maxW / decoded.width : 1;
+    const targetW = Math.max(1, Math.round(decoded.width * scale));
+    const targetH = Math.max(1, Math.round(decoded.height * scale));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, decoded.width);
-    canvas.height = Math.max(1, decoded.height);
+    canvas.width = targetW;
+    canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas context is unavailable');
-    ctx.drawImage(decoded, 0, 0);
+    ctx.drawImage(decoded, 0, 0, targetW, targetH);
+
+    const alpha = t === 'image/jpeg' ? false : hasBitmapAlpha(ctx, targetW, targetH);
+    const outMime = alpha ? 'image/png' : 'image/jpeg';
     const { promise, resolve } = Promise.withResolvers<Blob | null>();
-    canvas.toBlob(resolve, 'image/png');
+    canvas.toBlob(resolve, outMime, alpha ? undefined : 0.9);
     const out = await withTimeout(promise, timeoutMs);
     if (!out) throw new Error('Canvas returned no image bytes');
+    if (options?.stats) {
+      if (alpha) options.stats.toPng++;
+      else options.stats.toJpeg++;
+      if (oversized) options.stats.downscaled++;
+    }
     return out;
   } catch (error) {
     expired = true;
+    if (!needsFormatTranscode) return null;
     warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_unavailable',
-      `Image could not be converted to PNG; original ${t || 'unknown-format'} bytes were retained.`, nodeId);
+      `Image could not be transcoded; original ${t || 'unknown-format'} bytes were retained.`, nodeId);
     return null;
   } finally {
     bitmap?.close();
@@ -2090,7 +2140,12 @@ async function serializeSubtree(
 
   const elementToIdMap = new Map<Element, string>();
   const urlToAssetKeyCache = new Map<string, string>();
-  const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string }> = [];
+  const dpr = Math.max(1, defaultView.devicePixelRatio || 1);
+  const maxWidthForBox = (boxW: number): number =>
+    Math.min(4096, Math.max(1, Math.round(boxW * 2 * dpr)));
+  const transcodeStats: TranscodeStats = { toJpeg: 0, toPng: 0, downscaled: 0 };
+  const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string; maxWidth?: number }> = [];
+  let fetchBridgeMs = 0;
   const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
   let nextFetch = 0;
   let activeAssetWorkers = 0;
@@ -2104,14 +2159,14 @@ async function serializeSubtree(
   const runAssetWorker = async () => {
     try {
       while (nextFetch < pendingAssetFetches.length) {
-        const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
+        const { url, assetKey, nodeId, maxWidth } = pendingAssetFetches[nextFetch++];
         const budgetMs = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
         let failure: unknown;
         try {
           if (budgetMs <= 0) throw new CaptureTimeout('Readiness budget exhausted');
           const blob = await fetchAssetBlob(url, budgetMs);
           const rem1 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
-          const transcoded = await transcodeToPng(blob, report, nodeId, rem1);
+          const transcoded = await transcodeForDestinations(blob, report, nodeId, rem1, { maxWidth, stats: transcodeStats });
           const finalBlob = transcoded ?? blob;
           const rem2 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
           const buffer = await withTimeout(finalBlob.arrayBuffer(), rem2);
@@ -2126,11 +2181,26 @@ async function serializeSubtree(
           if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
             try {
               const remBg = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+              const fbStart = nowMs();
               const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              fetchBridgeMs += nowMs() - fbStart;
               if (bg?.success && bg.base64) {
-                assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
+                let mimeType = bg.mimeType || 'image/png';
+                let base64 = bg.base64;
+                const rawBytes = base64ToUint8Array(base64);
+                let byteLen = rawBytes.byteLength;
+                const bgBlob = new Blob([rawBytes.slice().buffer], { type: mimeType });
+                const remT = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+                const transcoded = await transcodeForDestinations(bgBlob, report, nodeId, remT, { maxWidth, stats: transcodeStats });
+                if (transcoded) {
+                  const tBuf = await withTimeout(transcoded.arrayBuffer(), Math.max(250, readinessDeadline - Date.now()));
+                  base64 = await arrayBufferToBase64(tBuf);
+                  mimeType = transcoded.type || mimeType;
+                  byteLen = tBuf.byteLength;
+                }
+                assets[assetKey] = { kind: 'image', mimeType, base64 };
                 assetsFetched++;
-                assetBytes += Math.floor((bg.base64.length * 3) / 4);
+                assetBytes += byteLen;
               }
             } catch (error) {
               failure = error;
@@ -2164,13 +2234,29 @@ async function serializeSubtree(
     nodeId: string;
     reason: string;
   }> = [];
+  let skippedRasterCount = 0;
+  const docScrollW = Math.max(frameRect.width, doc.documentElement?.scrollWidth ?? 0, doc.body?.scrollWidth ?? 0);
+  const docScrollH = Math.max(frameRect.height, doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
   const enqueueRectCapture = (item: {
     box: { x: number; y: number; w: number; h: number };
     assetKey: string;
     nodeId: string;
     reason: string;
+    invisible?: boolean;
   }) => {
-    pendingRectCaptures.push(item);
+    const { box, invisible } = item;
+    if (
+      invisible ||
+      !(box.w > 0 && box.h > 0) ||
+      box.x + box.w <= 0 ||
+      box.y + box.h <= 0 ||
+      box.x >= docScrollW ||
+      box.y >= docScrollH
+    ) {
+      skippedRasterCount++;
+      return;
+    }
+    pendingRectCaptures.push({ box: item.box, assetKey: item.assetKey, nodeId: item.nodeId, reason: item.reason });
   };
   const pendingSvgImageInlines: Array<{
     assetKey: string;
@@ -2178,7 +2264,7 @@ async function serializeSubtree(
     nodeId: string;
   }> = [];
 
-  const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string }) => {
+  const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string; maxWidth?: number }) => {
     if (!assetsStart) assetsStart = nowMs();
     pendingAssetFetches.push(item);
     if (activeAssetWorkers < assetConcurrency) {
@@ -2436,7 +2522,7 @@ async function serializeSubtree(
             } else {
               const assetKey = `asset-${nextAssetId++}`;
               urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-              enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
+              enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
               fills.push({ type: 'image', assetRef: assetKey, opacity: 1 });
             }
           } else {
@@ -2497,16 +2583,7 @@ async function serializeSubtree(
       let assetRef: string | undefined;
       let rasterized: { reason: string } | undefined;
       const canvasEl = el as HTMLCanvasElement;
-      const hasWebgl = Boolean(
-        typeof canvasEl.getContext === 'function' &&
-        (canvasEl.getContext('webgl2') || canvasEl.getContext('webgl') || canvasEl.getContext('experimental-webgl'))
-      );
-      if (hasWebgl && w > 0 && h > 0 && hasRuntimeBridge) {
-        const assetKey = `asset-${nextAssetId++}`;
-        assetRef = assetKey;
-        rasterized = { reason: 'webgl-canvas' };
-        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas' });
-      } else {
+      const tryCanvasDataUrl = (): boolean => {
         try {
           if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
             const dataUrl = canvasEl.toDataURL('image/png');
@@ -2519,16 +2596,47 @@ async function serializeSubtree(
                 base64,
               };
               assetRef = assetKey;
+              return true;
             }
           }
         } catch {
-          if (w > 0 && h > 0 && hasRuntimeBridge) {
-            const assetKey = `asset-${nextAssetId++}`;
-            assetRef = assetKey;
-            rasterized = { reason: 'tainted-canvas' };
-            enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas' });
-          }
+          // tainted or unreadable canvas
         }
+        return false;
+      };
+      const canvasHasReadablePixels = (): boolean => {
+        try {
+          const probe = doc.createElement('canvas');
+          probe.width = 16;
+          probe.height = 16;
+          const pctx = probe.getContext('2d');
+          if (!pctx) return false;
+          pctx.drawImage(canvasEl, 0, 0, 16, 16);
+          const d = pctx.getImageData(0, 0, 16, 16).data;
+          for (let i = 3; i < d.length; i += 4) {
+            if (d[i] > 0) return true;
+          }
+        } catch {
+          // tainted or unsupported
+        }
+        return false;
+      };
+      const hasWebgl = Boolean(
+        typeof canvasEl.getContext === 'function' &&
+        (canvasEl.getContext('webgl2') || canvasEl.getContext('webgl') || canvasEl.getContext('experimental-webgl'))
+      );
+      if (hasWebgl && w > 0 && h > 0) {
+        if (!(canvasHasReadablePixels() && tryCanvasDataUrl()) && hasRuntimeBridge) {
+          const assetKey = `asset-${nextAssetId++}`;
+          assetRef = assetKey;
+          rasterized = { reason: 'webgl-canvas' };
+          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
+        }
+      } else if (!tryCanvasDataUrl() && w > 0 && h > 0 && hasRuntimeBridge) {
+        const assetKey = `asset-${nextAssetId++}`;
+        assetRef = assetKey;
+        rasterized = { reason: 'tainted-canvas' };
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
       }
       if (!assetRef) warning(report, 'canvas_unavailable', 'Canvas pixels could not be captured; the image layer has no embedded snapshot.', nodeId);
 
@@ -2756,7 +2864,7 @@ async function serializeSubtree(
               } else {
                 const assetKey = `asset-${nextAssetId++}`;
                 urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-                enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
+                enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
                 assetRef = assetKey;
               }
             } else {
@@ -2842,7 +2950,7 @@ async function serializeSubtree(
       if (!capturedSameOrigin) {
         if (w > 0 && h > 0 && hasRuntimeBridge) {
           const assetKey = `asset-${nextAssetId++}`;
-          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'cross-origin-iframe' });
+          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'cross-origin-iframe', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
           nodes.push({
             id: nodeId,
             ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
@@ -2907,7 +3015,7 @@ async function serializeSubtree(
               const isSameOrigin = resolvedPoster.origin === defaultView.location?.origin;
               if (isSameOrigin || resolvedPoster.protocol === 'blob:' || hasRuntimeBridge) {
                 const assetKey = `asset-${nextAssetId++}`;
-                enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId });
+                enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
                 assetRef = assetKey;
               }
             } catch {
@@ -2920,7 +3028,7 @@ async function serializeSubtree(
         const assetKey = `asset-${nextAssetId++}`;
         assetRef = assetKey;
         rasterized = { reason: 'video-frame' };
-        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'video-frame' });
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'video-frame', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
       }
       if (!assetRef) warning(report, 'asset_unavailable', 'Video frame pixels could not be captured.', nodeId);
 
@@ -3353,6 +3461,20 @@ async function serializeSubtree(
       assetConcurrency
     ),
   ]);
+  if (transcodeStats.toJpeg > 0 || transcodeStats.toPng > 0) {
+    diagnostics.push({
+      code: 'assets_transcoded',
+      severity: 'info',
+      message: `Transcoded ${transcodeStats.toJpeg} opaque image(s) to JPEG and ${transcodeStats.toPng} transparent image(s) to PNG`,
+    });
+  }
+  if (transcodeStats.downscaled > 0) {
+    diagnostics.push({
+      code: 'assets_downscaled',
+      severity: 'info',
+      message: `Downscaled ${transcodeStats.downscaled} oversized raster image(s)`,
+    });
+  }
   const fontsMs = nowMs() - fontsStart;
   const reportedMissingFaces = new Set<string>();
   for (const f of extractedFonts) {
@@ -3370,7 +3492,9 @@ async function serializeSubtree(
     const fallback = parts.slice(1).join(', ') || 'system-ui';
     warning(report, 'font_missing', `Font face ${f.family} (${f.weight ?? '400'} ${f.style ?? 'normal'}) could not be embedded; fallback: ${fallback}`, matchNode.id);
   }
+  let svgInlineMs = 0;
   if (pendingSvgImageInlines.length > 0) {
+    const svgInlineStart = nowMs();
     for (const item of pendingSvgImageInlines) {
       const asset = assets[item.assetKey];
       if (!asset || asset.mimeType !== 'image/svg+xml') continue;
@@ -3406,28 +3530,79 @@ async function serializeSubtree(
       }
       asset.base64 = btoa(unescape(encodeURIComponent(svgText)));
     }
+    svgInlineMs = nowMs() - svgInlineStart;
   }
+  if (skippedRasterCount > 0) {
+    diagnostics.push({
+      code: 'raster_skipped_invisible',
+      severity: 'info',
+      message: `Skipped ${skippedRasterCount} off-screen or invisible raster fallback target(s)`,
+    });
+  }
+  let rasterMs = 0;
   if (pendingRectCaptures.length > 0 && sendRuntimeMessage) {
-    for (const req of pendingRectCaptures) {
-      try {
-        const rem = Math.min(assetTimeoutMs, Math.max(1000, readinessDeadline - Date.now()));
-        const res = (await withTimeout(
-          Promise.resolve(sendRuntimeMessage({ action: 'capture-element-rect', box: req.box })),
-          rem
-        )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
-        if (res?.success && res.base64) {
-          assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
-          assetsFetched++;
-          assetBytes += Math.floor((res.base64.length * 3) / 4);
-        } else {
-          assetsFailed++;
-          warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+    const rasterStart = nowMs();
+    try {
+      const rem = Math.min(assetTimeoutMs * pendingRectCaptures.length, Math.max(1500, readinessDeadline - Date.now()));
+      const batchRes = (await withTimeout(
+        Promise.resolve(
+          sendRuntimeMessage({
+            action: 'capture-element-rects',
+            items: pendingRectCaptures.map((r) => ({ key: r.assetKey, box: r.box })),
+          })
+        ),
+        rem
+      )) as
+        | {
+            success?: boolean;
+            results?: Array<{ key: string; success: boolean; reason?: string; mimeType?: string; base64?: string }>;
+          }
+        | undefined;
+      if (batchRes?.success && Array.isArray(batchRes.results)) {
+        const byKey = new Map(batchRes.results.map((r) => [r.key, r]));
+        for (const req of pendingRectCaptures) {
+          const res = byKey.get(req.assetKey);
+          if (res?.success && res.base64) {
+            assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
+            assetsFetched++;
+            assetBytes += Math.floor((res.base64.length * 3) / 4);
+          } else if (res?.reason === 'raster_too_large') {
+            assetsFailed++;
+            warning(report, 'raster_too_large', `Element exceeds max raster tile budget (${req.reason}).`, req.nodeId);
+          } else {
+            assetsFailed++;
+            warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+          }
         }
-      } catch {
+      } else {
+        for (const req of pendingRectCaptures) {
+          try {
+            const singleRem = Math.min(assetTimeoutMs, Math.max(1000, readinessDeadline - Date.now()));
+            const res = (await withTimeout(
+              Promise.resolve(sendRuntimeMessage({ action: 'capture-element-rect', box: req.box })),
+              singleRem
+            )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+            if (res?.success && res.base64) {
+              assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
+              assetsFetched++;
+              assetBytes += Math.floor((res.base64.length * 3) / 4);
+            } else {
+              assetsFailed++;
+              warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+            }
+          } catch {
+            assetsFailed++;
+            warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) timed out or failed.`, req.nodeId);
+          }
+        }
+      }
+    } catch {
+      for (const req of pendingRectCaptures) {
         assetsFailed++;
         warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) timed out or failed.`, req.nodeId);
       }
     }
+    rasterMs = nowMs() - rasterStart;
   }
   const assetsMs = assetsStart ? Math.max(0, (assetsEnd || nowMs()) - assetsStart) : 0;
   capture.assets = assets;
@@ -3442,6 +3617,9 @@ async function serializeSubtree(
       text: roundMs(textMs),
       assets: roundMs(assetsMs),
       fonts: roundMs(fontsMs),
+      raster: roundMs(rasterMs),
+      fetchBridge: roundMs(fetchBridgeMs),
+      svgInline: roundMs(svgInlineMs),
     }, {
       elementsWalked: elements.length,
       nodesEmitted: nodes.length,
@@ -3465,7 +3643,7 @@ export async function serializeDocument(
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
   const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
 
-  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
+  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -3490,8 +3668,8 @@ export async function serializeDocument(
       ...(diagnostics.length ? { diagnostics } : {}),
     });
     if (wantTimings) {
-      finalizeTimings(empty, { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming },
-        { walk: 0, freezeTransforms: 0, nodes: 0, text: 0, assets: 0, fonts: 0 },
+      finalizeTimings(empty, { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming },
+        { walk: 0, freezeTransforms: 0, nodes: 0, text: 0, assets: 0, fonts: 0, raster: 0, fetchBridge: 0, svgInline: 0 },
         { elementsWalked: 0, nodesEmitted: 0, textCharsMeasured: 0, transformedElements: 0, assetsFetched: 0, assetsFailed: 0, assetsTimedOut: 0, assetBytes: 0 });
     }
     return empty;
@@ -3508,7 +3686,7 @@ export async function serializeDocument(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming } : undefined,
     fontDeadline,
     readinessDeadline
   );
@@ -3523,7 +3701,7 @@ export async function serializeElement(
   const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
+  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -3544,7 +3722,7 @@ export async function serializeElement(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming } : undefined,
     fontDeadline,
     readinessDeadline
   );
