@@ -627,6 +627,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
     for (const job of session.jobs) {
       if (job.status === 'completed') continue;
       if (control.cancelled) break;
+      const jobStart = performance.now();
       await sessionStore.startJob(session.id, job.id);
       announceSession(session.id);
       let captures: Capture[];
@@ -719,6 +720,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
         fitViewportMs,
         ...lastRunTimings,
         storageWriteMs,
+        jobMs: roundTiming(performance.now() - jobStart),
         serializer: captures[0]?.timings?.stages ?? null,
         counts: captures[0]?.timings?.counts ?? null,
       }));
