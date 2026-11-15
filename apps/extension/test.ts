@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import { groupPages, pagePath } from './src/pages.js';
 import { emptyCapture } from '@capture-kit/model';
 import { CaptureSessionStore, sessionResultKey, type SessionStorage } from './src/sessions.js';
+import { captureElementRects, resetRasterCaptureQueueForTest, type RasterCaptureDeps } from './src/raster-capture.js';
 
 const o = 'https://site.test';
 const groups = groupPages([
@@ -214,5 +215,89 @@ async function sessionTests(): Promise<void> {
   assert.deepEqual(loadedLegacy[0].assets, { hero: sharedAsset });
 }
 
+async function rasterCaptureTests(): Promise<void> {
+  resetRasterCaptureQueueForTest();
+  let captureCalls = 0;
+  let clock = 1000;
+  const shotTimestamps: number[] = [];
+  const drawCalls: Array<{ sx: number; sy: number; sw: number; sh: number; dx: number; dy: number }> = [];
+  let scrollPos = { x: 0, y: 0 };
+  let restoredTo: { x: number; y: number } | null = null;
+  const deps: RasterCaptureDeps = {
+    getPageInfoAndHideOverlays: async () => ({
+      innerWidth: 1000,
+      innerHeight: 400,
+      scrollWidth: 1000,
+      scrollHeight: 2000,
+      prevX: 0,
+      prevY: 0,
+      dpr: 1,
+    }),
+    scrollTo: async (_tabId, x, y) => {
+      scrollPos = { x, y };
+      return { scrollX: x, scrollY: y };
+    },
+    restoreOverlaysAndScroll: async (_tabId, prevX, prevY) => {
+      restoredTo = { x: prevX, y: prevY };
+    },
+    captureVisibleTab: async () => {
+      captureCalls++;
+      shotTimestamps.push(clock);
+      return `data:image/png;base64,shot-${captureCalls}`;
+    },
+    decodeBitmap: async () => ({ width: 1000, height: 400, close: () => {} }),
+    createCanvas: (w, h) => ({
+      width: w,
+      height: h,
+      getContext: () => ({
+        drawImage: (_bmp, sx, sy, sw, sh, dx, dy) => {
+          drawCalls.push({ sx: Number(sx), sy: Number(sy), sw: Number(sw), sh: Number(sh), dx: Number(dx), dy: Number(dy) });
+        },
+      }),
+      convertToBlob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+    }),
+    sleep: async (ms) => {
+      clock += ms;
+    },
+    now: () => clock,
+    minIntervalMs: 510,
+    settleMs: 10,
+  };
+
+  // 1. Off-screen boxes are skipped without calling captureVisibleTab.
+  const offscreenRes = await captureElementRects(deps, 1, 1, [
+    { key: 'off1', box: { x: -100000, y: 10, w: 300, h: 100 } },
+    { key: 'off2', box: { x: 10, y: 2500, w: 100, h: 100 } },
+  ]);
+  assert.equal(captureCalls, 0, 'off-screen boxes must not trigger captureVisibleTab');
+  assert.deepEqual(offscreenRes.map((r) => r.reason), ['off_screen', 'off_screen']);
+
+  // 2. 3 boxes in one viewport produce 1 capture call.
+  const batchedRes = await captureElementRects(deps, 1, 1, [
+    { key: 'b1', box: { x: 20, y: 20, w: 100, h: 80 } },
+    { key: 'b2', box: { x: 200, y: 50, w: 120, h: 90 } },
+    { key: 'b3', box: { x: 500, y: 200, w: 150, h: 100 } },
+  ]);
+  assert.equal(captureCalls, 1, '3 boxes in one viewport must cost 1 capture call');
+  assert.ok(batchedRes.every((r) => r.success));
+  assert.deepEqual(restoredTo, { x: 0, y: 0 });
+
+  // 3. A box 2.5 viewports tall (1000px in 400px viewport) produces 3 tiles and full-height canvas,
+  //    and rate-limits captureVisibleTab calls >= 510ms apart.
+  captureCalls = 0;
+  drawCalls.length = 0;
+  shotTimestamps.length = 0;
+  const tallRes = await captureElementRects(deps, 1, 1, [
+    { key: 'tall', box: { x: 10, y: 100, w: 300, h: 1000 } },
+  ]);
+  assert.equal(captureCalls, 3, '2.5-viewport tall box must produce 3 tile captures');
+  assert.equal(tallRes[0].success, true);
+  assert.deepEqual(drawCalls.map((d) => [d.dy, d.sh]), [[0, 400], [400, 400], [800, 200]]);
+  assert.ok(shotTimestamps[1] - shotTimestamps[0] >= 510, 'must enforce >= 510ms between shots');
+  assert.ok(shotTimestamps[2] - shotTimestamps[1] >= 510, 'must enforce >= 510ms between shots');
+  void scrollPos;
+}
+
 await sessionTests();
-console.log('apps/extension tests passed: page grouping, session transitions, recovery, retention, quota and duplicate starts');
+await rasterCaptureTests();
+console.log('apps/extension tests passed: page grouping, session transitions, recovery, retention, quota, duplicate starts, and raster capture');
