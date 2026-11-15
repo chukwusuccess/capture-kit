@@ -627,6 +627,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
     for (const job of session.jobs) {
       if (job.status === 'completed') continue;
       if (control.cancelled) break;
+      const jobStart = performance.now();
       await sessionStore.startJob(session.id, job.id);
       announceSession(session.id);
       let captures: Capture[];
@@ -719,6 +720,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
         fitViewportMs,
         ...lastRunTimings,
         storageWriteMs,
+        jobMs: roundTiming(performance.now() - jobStart),
         serializer: captures[0]?.timings?.stages ?? null,
         counts: captures[0]?.timings?.counts ?? null,
       }));
@@ -826,12 +828,17 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
     return true;
   }
 
-  // One handler for both callers: the replica asks for `data` (a data: URL or
-  // text), the serializer's CORS fallback reads `mimeType` + `base64`.
+  // One handler for both callers: the replica passes `as` and reads `data` (a
+  // data: URL or text); the serializer's CORS fallback omits `as` and reads
+  // `mimeType` + `base64`. Send each only its own fields: assets are megabytes.
   if (action === 'fetch-asset' && typeof request.url === 'string') {
     fetchAsset(request.url, request.as).then((data) => {
+      if (request.as !== undefined) {
+        sendResponse({ success: data !== null, data });
+        return;
+      }
       const m = data?.match(/^data:([^;]+);base64,(.*)$/s);
-      sendResponse({ success: data !== null, data, mimeType: m?.[1], base64: m?.[2] });
+      sendResponse({ success: data !== null, mimeType: m?.[1], base64: m?.[2] });
     });
     return true;
   }

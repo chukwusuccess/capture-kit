@@ -16,6 +16,7 @@ interface CaptureTimingLog {
   serializeMs: number;
   replicaMs: number;
   storageWriteMs: number;
+  jobMs?: number;
 }
 
 interface ExportTimingLog {
@@ -31,6 +32,8 @@ interface SessionResult {
   url: string;
   format: 'figma' | 'html';
   wallMs: number;
+  /** capture-run sent -> session completed: what the user waits for. */
+  captureMs?: number;
   jobs: CaptureTimingLog[];
   exportTiming?: ExportTimingLog;
   status: 'ok' | 'error';
@@ -104,6 +107,7 @@ async function runSession(
       return match?.id;
     }, url);
     if (!tabId) throw new Error(`Could not find tab for ${url}`);
+    const captureStart = performance.now();
 
     const session = await popup.evaluate(async ({ tabId, url, format }) => {
       const res = await chrome.runtime.sendMessage({
@@ -133,15 +137,17 @@ async function runSession(
         if (current.status !== 'completed') throw new Error(current.error || `Session ended with ${current.status}`);
         break;
       }
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 50));
     }
     if (finalStatus !== 'completed') throw new Error(`Session timed out (${finalStatus})`);
+    const captureMs = Math.round(performance.now() - captureStart);
 
     // Trigger export via the popup UI's Export button so storageReadMs + exportMs are measured.
     await popup.reload({ waitUntil: 'domcontentloaded' });
     await popup.waitForSelector(`.session-action[data-session-id="${session.id}"][data-action="export"]`, { timeout: 10_000 });
     await popup.click(`.session-action[data-session-id="${session.id}"][data-action="export"]`);
-    await new Promise((r) => setTimeout(r, 1500));
+    const exportDeadline = Date.now() + 30_000;
+    while (popupLogs.length === startExportIdx && Date.now() < exportDeadline) await new Promise((r) => setTimeout(r, 50));
 
     const wallMs = Math.round(performance.now() - t0);
     return {
@@ -149,6 +155,7 @@ async function runSession(
       url,
       format,
       wallMs,
+      captureMs,
       jobs: swLogs.slice(startLogIdx),
       exportTiming: popupLogs.slice(startExportIdx)[0],
       status: 'ok',
@@ -209,6 +216,8 @@ async function main(): Promise<void> {
       { site: 'own', url: 'http://127.0.0.1:4173/' },
       { site: 'stripe', url: 'https://stripe.com' },
     ];
+    const only = process.argv.find((a) => a.startsWith('--site='))?.slice(7);
+    if (only) targets.splice(0, targets.length, ...targets.filter((t) => t.site === only));
     const formats: Array<'figma' | 'html'> = ['figma', 'html'];
     const results: SessionResult[] = [];
 
@@ -217,9 +226,11 @@ async function main(): Promise<void> {
         console.log(`\n[bench:ext] ${target.site} (${format})...`);
         const res = await runSession(ctx, popup, swLogs, popupLogs, target.site, target.url, format);
         results.push(res);
-        console.log(`  status=${res.status} wall=${(res.wallMs / 1000).toFixed(2)}s jobs=${res.jobs.length}${res.error ? ` err=${res.error}` : ''}`);
+        const staged = res.jobs.reduce((sum, j) => sum + j.loadMs + j.fitViewportMs + j.injectMs + j.serializeMs + j.replicaMs + j.storageWriteMs, 0);
+        const capture = res.captureMs === undefined ? 'n/a' : `${(res.captureMs / 1000).toFixed(2)}s (unattributed ${Math.round(res.captureMs - staged)}ms)`;
+        console.log(`  status=${res.status} wall=${(res.wallMs / 1000).toFixed(2)}s capture=${capture} jobs=${res.jobs.length}${res.error ? ` err=${res.error}` : ''}`);
         for (const j of res.jobs) {
-          console.log(`    w=${j.width} load=${j.loadMs}ms fit=${j.fitViewportMs}ms inject=${j.injectMs}ms serialize=${j.serializeMs}ms replica=${j.replicaMs}ms write=${j.storageWriteMs}ms`);
+          console.log(`    w=${j.width} load=${j.loadMs}ms fit=${j.fitViewportMs}ms inject=${j.injectMs}ms serialize=${j.serializeMs}ms replica=${j.replicaMs}ms write=${j.storageWriteMs}ms job=${j.jobMs}ms`);
         }
         if (res.exportTiming) {
           console.log(`    export: read=${res.exportTiming.storageReadMs}ms export=${res.exportTiming.exportMs}ms`);
