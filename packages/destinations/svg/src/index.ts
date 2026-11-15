@@ -1,4 +1,4 @@
-import type { Capture, CornerRadius, Node } from '@capture-kit/model';
+import { buildFontFaceCss, type Capture, type CornerRadius, type Node } from '@capture-kit/model';
 
 function escapeXml(unsafe: string): string {
   return unsafe
@@ -380,6 +380,10 @@ function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style
 
 function buildSvgDefs(capture: Capture): string {
   const defs: string[] = [];
+  const fontFaceRules = buildFontFaceCss(capture);
+  if (fontFaceRules.length > 0) {
+    defs.push(`    <style type="text/css">\n${fontFaceRules.map((r) => `      ${r}`).join('\n')}\n    </style>`);
+  }
 
   for (const node of capture.nodes) {
     const prims = buildFilterPrimitives(node.style.filter, node.style.shadows, node.style.backdropFilter);

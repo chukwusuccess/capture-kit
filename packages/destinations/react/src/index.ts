@@ -1,4 +1,4 @@
-import type { Capture, Node, Style, TextProps } from '@capture-kit/model';
+import { buildFontFaceCss, type Capture, type Node, type Style, type TextProps } from '@capture-kit/model';
 
 export interface ReactExportOptions {
   componentName?: string;
@@ -295,12 +295,23 @@ export function modelToReact(
     bodyJsx = renderJsxNode(rootNode, 2, true);
   }
 
+  const fontFaceRules = buildFontFaceCss(capture);
+  const jsxRoot =
+    fontFaceRules.length > 0
+      ? [
+          '    <>',
+          `      <style>{\`${fontFaceRules.join('\n').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')}\`}</style>`,
+          bodyJsx,
+          '    </>',
+        ].join('\n')
+      : bodyJsx;
+
   return [
     "import React from 'react';",
     '',
     `export function ${name}() {`,
     '  return (',
-    bodyJsx,
+    jsxRoot,
     '  );',
     '}',
   ].join('\n');
