@@ -1993,25 +1993,53 @@ async function extractWebFonts(
 }
 
 
+export interface TranscodeStats {
+  toJpeg: number;
+  toPng: number;
+  downscaled: number;
+}
+
+function hasBitmapAlpha(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const totalPixels = width * height;
+  const step = totalPixels <= 1_000_000 ? 1 : Math.max(1, Math.ceil(totalPixels / 250_000));
+  for (let i = 0; i < totalPixels; i += step) {
+    if (data[i * 4 + 3] < 255) return true;
+  }
+  return false;
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 /**
- * Transcode rasters that vector importers reject (webp/avif/bmp) to PNG via
- * an offscreen canvas. Returns null when no transcode is needed or possible,
- * in which case the caller keeps the original bytes.
+ * Transcode rasters that vector importers reject (webp/avif/bmp) and downscale
+ * oversized rasters for Figma/Sketch destinations. Opaque rasters encode as
+ * JPEG (0.9); images with alpha encode as PNG. Returns null when the original
+ * bytes should be kept as-is.
  */
-async function transcodeToPng(
+export async function transcodeForDestinations(
   blob: Blob,
   report: ReportDiagnostic,
   nodeId: string,
-  timeoutMs: number
+  timeoutMs: number,
+  options?: { maxWidth?: number; stats?: TranscodeStats }
 ): Promise<Blob | null> {
   const t = (blob.type || '').toLowerCase();
-  if (t === 'image/png' || t === 'image/jpeg' || t === 'image/gif' || t === 'image/svg+xml') {
-    return null;
-  }
+  if (t === 'image/svg+xml' || t === 'image/gif') return null;
+  const needsFormatTranscode = t !== 'image/png' && t !== 'image/jpeg';
+  const maxW = Math.max(1, Math.min(4096, Math.round(options?.maxWidth ?? 4096)));
+  if (!needsFormatTranscode && blob.size <= 100_000 && maxW >= 4096) return null;
+
   let bitmap: ImageBitmap | undefined;
   let expired = false;
   try {
     if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') {
+      if (!needsFormatTranscode) return null;
       throw new Error('Image conversion is unavailable');
     }
     const decoded = await withTimeout(createImageBitmap(blob).then((value) => {
@@ -2019,21 +2047,37 @@ async function transcodeToPng(
       return value;
     }), timeoutMs);
     bitmap = decoded;
+
+    const oversized = decoded.width > maxW;
+    if (!needsFormatTranscode && !oversized) return null;
+
+    const scale = oversized ? maxW / decoded.width : 1;
+    const targetW = Math.max(1, Math.round(decoded.width * scale));
+    const targetH = Math.max(1, Math.round(decoded.height * scale));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, decoded.width);
-    canvas.height = Math.max(1, decoded.height);
+    canvas.width = targetW;
+    canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas context is unavailable');
-    ctx.drawImage(decoded, 0, 0);
+    ctx.drawImage(decoded, 0, 0, targetW, targetH);
+
+    const alpha = t === 'image/jpeg' ? false : hasBitmapAlpha(ctx, targetW, targetH);
+    const outMime = alpha ? 'image/png' : 'image/jpeg';
     const { promise, resolve } = Promise.withResolvers<Blob | null>();
-    canvas.toBlob(resolve, 'image/png');
+    canvas.toBlob(resolve, outMime, alpha ? undefined : 0.9);
     const out = await withTimeout(promise, timeoutMs);
     if (!out) throw new Error('Canvas returned no image bytes');
+    if (options?.stats) {
+      if (alpha) options.stats.toPng++;
+      else options.stats.toJpeg++;
+      if (oversized) options.stats.downscaled++;
+    }
     return out;
   } catch (error) {
     expired = true;
+    if (!needsFormatTranscode) return null;
     warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_unavailable',
-      `Image could not be converted to PNG; original ${t || 'unknown-format'} bytes were retained.`, nodeId);
+      `Image could not be transcoded; original ${t || 'unknown-format'} bytes were retained.`, nodeId);
     return null;
   } finally {
     bitmap?.close();
@@ -2090,7 +2134,11 @@ async function serializeSubtree(
 
   const elementToIdMap = new Map<Element, string>();
   const urlToAssetKeyCache = new Map<string, string>();
-  const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string }> = [];
+  const dpr = Math.max(1, defaultView.devicePixelRatio || 1);
+  const maxWidthForBox = (boxW: number): number =>
+    Math.min(4096, Math.max(1, Math.round(boxW * 2 * dpr)));
+  const transcodeStats: TranscodeStats = { toJpeg: 0, toPng: 0, downscaled: 0 };
+  const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string; maxWidth?: number }> = [];
   const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
   let nextFetch = 0;
   let activeAssetWorkers = 0;
@@ -2104,14 +2152,14 @@ async function serializeSubtree(
   const runAssetWorker = async () => {
     try {
       while (nextFetch < pendingAssetFetches.length) {
-        const { url, assetKey, nodeId } = pendingAssetFetches[nextFetch++];
+        const { url, assetKey, nodeId, maxWidth } = pendingAssetFetches[nextFetch++];
         const budgetMs = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
         let failure: unknown;
         try {
           if (budgetMs <= 0) throw new CaptureTimeout('Readiness budget exhausted');
           const blob = await fetchAssetBlob(url, budgetMs);
           const rem1 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
-          const transcoded = await transcodeToPng(blob, report, nodeId, rem1);
+          const transcoded = await transcodeForDestinations(blob, report, nodeId, rem1, { maxWidth, stats: transcodeStats });
           const finalBlob = transcoded ?? blob;
           const rem2 = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
           const buffer = await withTimeout(finalBlob.arrayBuffer(), rem2);
@@ -2128,9 +2176,22 @@ async function serializeSubtree(
               const remBg = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
               const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
               if (bg?.success && bg.base64) {
-                assets[assetKey] = { kind: 'image', mimeType: bg.mimeType || 'image/png', base64: bg.base64 };
+                let mimeType = bg.mimeType || 'image/png';
+                let base64 = bg.base64;
+                const rawBytes = base64ToUint8Array(base64);
+                let byteLen = rawBytes.byteLength;
+                const bgBlob = new Blob([rawBytes.slice().buffer], { type: mimeType });
+                const remT = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+                const transcoded = await transcodeForDestinations(bgBlob, report, nodeId, remT, { maxWidth, stats: transcodeStats });
+                if (transcoded) {
+                  const tBuf = await withTimeout(transcoded.arrayBuffer(), Math.max(250, readinessDeadline - Date.now()));
+                  base64 = await arrayBufferToBase64(tBuf);
+                  mimeType = transcoded.type || mimeType;
+                  byteLen = tBuf.byteLength;
+                }
+                assets[assetKey] = { kind: 'image', mimeType, base64 };
                 assetsFetched++;
-                assetBytes += Math.floor((bg.base64.length * 3) / 4);
+                assetBytes += byteLen;
               }
             } catch (error) {
               failure = error;
@@ -2178,7 +2239,7 @@ async function serializeSubtree(
     nodeId: string;
   }> = [];
 
-  const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string }) => {
+  const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string; maxWidth?: number }) => {
     if (!assetsStart) assetsStart = nowMs();
     pendingAssetFetches.push(item);
     if (activeAssetWorkers < assetConcurrency) {
@@ -2436,7 +2497,7 @@ async function serializeSubtree(
             } else {
               const assetKey = `asset-${nextAssetId++}`;
               urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-              enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
+              enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
               fills.push({ type: 'image', assetRef: assetKey, opacity: 1 });
             }
           } else {
@@ -2756,7 +2817,7 @@ async function serializeSubtree(
               } else {
                 const assetKey = `asset-${nextAssetId++}`;
                 urlToAssetKeyCache.set(resolvedUrl.href, assetKey);
-                enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId });
+                enqueueAssetFetch({ url: resolvedUrl.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
                 assetRef = assetKey;
               }
             } else {
@@ -2907,7 +2968,7 @@ async function serializeSubtree(
               const isSameOrigin = resolvedPoster.origin === defaultView.location?.origin;
               if (isSameOrigin || resolvedPoster.protocol === 'blob:' || hasRuntimeBridge) {
                 const assetKey = `asset-${nextAssetId++}`;
-                enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId });
+                enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
                 assetRef = assetKey;
               }
             } catch {
@@ -3353,6 +3414,20 @@ async function serializeSubtree(
       assetConcurrency
     ),
   ]);
+  if (transcodeStats.toJpeg > 0 || transcodeStats.toPng > 0) {
+    diagnostics.push({
+      code: 'assets_transcoded',
+      severity: 'info',
+      message: `Transcoded ${transcodeStats.toJpeg} opaque image(s) to JPEG and ${transcodeStats.toPng} transparent image(s) to PNG`,
+    });
+  }
+  if (transcodeStats.downscaled > 0) {
+    diagnostics.push({
+      code: 'assets_downscaled',
+      severity: 'info',
+      message: `Downscaled ${transcodeStats.downscaled} oversized raster image(s)`,
+    });
+  }
   const fontsMs = nowMs() - fontsStart;
   const reportedMissingFaces = new Set<string>();
   for (const f of extractedFonts) {
