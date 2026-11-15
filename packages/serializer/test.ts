@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { arrayBufferToBase64, serializeDocument, serializeElement, startElementPicker, triggerPageScroll, waitForImages } from './src/index.js';
+import { arrayBufferToBase64, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -893,6 +893,74 @@ async function runReadinessTests() {
     const actual = await arrayBufferToBase64(bytes.buffer);
     const expected = Buffer.from(bytes).toString('base64');
     assert.strictEqual(actual, expected, `Base64 mismatch for ${size} bytes`);
+  }
+
+  // transcodeForDestinations: opaque WebP -> JPEG, transparent WebP -> PNG, oversize -> downscaled.
+  {
+    const g = globalThis as unknown as Record<string, unknown>;
+    const prevCreateBitmap = g.createImageBitmap;
+    const prevDoc = g.document;
+    let mockBitmapSize = { width: 100, height: 80 };
+    let mockHasAlpha = false;
+    let lastCanvasSize = { width: 0, height: 0 };
+    let lastToBlobMime = '';
+
+    g.createImageBitmap = async () => ({
+      width: mockBitmapSize.width,
+      height: mockBitmapSize.height,
+      close: () => {},
+    });
+    g.document = {
+      createElement: (tag: string) => {
+        if (tag !== 'canvas') return {};
+        const canvas = {
+          width: 0,
+          height: 0,
+          getContext: () => ({
+            drawImage: () => {
+              lastCanvasSize = { width: canvas.width, height: canvas.height };
+            },
+            getImageData: (_x: number, _y: number, w: number, h: number) => {
+              const data = new Uint8ClampedArray(w * h * 4);
+              for (let i = 0; i < w * h; i++) data[i * 4 + 3] = 255;
+              if (mockHasAlpha) data[3] = 128;
+              return { data };
+            },
+          }),
+          toBlob: (cb: (b: Blob | null) => void, mime = 'image/png') => {
+            lastToBlobMime = mime;
+            cb(new Blob([new Uint8Array([1, 2, 3])], { type: mime }));
+          },
+        };
+        return canvas;
+      },
+    };
+
+    try {
+      const diags: unknown[] = [];
+      const stats = { toJpeg: 0, toPng: 0, downscaled: 0 };
+
+      mockBitmapSize = { width: 400, height: 300 };
+      mockHasAlpha = false;
+      const opaqueOut = await transcodeForDestinations(new Blob([new Uint8Array([9])], { type: 'image/webp' }), (d) => diags.push(d), 'n1', 1000, { maxWidth: 800, stats });
+      assert.strictEqual(opaqueOut?.type, 'image/jpeg', 'Opaque WebP should transcode to JPEG');
+      assert.strictEqual(lastToBlobMime, 'image/jpeg');
+
+      mockHasAlpha = true;
+      const alphaOut = await transcodeForDestinations(new Blob([new Uint8Array([9])], { type: 'image/webp' }), (d) => diags.push(d), 'n2', 1000, { maxWidth: 800, stats });
+      assert.strictEqual(alphaOut?.type, 'image/png', 'Transparent WebP should transcode to PNG');
+
+      mockBitmapSize = { width: 3200, height: 1600 };
+      mockHasAlpha = false;
+      const bigOut = await transcodeForDestinations(new Blob([new Uint8Array(150_000)], { type: 'image/jpeg' }), (d) => diags.push(d), 'n3', 1000, { maxWidth: 800, stats });
+      assert.strictEqual(bigOut?.type, 'image/jpeg');
+      assert.deepStrictEqual(lastCanvasSize, { width: 800, height: 400 }, 'Oversize image should be downscaled proportionally');
+      assert.deepStrictEqual(stats, { toJpeg: 2, toPng: 1, downscaled: 1 });
+      assert.strictEqual(diags.length, 0);
+    } finally {
+      g.createImageBitmap = prevCreateBitmap;
+      g.document = prevDoc;
+    }
   }
 }
 
