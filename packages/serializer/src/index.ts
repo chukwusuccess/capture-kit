@@ -2225,13 +2225,29 @@ async function serializeSubtree(
     nodeId: string;
     reason: string;
   }> = [];
+  let skippedRasterCount = 0;
+  const docScrollW = Math.max(frameRect.width, doc.documentElement?.scrollWidth ?? 0, doc.body?.scrollWidth ?? 0);
+  const docScrollH = Math.max(frameRect.height, doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
   const enqueueRectCapture = (item: {
     box: { x: number; y: number; w: number; h: number };
     assetKey: string;
     nodeId: string;
     reason: string;
+    invisible?: boolean;
   }) => {
-    pendingRectCaptures.push(item);
+    const { box, invisible } = item;
+    if (
+      invisible ||
+      !(box.w > 0 && box.h > 0) ||
+      box.x + box.w <= 0 ||
+      box.y + box.h <= 0 ||
+      box.x >= docScrollW ||
+      box.y >= docScrollH
+    ) {
+      skippedRasterCount++;
+      return;
+    }
+    pendingRectCaptures.push({ box: item.box, assetKey: item.assetKey, nodeId: item.nodeId, reason: item.reason });
   };
   const pendingSvgImageInlines: Array<{
     assetKey: string;
@@ -2566,7 +2582,7 @@ async function serializeSubtree(
         const assetKey = `asset-${nextAssetId++}`;
         assetRef = assetKey;
         rasterized = { reason: 'webgl-canvas' };
-        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas' });
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
       } else {
         try {
           if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
@@ -2587,7 +2603,7 @@ async function serializeSubtree(
             const assetKey = `asset-${nextAssetId++}`;
             assetRef = assetKey;
             rasterized = { reason: 'tainted-canvas' };
-            enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas' });
+            enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
           }
         }
       }
@@ -2903,7 +2919,7 @@ async function serializeSubtree(
       if (!capturedSameOrigin) {
         if (w > 0 && h > 0 && hasRuntimeBridge) {
           const assetKey = `asset-${nextAssetId++}`;
-          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'cross-origin-iframe' });
+          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'cross-origin-iframe', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
           nodes.push({
             id: nodeId,
             ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
@@ -2981,7 +2997,7 @@ async function serializeSubtree(
         const assetKey = `asset-${nextAssetId++}`;
         assetRef = assetKey;
         rasterized = { reason: 'video-frame' };
-        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'video-frame' });
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'video-frame', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
       }
       if (!assetRef) warning(report, 'asset_unavailable', 'Video frame pixels could not be captured.', nodeId);
 
@@ -3482,23 +3498,70 @@ async function serializeSubtree(
       asset.base64 = btoa(unescape(encodeURIComponent(svgText)));
     }
   }
+  if (skippedRasterCount > 0) {
+    diagnostics.push({
+      code: 'raster_skipped_invisible',
+      severity: 'info',
+      message: `Skipped ${skippedRasterCount} off-screen or invisible raster fallback target(s)`,
+    });
+  }
   if (pendingRectCaptures.length > 0 && sendRuntimeMessage) {
-    for (const req of pendingRectCaptures) {
-      try {
-        const rem = Math.min(assetTimeoutMs, Math.max(1000, readinessDeadline - Date.now()));
-        const res = (await withTimeout(
-          Promise.resolve(sendRuntimeMessage({ action: 'capture-element-rect', box: req.box })),
-          rem
-        )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
-        if (res?.success && res.base64) {
-          assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
-          assetsFetched++;
-          assetBytes += Math.floor((res.base64.length * 3) / 4);
-        } else {
-          assetsFailed++;
-          warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+    try {
+      const rem = Math.min(assetTimeoutMs * pendingRectCaptures.length, Math.max(1500, readinessDeadline - Date.now()));
+      const batchRes = (await withTimeout(
+        Promise.resolve(
+          sendRuntimeMessage({
+            action: 'capture-element-rects',
+            items: pendingRectCaptures.map((r) => ({ key: r.assetKey, box: r.box })),
+          })
+        ),
+        rem
+      )) as
+        | {
+            success?: boolean;
+            results?: Array<{ key: string; success: boolean; reason?: string; mimeType?: string; base64?: string }>;
+          }
+        | undefined;
+      if (batchRes?.success && Array.isArray(batchRes.results)) {
+        const byKey = new Map(batchRes.results.map((r) => [r.key, r]));
+        for (const req of pendingRectCaptures) {
+          const res = byKey.get(req.assetKey);
+          if (res?.success && res.base64) {
+            assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
+            assetsFetched++;
+            assetBytes += Math.floor((res.base64.length * 3) / 4);
+          } else if (res?.reason === 'raster_too_large') {
+            assetsFailed++;
+            warning(report, 'raster_too_large', `Element exceeds max raster tile budget (${req.reason}).`, req.nodeId);
+          } else {
+            assetsFailed++;
+            warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+          }
         }
-      } catch {
+      } else {
+        for (const req of pendingRectCaptures) {
+          try {
+            const singleRem = Math.min(assetTimeoutMs, Math.max(1000, readinessDeadline - Date.now()));
+            const res = (await withTimeout(
+              Promise.resolve(sendRuntimeMessage({ action: 'capture-element-rect', box: req.box })),
+              singleRem
+            )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+            if (res?.success && res.base64) {
+              assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
+              assetsFetched++;
+              assetBytes += Math.floor((res.base64.length * 3) / 4);
+            } else {
+              assetsFailed++;
+              warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+            }
+          } catch {
+            assetsFailed++;
+            warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) timed out or failed.`, req.nodeId);
+          }
+        }
+      }
+    } catch {
+      for (const req of pendingRectCaptures) {
         assetsFailed++;
         warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) timed out or failed.`, req.nodeId);
       }
