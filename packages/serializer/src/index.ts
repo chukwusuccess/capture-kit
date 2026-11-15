@@ -1590,10 +1590,19 @@ function measureWrappedLines(
   scrollX: number,
   scrollY: number,
   originX: number,
-  originY: number
+  originY: number,
+  preserveWs = false
 ): { lines: MeasuredTextLine[]; measuredCalls: number } {
   const range = doc.createRange();
-  range.selectNodeContents(textNode);
+  const leadTrim = preserveWs ? 0 : fullStr.length - fullStr.trimStart().length;
+  const trailTrim = preserveWs ? fullStr.length : fullStr.trimEnd().length;
+  if (leadTrim > 0 || trailTrim < fullStr.length) {
+    if (leadTrim >= trailTrim) return { lines: [], measuredCalls: 0 };
+    range.setStart(textNode, leadTrim);
+    range.setEnd(textNode, trailTrim);
+  } else {
+    range.selectNodeContents(textNode);
+  }
   const rawRects = range.getClientRects?.();
   if (!rawRects || rawRects.length <= 1) return { lines: [], measuredCalls: 0 };
 
@@ -1633,13 +1642,14 @@ function measureWrappedLines(
   };
 
   const lines: MeasuredTextLine[] = [];
-  let start = 0;
+  let start = leadTrim;
+  const maxEnd = trailTrim;
   for (let li = 0; li < lineRects.length; li++) {
     const lr = lineRects[li];
-    let end = fullStr.length;
-    if (li < lineRects.length - 1 && start < fullStr.length) {
+    let end = maxEnd;
+    if (li < lineRects.length - 1 && start < maxEnd) {
       let lo = start + 1;
-      let hi = fullStr.length;
+      let hi = maxEnd;
       let best = start;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
@@ -1652,7 +1662,8 @@ function measureWrappedLines(
       }
       end = best;
     }
-    const text = fullStr.slice(start, end).trim();
+    const rawSlice = fullStr.slice(start, end);
+    const text = preserveWs ? rawSlice.replace(/[\r\n]+/g, '') : rawSlice.trim();
     if (text) {
       lines.push({
         text,
@@ -1810,7 +1821,10 @@ async function extractWebFonts(
           try {
             const resolved = new URL(fontUrl, baseURI);
             const isSameOrigin = resolved.origin === defaultView.location?.origin;
-            if (isSameOrigin || resolved.protocol === 'blob:') {
+            const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+            const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+            const hasRuntime = Boolean(runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function');
+            if (isSameOrigin || resolved.protocol === 'blob:' || hasRuntime) {
               seenFamilies.add(fontIdentity);
               pendingFetches.push({ family, weight, fontStyle, fontUrl, resolvedHref: resolved.href, fontIdentity });
             } else {
@@ -1848,9 +1862,31 @@ async function extractWebFonts(
         assets[assetKey] = { kind: 'font', mimeType: blob.type || 'font/woff2', base64 };
         urlToAssetKey.set(href, assetKey);
       } catch (error) {
-        const sample = pendingFetches.find((f) => f.resolvedHref === href);
-        warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
-          `Font asset could not be embedded: ${sample?.family ?? href} (${sample?.fontUrl ?? href})`);
+        let fetchedViaBridge = false;
+        const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+        const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+        if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
+          try {
+            const rem = Math.max(250, deadline - Date.now());
+            const bg = (await withTimeout(
+              Promise.resolve((runtime.sendMessage as (m: unknown) => Promise<unknown>)({ action: 'fetch-asset', url: href })),
+              rem
+            )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+            if (bg?.success && bg.base64) {
+              const assetKey = nextAssetId();
+              assets[assetKey] = { kind: 'font', mimeType: bg.mimeType || 'font/woff2', base64: bg.base64 };
+              urlToAssetKey.set(href, assetKey);
+              fetchedViaBridge = true;
+            }
+          } catch {
+            // fall through to warning
+          }
+        }
+        if (!fetchedViaBridge) {
+          const sample = pendingFetches.find((f) => f.resolvedHref === href);
+          warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+            `Font asset could not be embedded: ${sample?.family ?? href} (${sample?.fontUrl ?? href})`);
+        }
       }
     }
   }));
@@ -2911,20 +2947,21 @@ async function serializeSubtree(
       radius.topLeft > 0;
 
     if (!hasVisualDecoration && !hasChildren && childTextNodes.length > 0) {
-      const combinedText = childTextNodes
-        .map((n) => n.textContent || '')
-        .join(' ')
-        .trim();
+      const whiteSpace = computed.whiteSpace || 'normal';
+      const collapseWs = (raw: string): string => {
+        if (whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces') return raw;
+        if (whiteSpace === 'pre-line') return raw.replace(/[ \t\r]+/g, ' ');
+        return raw.replace(/\s+/g, ' ');
+      };
+      let combinedText = collapseWs(childTextNodes.map((n) => n.textContent || '').join('')).trim();
 
       const fontSize = parseFloat(computed.fontSize) || 16;
       const lineHeightValue = parseFloat(computed.lineHeight);
-      const lineHeight: number | string = Number.isNaN(lineHeightValue)
-        ? 'normal'
-        : lineHeightValue;
+      let lineHeight: number = Number.isNaN(lineHeightValue) ? round2(fontSize * 1.2) : lineHeightValue;
       const letterSpacingValue = parseFloat(computed.letterSpacing);
       const letterSpacing = Number.isNaN(letterSpacingValue)
         ? 0
-        : letterSpacingValue;
+        : round2(letterSpacingValue);
 
       // Content box, not border box: text never starts under the padding.
       const num2 = (v: string | undefined): number => Math.max(0, parseFloat(v ?? '') || 0);
@@ -2954,13 +2991,54 @@ async function serializeSubtree(
           const tNode = childTextNodes[0];
           const fullStr = tNode.textContent || '';
           const textStart = nowMs();
+          const preserveWs = whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces';
           const { lines, measuredCalls } = measureWrappedLines(
-            doc, tNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+            doc, tNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY, preserveWs
           );
           textMs += nowMs() - textStart;
           textCharsMeasured += measuredCalls;
-          if (lines.length > 1) {
-            runs = lines.map((l) => ({
+
+          if (Number.isNaN(lineHeightValue)) {
+            if (lines.length > 0 && lines[0].h > 0) {
+              lineHeight = round2(lines[0].h);
+            } else {
+              const r = doc.createRange();
+              r.selectNodeContents(tNode);
+              const rect = r.getClientRects?.()[0] ?? r.getBoundingClientRect();
+              if (rect && rect.height > 0) lineHeight = round2(rect.height);
+            }
+          }
+
+          let effectiveLines = lines;
+          const clampCount = parseInt((computed as unknown as Record<string, string>).webkitLineClamp || '0', 10);
+          if (clampCount > 0 && computed.overflow !== 'visible' && effectiveLines.length > clampCount) {
+            effectiveLines = effectiveLines.slice(0, clampCount).map((l) => ({ ...l }));
+            const last = effectiveLines[effectiveLines.length - 1];
+            const trimmed = last.text.replace(/\s+\S*$/, '').trimEnd();
+            last.text = `${trimmed || last.text.slice(0, Math.max(1, last.text.length - 3))}…`;
+            combinedText = effectiveLines.map((l) => l.text).join('\n');
+          } else if (
+            computed.textOverflow === 'ellipsis' &&
+            computed.overflow !== 'visible' &&
+            (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 &&
+            fullStr.length > 1
+          ) {
+            const clientW = (el as HTMLElement).clientWidth;
+            let lo = 0;
+            let hi = fullStr.length;
+            const r = doc.createRange();
+            while (lo < hi) {
+              const mid = Math.ceil((lo + hi) / 2);
+              r.setStart(tNode, 0);
+              r.setEnd(tNode, mid);
+              if (r.getBoundingClientRect().width <= Math.max(4, clientW - fontSize * 0.7)) lo = mid;
+              else hi = mid - 1;
+            }
+            combinedText = `${fullStr.slice(0, Math.max(1, lo)).trimEnd()}…`;
+          }
+
+          if (effectiveLines.length > 1) {
+            runs = effectiveLines.map((l) => ({
               text: l.text,
               x: round2(l.x),
               y: round2(l.y),
@@ -3052,16 +3130,24 @@ async function serializeSubtree(
       if (typeof doc.createRange === 'function') {
         try {
           const fullStr = textNode.textContent || '';
+          const preserveWs = computed.whiteSpace === 'pre' || computed.whiteSpace === 'pre-wrap' || computed.whiteSpace === 'break-spaces';
           const textStart = nowMs();
           const { lines, measuredCalls } = measureWrappedLines(
-            doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+            doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY, preserveWs
           );
           textMs += nowMs() - textStart;
           textCharsMeasured += measuredCalls;
           for (const l of lines) lineBoxes.push(l);
           if (lineBoxes.length === 0) {
             const range = doc.createRange();
-            range.selectNodeContents(textNode);
+            const leadWs = fullStr.length - fullStr.trimStart().length;
+            const trailWs = fullStr.trimEnd().length;
+            if ((leadWs > 0 || trailWs < fullStr.length) && leadWs < trailWs && typeof range.setStart === 'function' && typeof range.setEnd === 'function') {
+              range.setStart(textNode, leadWs);
+              range.setEnd(textNode, trailWs);
+            } else {
+              range.selectNodeContents(textNode);
+            }
             const rangeRect = range.getBoundingClientRect();
             if (rangeRect.width > 0 && rangeRect.height > 0) {
               lineBoxes.push({ text: textVal, x: rangeRect.left + scrollX - frameRect.originX, y: rangeRect.top + scrollY - frameRect.originY, w: rangeRect.width + 2, h: rangeRect.height });
@@ -3169,6 +3255,22 @@ async function serializeSubtree(
     ),
   ]);
   const fontsMs = nowMs() - fontsStart;
+  const reportedMissingFaces = new Set<string>();
+  for (const f of extractedFonts) {
+    if (f.assetRef) continue;
+    const key = `${f.family}|${f.weight ?? '400'}|${f.style ?? 'normal'}`.toLowerCase();
+    if (reportedMissingFaces.has(key)) continue;
+    const matchNode = nodes.find((n) => {
+      if (!n.text) return false;
+      const first = n.text.fontFamily.split(',')[0]?.replace(/['"]/g, '').trim().toLowerCase();
+      return first === f.family.toLowerCase();
+    });
+    if (!matchNode?.text) continue;
+    reportedMissingFaces.add(key);
+    const parts = matchNode.text.fontFamily.split(',').map((p) => p.replace(/['"]/g, '').trim()).filter(Boolean);
+    const fallback = parts.slice(1).join(', ') || 'system-ui';
+    warning(report, 'font_missing', `Font face ${f.family} (${f.weight ?? '400'} ${f.style ?? 'normal'}) could not be embedded; fallback: ${fallback}`, matchNode.id);
+  }
   if (pendingSvgImageInlines.length > 0) {
     for (const item of pendingSvgImageInlines) {
       const asset = assets[item.assetKey];
