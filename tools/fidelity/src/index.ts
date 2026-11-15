@@ -639,3 +639,35 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
     }
   }
 }
+
+/** Pixel-diff two PNG buffers using Chrome's 2D canvas without extra Node image dependencies. */
+export async function diffPngBuffers(
+  originalPng: Buffer,
+  renderedPng: Buffer,
+  tolerance = 32,
+  timeoutMs = 20_000
+): Promise<DiffResult> {
+  let chrome: ChildProcess | null = null;
+  let cdp: Cdp | null = null;
+  try {
+    const launched = await launchChrome(timeoutMs);
+    chrome = launched.proc;
+    const version = await fetch(`http://127.0.0.1:${launched.port}/json/version`);
+    const { webSocketDebuggerUrl } = (await version.json()) as { webSocketDebuggerUrl: string };
+    cdp = await Cdp.connect(webSocketDebuggerUrl, timeoutMs);
+    const { targetId } = await cdp.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await cdp.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
+    await cdp.send('Page.enable', {}, sessionId);
+    return await evaluate<DiffResult>(
+      cdp,
+      sessionId,
+      `(${DIFF_FN})(${JSON.stringify(originalPng.toString('base64'))}, ${JSON.stringify(renderedPng.toString('base64'))}, ${tolerance})`,
+      true
+    );
+  } finally {
+    cdp?.close();
+    if (chrome && chrome.exitCode === null) {
+      chrome.kill('SIGKILL');
+    }
+  }
+}
