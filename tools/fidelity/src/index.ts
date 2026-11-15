@@ -69,26 +69,42 @@ export interface FidelityReport {
 
 interface CdpMessage {
   id?: number;
+  method?: string;
+  params?: Record<string, unknown>;
   result?: Record<string, unknown>;
   error?: { message: string };
 }
+
+type CdpEventHandler = (method: string, params: Record<string, unknown>) => void;
 
 class Cdp {
   private ws: WebSocket;
   private nextId = 1;
   private pending = new Map<number, { res: (v: unknown) => void; rej: (e: Error) => void }>();
+  private eventHandlers = new Set<CdpEventHandler>();
 
   private constructor(ws: WebSocket) {
     this.ws = ws;
     ws.onmessage = (ev: MessageEvent) => {
       const msg = JSON.parse(String(ev.data)) as CdpMessage;
-      if (typeof msg.id !== 'number') return;
+      if (typeof msg.id !== 'number') {
+        if (msg.method) {
+          const params = msg.params ?? {};
+          for (const handler of this.eventHandlers) handler(msg.method, params);
+        }
+        return;
+      }
       const p = this.pending.get(msg.id);
       if (!p) return;
       this.pending.delete(msg.id);
       if (msg.error) p.rej(new Error(msg.error.message));
       else p.res(msg.result ?? {});
     };
+  }
+
+  onEvent(handler: CdpEventHandler): () => void {
+    this.eventHandlers.add(handler);
+    return () => this.eventHandlers.delete(handler);
   }
 
   static connect(url: string, timeoutMs: number): Promise<Cdp> {
@@ -343,6 +359,82 @@ const DIFF_FN = `async (aB64, bB64, tolerance) => {
   };
 }`;
 
+const MAX_HOST_ASSET_BYTES = 15 * 1024 * 1024;
+
+async function fetchAssetInNode(url: string, as?: unknown): Promise<Record<string, unknown>> {
+  if (!/^https?:/i.test(url)) return { success: false };
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return { success: false };
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength > MAX_HOST_ASSET_BYTES) return { success: false };
+    let mimeType = res.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream';
+    if (/\.svg(\?|#|$)/i.test(url) && mimeType !== 'image/svg+xml') mimeType = 'image/svg+xml';
+    if (as !== undefined) {
+      const data = as === 'text' ? buf.toString('utf8') : `data:${mimeType};base64,${buf.toString('base64')}`;
+      return { success: true, data };
+    }
+    return { success: true, mimeType, base64: buf.toString('base64') };
+  } catch {
+    return { success: false };
+  }
+}
+
+async function installBenchRuntimeShim(cdp: Cdp, sessionId: string): Promise<() => void> {
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await cdp.send('Runtime.addBinding', { name: '__captureKitHostBridge' }, sessionId);
+  const unsubscribe = cdp.onEvent((method, params) => {
+    if (method !== 'Runtime.bindingCalled' || params.name !== '__captureKitHostBridge') return;
+    let parsed: { id?: number; req?: { action?: string; url?: string; as?: unknown } };
+    try {
+      parsed = JSON.parse(String(params.payload ?? '{}'));
+    } catch {
+      return;
+    }
+    const id = parsed.id;
+    const req = parsed.req;
+    if (typeof id !== 'number' || !req) return;
+    void (async () => {
+      let reply: Record<string, unknown> = { success: false };
+      if (req.action === 'fetch-asset' && typeof req.url === 'string') {
+        reply = await fetchAssetInNode(req.url, req.as);
+      }
+      await cdp.send(
+        'Runtime.evaluate',
+        { expression: `window.__captureKitHostResolve?.(${id}, ${JSON.stringify(reply)})` },
+        sessionId
+      ).catch(() => undefined);
+    })();
+  });
+
+  await cdp.send(
+    'Runtime.evaluate',
+    {
+      expression: `(() => {
+        if (window.chrome && window.chrome.runtime && typeof window.chrome.runtime.sendMessage === 'function') return;
+        let nextId = 1;
+        const pending = new Map();
+        window.__captureKitHostResolve = (id, res) => {
+          const fn = pending.get(id);
+          if (!fn) return;
+          pending.delete(id);
+          fn(res);
+        };
+        const sendMessage = (req) => new Promise((resolve) => {
+          const id = nextId++;
+          pending.set(id, resolve);
+          window.__captureKitHostBridge(JSON.stringify({ id, req }));
+        });
+        window.chrome = window.chrome || {};
+        window.chrome.runtime = Object.assign(window.chrome.runtime || {}, { sendMessage });
+      })()`,
+    },
+    sessionId
+  );
+
+  return unsubscribe;
+}
+
 export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport> {
   const width = opts.width ?? 1000;
   const tolerance = opts.tolerance ?? 32;
@@ -382,14 +474,19 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
     await waitForPage(cdp, s, false);
 
     // Serialize with the real extension bundle — the shipped artifact.
-    await cdp.send('Runtime.evaluate', { expression: contentJs }, s);
-    const captureJson = await evaluate<unknown>(
-      cdp,
-      s,
-      `window.__captureKitSerialize(${JSON.stringify(opts.serializeOptions ?? { scrollStitch: false })}).then(c => JSON.stringify(c))`,
-      true
-    );
-    const capture = CaptureSchema.parse(JSON.parse(String(captureJson)));
+    const unsubscribeShim = await installBenchRuntimeShim(cdp, s);
+    try {
+      await cdp.send('Runtime.evaluate', { expression: contentJs }, s);
+      const captureJson = await evaluate<unknown>(
+        cdp,
+        s,
+        `window.__captureKitSerialize(${JSON.stringify(opts.serializeOptions ?? { scrollStitch: false })}).then(c => JSON.stringify(c))`,
+        true
+      );
+      var capture = CaptureSchema.parse(JSON.parse(String(captureJson)));
+    } finally {
+      unsubscribeShim();
+    }
     // Readiness can grow the page. The reference must be taken AFTER it, not
     // before lazy sections exist. Do not scroll nested surfaces or reload here.
     await evaluate(cdp, s, '(() => { const { promise, resolve } = Promise.withResolvers(); requestAnimationFrame(() => requestAnimationFrame(resolve)); return promise; })()', true);
