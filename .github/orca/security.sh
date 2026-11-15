@@ -62,16 +62,21 @@ sys.exit(1 if hard else 0)
 PY
 
 step "unsafe code: semgrep p/default + orca rules, new since $base"
+# Supabase exposes tables over its API, so a table without RLS is only a finding there.
+uses_supabase() { [ -n "$(find "$1" -maxdepth 3 -type d -name supabase -not -path '*/node_modules/*' 2>/dev/null | head -1)" ] ||
+  git -C "$1" grep -qE '@supabase/|"supabase"|^supabase' -- '*package.json' '*requirements*.txt' '*pyproject.toml' 2>/dev/null; }
+export ORCA_SUPABASE=0; uses_supabase . && ORCA_SUPABASE=1
 semgrep scan --config p/default --config "$here/semgrep.yml" --baseline-commit "$mb" --metrics=off \
   --exclude .github/orca --json -o "$tmp/sg.json" --quiet >/dev/null 2>"$tmp/sg.err"
 case $? in 0|1) ;; *) tail -20 "$tmp/sg.err" >&2; broken=1 ;; esac
 python3 - "$tmp/sg.json" <<'PY' || blocked=1
-import json, sys
+import json, os, sys
 try:
     data = json.load(open(sys.argv[1]))
 except (OSError, ValueError):
     sys.exit(0)  # the scan itself failed; reported above as broken
-hits = data.get("results") or []
+hits = [r for r in data.get("results") or []
+        if os.environ.get("ORCA_SUPABASE") == "1" or not r["check_id"].endswith("orca-table-without-rls")]
 hard = [r for r in hits if r.get("extra", {}).get("severity") in ("ERROR", "HIGH", "CRITICAL")]
 for r in sorted(hits, key=lambda r: r in hard, reverse=True):
     tag = "BLOCK" if r in hard else "note "

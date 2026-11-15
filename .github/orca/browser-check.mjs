@@ -117,7 +117,7 @@ function compare(basePath, headPath) {
       '\n\nScreenshots: see the run\'s **orca-screenshots** artifact.\n');
   }
   for (const f of hard) console.log(`::error::${f.route} @${f.width}px ${f.kind}: ${f.key}${f.detail ? ' — ' + f.detail : ''}`);
-  process.exit(hard.length ? 1 : 0);
+  process.exit(hard.length ? 3 : 0); // 3 = findings; anything else non-zero = the check itself broke
 }
 
 if (mode === 'check') await check(args[0], args[1]);
