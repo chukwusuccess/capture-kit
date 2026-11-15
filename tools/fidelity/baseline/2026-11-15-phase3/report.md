@@ -41,7 +41,7 @@ Branch: `agent/phase-3-fidelity`
 | `news` | 1440 | 86.54% | 69.08% | 0.91s | 4.19s | +360.5% | 0 → 22 |
 | `news` | 390 | 88.81% | 81.73% | 0.90s | 4.10s | +353.8% | 0 → 24 |
 
-> Note on `marketing` and `news` timing: `origin/main` had no CDP `fetch-asset` bridge in `bench`, so it skipped cross-origin images and fonts (`assets=0`, `fonts=1ms`). With Step 0a + Step 2, `bench` now exercises the extension's cross-origin fetch path (`assets=8..24`, `fonts=2.2s..3.3s`). On `news` (bbc.com), live breaking-news content swung 12.6 points across runs (`69.08%`, `81.69%`, `74.53%`).
+> Note on `marketing` and `news` timing: `origin/main` had no CDP `fetch-asset` bridge in `bench`, so it skipped cross-origin images and fonts (`assets=0`, `fonts=1ms`). With Step 0a + Step 2, `bench` now exercises the extension's cross-origin fetch path (`assets=8..24`, `fonts=2.2s..3.3s`). On `news` (bbc.com), the drop from 86.5%/88.8% to 69.1%/81.7% was caused by the bench's reference screenshot (`original.png`) not forcing `loading="lazy"` images to load before capturing, so images embedded by the serializer appeared in `render.html` while missing from `original.png` (corrected in Phase 3.1).
 
 ## 3. Extension Capture Benchmark (`pnpm bench:extension`)
 
