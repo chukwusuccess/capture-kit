@@ -1788,6 +1788,108 @@ function normalizeFontWeight(raw: string | number | undefined): string {
   return s || '400';
 }
 
+/**
+ * Return true when an embedded font face matches the requested family, style, and numeric weight (or range).
+ */
+export function doesFontFaceCover(
+  face: Font,
+  family: string,
+  weight: string | number | undefined,
+  style: string | undefined
+): boolean {
+  const isEmbedded = face.embedded === true || (Boolean(face.assetRef) && face.embedded !== false);
+  if (!isEmbedded) return false;
+  const primaryFamily = (family || '').split(',')[0] ?? '';
+  if (normalizeFontFamily(face.family) !== normalizeFontFamily(primaryFamily)) return false;
+  const faceStyle = (face.style || 'normal').trim().toLowerCase();
+  const targetStyle = (style || 'normal').trim().toLowerCase();
+  if (faceStyle !== targetStyle) return false;
+  const targetWeight = parseFloat(normalizeFontWeight(weight));
+  if (!Number.isFinite(targetWeight)) return false;
+  const rawRange = normalizeFontWeight(face.weight);
+  const parts = rawRange.split(/\s+/).map((p) => parseFloat(p)).filter(Number.isFinite);
+  if (parts.length >= 2) {
+    const minW = Math.min(parts[0], parts[1]);
+    const maxW = Math.max(parts[0], parts[1]);
+    return targetWeight >= minW && targetWeight <= maxW;
+  }
+  if (parts.length === 1) return parts[0] === targetWeight;
+  return false;
+}
+
+/**
+ * Check unembedded/declared font faces against text nodes and emit one `font_missing` diagnostic per missing family,
+ * recording `embedded: false` and `fallbackStack` on unembedded entries.
+ */
+export function reconcileMissingFonts(
+  nodes: Node[],
+  fonts: Font[],
+  report: ReportDiagnostic
+): void {
+  const knownFamilies = new Set<string>();
+  for (const f of fonts) {
+    knownFamilies.add(normalizeFontFamily(f.family));
+  }
+  if (knownFamilies.size === 0) return;
+
+  const missingByFamily = new Map<string, { family: string; weight: string; style: string; fallback: string; nodeId: string }>();
+  for (const n of nodes) {
+    if (!n.text) continue;
+    const parts = n.text.fontFamily.split(',').map((p) => p.replace(/['"]/g, '').trim()).filter(Boolean);
+    const primary = parts[0];
+    if (!primary) continue;
+    const normPrimary = normalizeFontFamily(primary);
+    if (!knownFamilies.has(normPrimary)) continue;
+    const targetWeight = normalizeFontWeight(n.text.fontWeight);
+    const targetStyle = n.text.italic ? 'italic' : 'normal';
+    const covered = fonts.some((f) => doesFontFaceCover(f, primary, targetWeight, targetStyle));
+    if (covered) continue;
+    if (!missingByFamily.has(normPrimary)) {
+      missingByFamily.set(normPrimary, {
+        family: primary,
+        weight: targetWeight,
+        style: targetStyle,
+        fallback: n.text.fontFamily || parts.join(', ') || 'system-ui',
+        nodeId: n.id,
+      });
+    }
+  }
+
+  for (const f of fonts) {
+    if (f.embedded === true || (f.assetRef && f.embedded !== false)) continue;
+    f.embedded = false;
+    const miss = missingByFamily.get(normalizeFontFamily(f.family));
+    if (miss && !f.fallbackStack) {
+      f.fallbackStack = miss.fallback;
+    }
+  }
+
+  for (const [normFam, miss] of missingByFamily.entries()) {
+    const hasUnembeddedEntry = fonts.some(
+      (f) =>
+        normalizeFontFamily(f.family) === normFam &&
+        normalizeFontWeight(f.weight) === miss.weight &&
+        (f.style || 'normal').trim().toLowerCase() === miss.style &&
+        f.embedded === false
+    );
+    if (!hasUnembeddedEntry) {
+      fonts.push({
+        family: miss.family,
+        weight: miss.weight,
+        style: miss.style,
+        embedded: false,
+        fallbackStack: miss.fallback,
+      });
+    }
+    warning(
+      report,
+      'font_missing',
+      `Font face ${miss.family} (${miss.weight} ${miss.style}) could not be embedded; fallback: ${miss.fallback}`,
+      miss.nodeId
+    );
+  }
+}
+
 async function extractWebFonts(
   doc: Document,
   baseURI: string,
@@ -1838,6 +1940,8 @@ async function extractWebFonts(
     family: string;
     weight: string;
     fontStyle: string;
+    stretch?: string;
+    unicodeRange?: string;
     fontUrl: string;
     resolvedHref: string;
     fontIdentity: string;
@@ -1870,6 +1974,10 @@ async function extractWebFonts(
 
           const weight = style.fontWeight || '400';
           const fontStyle = style.fontStyle || 'normal';
+          const rawStretch = style.fontStretch || (typeof style.getPropertyValue === 'function' ? style.getPropertyValue('font-stretch') : '');
+          const stretch = rawStretch && rawStretch !== 'normal' ? rawStretch.trim() : undefined;
+          const rawUnicodeRange = typeof style.getPropertyValue === 'function' ? style.getPropertyValue('unicode-range') : '';
+          const unicodeRange = rawUnicodeRange && rawUnicodeRange.toUpperCase() !== 'U+0-10FFFF' ? rawUnicodeRange.trim() : undefined;
           const normFam = normalizeFontFamily(family);
           const normWeight = normalizeFontWeight(weight);
           const normStyle = fontStyle.trim().toLowerCase();
@@ -1883,14 +1991,14 @@ async function extractWebFonts(
             if (usedFaces && usedFaces.size > 0 && !isRangeWeight && !usedFaces.has(faceKey)) continue;
           }
 
-          const fontIdentity = `${family}|${weight}|${fontStyle}`;
+          const fontIdentity = `${family}|${weight}|${fontStyle}|${unicodeRange ?? ''}`;
           if (seenFamilies.has(fontIdentity)) continue;
 
           const srcDeclaration = typeof style.getPropertyValue === 'function' ? style.getPropertyValue('src') : '';
           const match = srcDeclaration.match(/url\(\s*['"]?(.*?)['"]?\s*\)/);
           if (!match || !match[1]) {
             seenFamilies.add(fontIdentity);
-            fonts.push({ family, weight, style: fontStyle });
+            fonts.push({ family, weight, style: fontStyle, ...(stretch ? { stretch } : {}), ...(unicodeRange ? { unicodeRange } : {}), embedded: false });
             continue;
           }
 
@@ -1899,7 +2007,7 @@ async function extractWebFonts(
             const existingKey = urlToAssetKey.get(fontUrl);
             if (existingKey) {
               seenFamilies.add(fontIdentity);
-              fonts.push({ family, weight, style: fontStyle, assetRef: existingKey });
+              fonts.push({ family, weight, style: fontStyle, ...(stretch ? { stretch } : {}), ...(unicodeRange ? { unicodeRange } : {}), assetRef: existingKey, embedded: true });
             } else {
               const dataMatch = fontUrl.match(/^data:([^;]+);base64,(.+)$/);
               if (dataMatch) {
@@ -1907,11 +2015,11 @@ async function extractWebFonts(
                 assets[assetKey] = { kind: 'font', mimeType: dataMatch[1], base64: dataMatch[2] };
                 urlToAssetKey.set(fontUrl, assetKey);
                 seenFamilies.add(fontIdentity);
-                fonts.push({ family, weight, style: fontStyle, assetRef: assetKey });
+                fonts.push({ family, weight, style: fontStyle, ...(stretch ? { stretch } : {}), ...(unicodeRange ? { unicodeRange } : {}), assetRef: assetKey, embedded: true });
               } else {
                 warning(report, 'asset_failed', `Font data could not be read: ${family}`);
                 seenFamilies.add(fontIdentity);
-                fonts.push({ family, weight, style: fontStyle });
+                fonts.push({ family, weight, style: fontStyle, ...(stretch ? { stretch } : {}), ...(unicodeRange ? { unicodeRange } : {}), embedded: false });
               }
             }
             continue;
@@ -1925,16 +2033,16 @@ async function extractWebFonts(
             const hasRuntime = Boolean(runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function');
             if (isSameOrigin || resolved.protocol === 'blob:' || hasRuntime) {
               seenFamilies.add(fontIdentity);
-              pendingFetches.push({ family, weight, fontStyle, fontUrl, resolvedHref: resolved.href, fontIdentity });
+              pendingFetches.push({ family, weight, fontStyle, stretch, unicodeRange, fontUrl, resolvedHref: resolved.href, fontIdentity });
             } else {
               warning(report, 'asset_unavailable', `Cross-origin font bytes were not embedded: ${resolved.href}`);
               seenFamilies.add(fontIdentity);
-              fonts.push({ family, weight, style: fontStyle });
+              fonts.push({ family, weight, style: fontStyle, ...(stretch ? { stretch } : {}), ...(unicodeRange ? { unicodeRange } : {}), embedded: false });
             }
           } catch {
             warning(report, 'asset_failed', `Font asset could not be embedded: ${family} (${fontUrl})`);
             seenFamilies.add(fontIdentity);
-            fonts.push({ family, weight, style: fontStyle });
+            fonts.push({ family, weight, style: fontStyle, ...(stretch ? { stretch } : {}), ...(unicodeRange ? { unicodeRange } : {}), embedded: false });
           }
         }
       }
@@ -1992,7 +2100,14 @@ async function extractWebFonts(
 
   for (const item of pendingFetches) {
     const assetRef = urlToAssetKey.get(item.resolvedHref);
-    fonts.push({ family: item.family, weight: item.weight, style: item.fontStyle, ...(assetRef ? { assetRef } : {}) });
+    fonts.push({
+      family: item.family,
+      weight: item.weight,
+      style: item.fontStyle,
+      ...(item.stretch ? { stretch: item.stretch } : {}),
+      ...(item.unicodeRange ? { unicodeRange: item.unicodeRange } : {}),
+      ...(assetRef ? { assetRef, embedded: true } : { embedded: false }),
+    });
   }
 
   return fonts;
@@ -3476,22 +3591,7 @@ async function serializeSubtree(
     });
   }
   const fontsMs = nowMs() - fontsStart;
-  const reportedMissingFaces = new Set<string>();
-  for (const f of extractedFonts) {
-    if (f.assetRef) continue;
-    const key = `${f.family}|${f.weight ?? '400'}|${f.style ?? 'normal'}`.toLowerCase();
-    if (reportedMissingFaces.has(key)) continue;
-    const matchNode = nodes.find((n) => {
-      if (!n.text) return false;
-      const first = n.text.fontFamily.split(',')[0]?.replace(/['"]/g, '').trim().toLowerCase();
-      return first === f.family.toLowerCase();
-    });
-    if (!matchNode?.text) continue;
-    reportedMissingFaces.add(key);
-    const parts = matchNode.text.fontFamily.split(',').map((p) => p.replace(/['"]/g, '').trim()).filter(Boolean);
-    const fallback = parts.slice(1).join(', ') || 'system-ui';
-    warning(report, 'font_missing', `Font face ${f.family} (${f.weight ?? '400'} ${f.style ?? 'normal'}) could not be embedded; fallback: ${fallback}`, matchNode.id);
-  }
+  reconcileMissingFonts(nodes, extractedFonts, report);
   let svgInlineMs = 0;
   if (pendingSvgImageInlines.length > 0) {
     const svgInlineStart = nowMs();
