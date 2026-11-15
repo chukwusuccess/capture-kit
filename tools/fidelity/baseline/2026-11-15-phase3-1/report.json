@@ -1,0 +1,1716 @@
+{
+  "date": "2026-11-15",
+  "runsPerCase": 3,
+  "entries": [
+    {
+      "id": "marketing",
+      "url": "https://stripe.com",
+      "why": "gradients, transforms, heavy fonts",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 21288,
+      "score": 83.67,
+      "strictScore": 67.46,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1582,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1128.3,
+        "walk": 6.9,
+        "freezeTransforms": 19.8,
+        "nodes": 168.9,
+        "text": 6.4,
+        "assets": 2807.2,
+        "fonts": 2672.1,
+        "prepare": 1129.3,
+        "raster": 0,
+        "fetchBridge": 7329.4,
+        "svgInline": 0,
+        "total": 4002
+      },
+      "counts": {
+        "elementsWalked": 1825,
+        "nodesEmitted": 1582,
+        "textCharsMeasured": 567,
+        "transformedElements": 158,
+        "assetsFetched": 12,
+        "assetsFailed": 0,
+        "assetsTimedOut": 14,
+        "assetBytes": 826822,
+        "jsonBytes": 2489618
+      },
+      "jsonMB": 2.374,
+      "slowestStage": {
+        "stage": "fetchBridge",
+        "ms": 7329.4
+      },
+      "hotspots": [
+        {
+          "cell": "r1c5",
+          "mismatchPct": 44.6,
+          "x": 900,
+          "y": 1880,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 150870
+        },
+        {
+          "cell": "r1c4",
+          "mismatchPct": 42.1,
+          "x": 720,
+          "y": 1880,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 142550
+        },
+        {
+          "cell": "r1c3",
+          "mismatchPct": 39.4,
+          "x": 540,
+          "y": 1880,
+          "width": 180,
+          "height": 1880,
+          "mismatchedPixels": 133283
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 14 images (14 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "12 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-696"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-970"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1000"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-910"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1062"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-779"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-925"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-895"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1111"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-683"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1125"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1139"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1153"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1318"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 7 opaque image(s) to JPEG and 3 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 3 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face sohne-var (1 1000 normal) could not be embedded; fallback: SF Pro Display, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-152"
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "url": "https://stripe.com",
+      "why": "gradients, transforms, heavy fonts",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 12027,
+      "score": 81.32,
+      "strictScore": 69.63,
+      "widthDelta": 0,
+      "heightDelta": 1,
+      "nodeCount": 1542,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1119.2,
+        "walk": 7.4,
+        "freezeTransforms": 18.4,
+        "nodes": 176.9,
+        "text": 7.7,
+        "assets": 2776.3,
+        "fonts": 2632.8,
+        "prepare": 1168.7,
+        "raster": 0,
+        "fetchBridge": 5120.8,
+        "svgInline": 0,
+        "total": 4008.8
+      },
+      "counts": {
+        "elementsWalked": 1825,
+        "nodesEmitted": 1542,
+        "textCharsMeasured": 774,
+        "transformedElements": 158,
+        "assetsFetched": 7,
+        "assetsFailed": 0,
+        "assetsTimedOut": 31,
+        "assetBytes": 504648,
+        "jsonBytes": 1991604
+      },
+      "jsonMB": 1.899,
+      "slowestStage": {
+        "stage": "fetchBridge",
+        "ms": 5120.8
+      },
+      "hotspots": [
+        {
+          "cell": "r1c5",
+          "mismatchPct": 49.2,
+          "x": 245,
+          "y": 2590,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 62412
+        },
+        {
+          "cell": "r1c2",
+          "mismatchPct": 48.2,
+          "x": 98,
+          "y": 2590,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 61207
+        },
+        {
+          "cell": "r1c3",
+          "mismatchPct": 46.2,
+          "x": 147,
+          "y": 2590,
+          "width": 49,
+          "height": 2590,
+          "mismatchedPixels": 58634
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-390/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-390/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-390/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 5 images (5 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "23 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-636"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-653"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-716"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-837"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-669"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-922"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-775"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-682"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-744"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-937"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-806"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-944"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-951"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-958"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-965"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-972"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-979"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1026"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1075"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1089"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1103"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1117"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/yqIFyZRGU5zDwdUsWtUyM/25b9f23c748c4d54079a09016fde59d8/annual-letter-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1246"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6yE6G454SGCJnJgEYsS2MB/70b405a1dce904bc0c6f2698223fb966/the-happenings-bfcm-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1259"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/33xcv8eCmXzMzWXicVQ4cF/83d91fa419ff8d1b9466739b4ecdcb1d/the-happenings-tidemark-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1264"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/t03tXrgvnHUPGwxYUgSxN/bd8da003434c9e9fb72c719b9edb429b/the-happenings-cheeky-pint-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1269"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/Pd2JQ7FZ1pYMIMGDwvMdV/13e7e021ca23d042da8ac07be829f7ef/the-happenings-payment-processing-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1274"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1k7ckFceNFlxqF47hWJUlM/eaa4d8b3f8e4b76ba3dd7df7da88e099/the-happenings-agentic-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1284"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7EVLwfXmG3pl1vhBssMrFB/b6d8612b1f567922c1355d864c279678/the-happenings-payment-retailers-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1289"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1315"
+        },
+        {
+          "code": "asset_timeout",
+          "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4LaZVLqDqGf9091wqUAmFp/fbe9fc307e1336b69bcd9be4ec5c4752/the-happenings-crypto-mobile.png?w=672&q=90 (Timed out)",
+          "severity": "warning",
+          "nodeId": "node-1279"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 3 opaque image(s) to JPEG and 3 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face sohne-var (1 1000 normal) could not be embedded; fallback: SF Pro Display, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-152"
+        }
+      ]
+    },
+    {
+      "id": "saas",
+      "url": "https://linear.app",
+      "why": "dark UI, blur, dense components",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 10277,
+      "score": 94.87,
+      "strictScore": 63.31,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1829,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 696.5,
+        "walk": 8.3,
+        "freezeTransforms": 13.4,
+        "nodes": 232.1,
+        "text": 6.4,
+        "assets": 1146.8,
+        "fonts": 955.6,
+        "prepare": 759.3,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 1976
+      },
+      "counts": {
+        "elementsWalked": 2174,
+        "nodesEmitted": 1829,
+        "textCharsMeasured": 275,
+        "transformedElements": 56,
+        "assetsFetched": 22,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 755089,
+        "jsonBytes": 2301291
+      },
+      "jsonMB": 2.195,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 1146.8
+      },
+      "hotspots": [
+        {
+          "cell": "r6c4",
+          "mismatchPct": 24.5,
+          "x": 720,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 55082
+        },
+        {
+          "cell": "r6c3",
+          "mismatchPct": 22.4,
+          "x": 540,
+          "y": 7494,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 50428
+        },
+        {
+          "cell": "r0c0",
+          "mismatchPct": 10.7,
+          "x": 0,
+          "y": 0,
+          "width": 180,
+          "height": 1249,
+          "mismatchedPixels": 24064
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/saas-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/saas-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/saas-1440/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 4 images (4 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 4 opaque image(s) to JPEG and 17 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 21 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face Inter Variable (100 900 normal) could not be embedded; fallback: SF Pro Display, -apple-system, system-ui, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Open Sans, Helvetica Neue, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-18"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face Berkeley Mono (100 900 normal) could not be embedded; fallback: ui-monospace, SF Mono, Menlo, monospace",
+          "severity": "warning",
+          "nodeId": "node-79"
+        }
+      ]
+    },
+    {
+      "id": "saas",
+      "url": "https://linear.app",
+      "why": "dark UI, blur, dense components",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 6110,
+      "score": 95.02,
+      "strictScore": 61.59,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 415,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 805,
+        "walk": 20.4,
+        "freezeTransforms": 15.7,
+        "nodes": 67,
+        "text": 2.9,
+        "assets": 962.8,
+        "fonts": 927.4,
+        "prepare": 807,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 1841.4
+      },
+      "counts": {
+        "elementsWalked": 2174,
+        "nodesEmitted": 415,
+        "textCharsMeasured": 207,
+        "transformedElements": 21,
+        "assetsFetched": 6,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 123642,
+        "jsonBytes": 577720
+      },
+      "jsonMB": 0.551,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 962.8
+      },
+      "hotspots": [
+        {
+          "cell": "r5c1",
+          "mismatchPct": 12.4,
+          "x": 49,
+          "y": 3710,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 4493
+        },
+        {
+          "cell": "r7c4",
+          "mismatchPct": 11.9,
+          "x": 196,
+          "y": 5194,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 4343
+        },
+        {
+          "cell": "r2c1",
+          "mismatchPct": 11.7,
+          "x": 49,
+          "y": 1484,
+          "width": 49,
+          "height": 742,
+          "mismatchedPixels": 4237
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/saas-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/saas-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/saas-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 25 images (25 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 5 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 6 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face Inter Variable (100 900 normal) could not be embedded; fallback: SF Pro Display, -apple-system, system-ui, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Open Sans, Helvetica Neue, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-19"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face Berkeley Mono (100 900 normal) could not be embedded; fallback: ui-monospace, SF Mono, Menlo, monospace",
+          "severity": "warning",
+          "nodeId": "node-79"
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "url": "https://www.bbc.com/news",
+      "why": "long page, many images, lazy load",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 12395,
+      "score": 83.97,
+      "strictScore": 66.41,
+      "widthDelta": 0,
+      "heightDelta": 12,
+      "nodeCount": 976,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 808.3,
+        "walk": 3.7,
+        "freezeTransforms": 5.1,
+        "nodes": 81.6,
+        "text": 7,
+        "assets": 1124.7,
+        "fonts": 1048.5,
+        "prepare": 809,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 1953.5
+      },
+      "counts": {
+        "elementsWalked": 1177,
+        "nodesEmitted": 976,
+        "textCharsMeasured": 958,
+        "transformedElements": 12,
+        "assetsFetched": 23,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 3860199,
+        "jsonBytes": 6071740
+      },
+      "jsonMB": 5.79,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 1124.7
+      },
+      "hotspots": [
+        {
+          "cell": "r2c4",
+          "mismatchPct": 34.5,
+          "x": 720,
+          "y": 1666,
+          "width": 180,
+          "height": 833,
+          "mismatchedPixels": 51731
+        },
+        {
+          "cell": "r2c3",
+          "mismatchPct": 34.4,
+          "x": 540,
+          "y": 1666,
+          "width": 180,
+          "height": 833,
+          "mismatchedPixels": 51638
+        },
+        {
+          "cell": "r5c3",
+          "mismatchPct": 30.2,
+          "x": 540,
+          "y": 4165,
+          "width": 180,
+          "height": 833,
+          "mismatchedPixels": 45293
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-1440/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a00d/live/58f964c0-e118-11f1-a7db-d90284d21c62.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/aeb5/live/e1baf430-e074-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/36ca/live/a5a42090-e06d-11f1-99e6-531f8829f5a3.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/6592/live/907a90a0-e090-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/f7a2/live/a4d3cf40-e0d0-11f1-9e51-e12509ba597c.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/a372/live/3e5c6d70-e13f-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/b499/live/ac2a73c0-e107-11f1-b3df-4961589d9b68.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/45e6/live/30f37df0-e116-11f1-a7db-d90284d21c62.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "6 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 21 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 14 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face BBC Reith Sans (300 normal) could not be embedded; fallback: system-ui",
+          "severity": "warning",
+          "nodeId": "node-6"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face BBC Reith Serif (300 normal) could not be embedded; fallback: BBCReithSerif-fallback, serif",
+          "severity": "warning",
+          "nodeId": "node-35"
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "url": "https://www.bbc.com/news",
+      "why": "long page, many images, lazy load",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 14926,
+      "score": 84.84,
+      "strictScore": 70.8,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 919,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 802.5,
+        "walk": 3.6,
+        "freezeTransforms": 6.1,
+        "nodes": 111.9,
+        "text": 6.9,
+        "assets": 1845.3,
+        "fonts": 1746.7,
+        "prepare": 803.3,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 2677.1
+      },
+      "counts": {
+        "elementsWalked": 1169,
+        "nodesEmitted": 919,
+        "textCharsMeasured": 637,
+        "transformedElements": 12,
+        "assetsFetched": 23,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 1125577,
+        "jsonBytes": 2397511
+      },
+      "jsonMB": 2.286,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 1845.3
+      },
+      "hotspots": [
+        {
+          "cell": "r0c3",
+          "mismatchPct": 72.9,
+          "x": 147,
+          "y": 0,
+          "width": 49,
+          "height": 1241,
+          "mismatchedPixels": 44322
+        },
+        {
+          "cell": "r0c4",
+          "mismatchPct": 72.1,
+          "x": 196,
+          "y": 0,
+          "width": 49,
+          "height": 1241,
+          "mismatchedPixels": 43863
+        },
+        {
+          "cell": "r0c5",
+          "mismatchPct": 69.1,
+          "x": 245,
+          "y": 0,
+          "width": 49,
+          "height": 1241,
+          "mismatchedPixels": 42037
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/4b5f/live/f688f9b0-df6c-11f1-8112-6b9154c79b48.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/e5af/live/466fdc10-e0e3-11f1-93e1-3b657b665bcf.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/68be/live/3b72e800-df50-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/c05e/live/272ae280-e0f4-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/94d8/live/8fe15d90-df82-11f1-b441-2b33b063138f.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/a00d/live/58f964c0-e118-11f1-a7db-d90284d21c62.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/aeb5/live/e1baf430-e074-11f1-a701-fddedf244c16.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_timeout",
+          "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/36ca/live/a5a42090-e06d-11f1-99e6-531f8829f5a3.jpg.webp",
+          "severity": "warning"
+        },
+        {
+          "code": "image_budget_exhausted",
+          "message": "16 images were not checked because the image decode concurrency budget was exhausted.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/12658512464754796672",
+          "severity": "warning",
+          "nodeId": "node-20"
+        },
+        {
+          "code": "image_skipped",
+          "message": "Skipped 2 images (2 hidden).",
+          "severity": "info",
+          "nodeId": "node-879"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin background image bytes were not embedded: https://cache-ssl.celtra.com/api/blobs/910cd0547e6ee2118b3b53881fea4c8772609b2f6c54ee32389fc7a6e1c653a0/Tecno-hub-interstitial-still.jpg?transform=crush&quality=85",
+          "severity": "warning",
+          "nodeId": "node-879"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cache-ssl.celtra.com/api/blobs/c911e6707ab6d0df627fa8cb8e4ad7f23d4eff56860cad13bfc1440e7e95d4ea/tecno-compliance.svg",
+          "severity": "warning",
+          "nodeId": "node-879"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cache-ssl.celtra.com/api/blobs/4981b38e305e8e4a99b450503727b3cfd8e58a23accca6cc0a9364d6c269298d/Hub-cta.svg",
+          "severity": "warning",
+          "nodeId": "node-879"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "Cross-origin image bytes were not embedded: https://cache-ssl.celtra.com/api/static/v44ed90c4/runner/clazzes/CreativeUnit/close-up.svg",
+          "severity": "warning",
+          "nodeId": "node-879"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 21 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 16 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face BBC Reith Sans (300 normal) could not be embedded; fallback: system-ui",
+          "severity": "warning",
+          "nodeId": "node-9"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face BBC Reith Serif (300 normal) could not be embedded; fallback: BBCReithSerif-fallback, serif",
+          "severity": "warning",
+          "nodeId": "node-43"
+        },
+        {
+          "code": "raster_skipped_invisible",
+          "message": "Skipped 1 off-screen or invisible raster fallback target(s)",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "url": "https://www.apple.com/iphone/",
+      "why": "scroll animation, huge images",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 16708,
+      "score": 97.71,
+      "strictScore": 89.2,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1174,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2.4,
+        "walk": 10.9,
+        "freezeTransforms": 43,
+        "nodes": 112.3,
+        "text": 28.8,
+        "assets": 197.2,
+        "fonts": 102.6,
+        "prepare": 2.8,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 282.4
+      },
+      "counts": {
+        "elementsWalked": 2630,
+        "nodesEmitted": 1174,
+        "textCharsMeasured": 4165,
+        "transformedElements": 377,
+        "assetsFetched": 11,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 173541,
+        "jsonBytes": 2026902
+      },
+      "jsonMB": 1.933,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 197.2
+      },
+      "hotspots": [
+        {
+          "cell": "r4c2",
+          "mismatchPct": 6.5,
+          "x": 360,
+          "y": 8100,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 23678
+        },
+        {
+          "cell": "r4c3",
+          "mismatchPct": 6.2,
+          "x": 540,
+          "y": 8100,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 22717
+        },
+        {
+          "cell": "r5c2",
+          "mismatchPct": 6.2,
+          "x": 360,
+          "y": 10125,
+          "width": 180,
+          "height": 2025,
+          "mismatchedPixels": 22641
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/motion-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/motion-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/motion-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 11 images (11 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "font_failed",
+          "message": "Font failed to load: Apple Legacy Icons",
+          "severity": "warning"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face SF Pro Display (100 normal) could not be embedded; fallback: SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-156"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face SF Pro Text (100 normal) could not be embedded; fallback: SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-11"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face SF Pro Icons (100 normal) could not be embedded; fallback: system-ui",
+          "severity": "warning",
+          "nodeId": "node-151"
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "url": "https://www.apple.com/iphone/",
+      "why": "scroll animation, huge images",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 16664,
+      "score": 95.5,
+      "strictScore": 79.46,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 1843,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 2.5,
+        "walk": 16.3,
+        "freezeTransforms": 29.7,
+        "nodes": 148.2,
+        "text": 61.1,
+        "assets": 208.5,
+        "fonts": 65,
+        "prepare": 2.8,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 280
+      },
+      "counts": {
+        "elementsWalked": 2630,
+        "nodesEmitted": 1843,
+        "textCharsMeasured": 12749,
+        "transformedElements": 144,
+        "assetsFetched": 12,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 92709,
+        "jsonBytes": 2269232
+      },
+      "jsonMB": 2.164,
+      "slowestStage": {
+        "stage": "assets",
+        "ms": 208.5
+      },
+      "hotspots": [
+        {
+          "cell": "r7c1",
+          "mismatchPct": 7.1,
+          "x": 49,
+          "y": 27370,
+          "width": 49,
+          "height": 3903,
+          "mismatchedPixels": 13515
+        },
+        {
+          "cell": "r2c1",
+          "mismatchPct": 6.8,
+          "x": 49,
+          "y": 7820,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 13089
+        },
+        {
+          "cell": "r3c1",
+          "mismatchPct": 6.8,
+          "x": 49,
+          "y": 11730,
+          "width": 49,
+          "height": 3910,
+          "mismatchedPixels": 13018
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/motion-390/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/motion-390/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/motion-390/run-3/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 14 images (14 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "font_failed",
+          "message": "Font failed to load: Apple Legacy Icons",
+          "severity": "warning"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face SF Pro Display (100 normal) could not be embedded; fallback: SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-11"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face SF Pro Text (100 normal) could not be embedded; fallback: SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-25"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face SF Pro Icons (100 normal) could not be embedded; fallback: system-ui",
+          "severity": "warning",
+          "nodeId": "node-46"
+        }
+      ]
+    },
+    {
+      "id": "own",
+      "url": "http://127.0.0.1:4173/",
+      "why": "our real target",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 11120,
+      "score": 98.67,
+      "strictScore": 92.26,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 554,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 721.5,
+        "walk": 4.8,
+        "freezeTransforms": 16.9,
+        "nodes": 52.1,
+        "text": 3.2,
+        "assets": 132.3,
+        "fonts": 82.9,
+        "prepare": 1131.8,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 1292.4
+      },
+      "counts": {
+        "elementsWalked": 1256,
+        "nodesEmitted": 554,
+        "textCharsMeasured": 47,
+        "transformedElements": 252,
+        "assetsFetched": 18,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 203469,
+        "jsonBytes": 532814
+      },
+      "jsonMB": 0.508,
+      "slowestStage": {
+        "stage": "prepare",
+        "ms": 1131.8
+      },
+      "hotspots": [
+        {
+          "cell": "r2c4",
+          "mismatchPct": 6.1,
+          "x": 720,
+          "y": 3572,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 19760
+        },
+        {
+          "cell": "r2c5",
+          "mismatchPct": 6,
+          "x": 900,
+          "y": 3572,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 19397
+        },
+        {
+          "cell": "r2c1",
+          "mismatchPct": 5.3,
+          "x": 180,
+          "y": 3572,
+          "width": 180,
+          "height": 1786,
+          "mismatchedPixels": 17134
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/own-1440/run-2/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/own-1440/run-2/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/own-1440/run-2/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 14 images (14 zero-size).",
+          "severity": "info"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 5 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 1 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face Satoshi (400 normal) could not be embedded; fallback: Creato Display, Arial, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-13"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face IBM Plex Mono (400 normal) could not be embedded; fallback: ui-monospace, monospace",
+          "severity": "warning",
+          "nodeId": "node-30"
+        }
+      ]
+    },
+    {
+      "id": "own",
+      "url": "http://127.0.0.1:4173/",
+      "why": "our real target",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 13406,
+      "score": 98.32,
+      "strictScore": 93.19,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 516,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 740.5,
+        "walk": 5.7,
+        "freezeTransforms": 14.1,
+        "nodes": 49.8,
+        "text": 2.8,
+        "assets": 105.8,
+        "fonts": 60.2,
+        "prepare": 1148.1,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 1281.3
+      },
+      "counts": {
+        "elementsWalked": 1270,
+        "nodesEmitted": 516,
+        "textCharsMeasured": 60,
+        "transformedElements": 196,
+        "assetsFetched": 15,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 136756,
+        "jsonBytes": 427535
+      },
+      "jsonMB": 0.408,
+      "slowestStage": {
+        "stage": "prepare",
+        "ms": 1148.1
+      },
+      "hotspots": [
+        {
+          "cell": "r7c1",
+          "mismatchPct": 8.1,
+          "x": 49,
+          "y": 7980,
+          "width": 49,
+          "height": 1136,
+          "mismatchedPixels": 4524
+        },
+        {
+          "cell": "r7c0",
+          "mismatchPct": 6.2,
+          "x": 0,
+          "y": 7980,
+          "width": 49,
+          "height": 1136,
+          "mismatchedPixels": 3428
+        },
+        {
+          "cell": "r7c4",
+          "mismatchPct": 6.2,
+          "x": 196,
+          "y": 7980,
+          "width": 49,
+          "height": 1136,
+          "mismatchedPixels": 3467
+        }
+      ],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/own-390/run-1/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/own-390/run-1/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/own-390/run-1/diff-mask.png"
+      },
+      "diagnostics": [
+        {
+          "code": "image_skipped",
+          "message": "Skipped 22 images (19 zero-size, 3 hidden).",
+          "severity": "info"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "asset_unavailable",
+          "message": "A stylesheet could not be inspected for embedded font assets.",
+          "severity": "warning"
+        },
+        {
+          "code": "assets_transcoded",
+          "message": "Transcoded 5 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+          "severity": "info"
+        },
+        {
+          "code": "assets_downscaled",
+          "message": "Downscaled 6 oversized raster image(s)",
+          "severity": "info"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face Satoshi (400 normal) could not be embedded; fallback: Creato Display, Arial, sans-serif",
+          "severity": "warning",
+          "nodeId": "node-11"
+        },
+        {
+          "code": "font_missing",
+          "message": "Font face IBM Plex Mono (400 normal) could not be embedded; fallback: ui-monospace, monospace",
+          "severity": "warning",
+          "nodeId": "node-28"
+        }
+      ]
+    },
+    {
+      "id": "fixture",
+      "url": "tools/fidelity/fixture.html",
+      "why": "control — must stay 100%",
+      "width": 1440,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 1376,
+      "score": 100,
+      "strictScore": 98.98,
+      "widthDelta": 0,
+      "heightDelta": 0,
+      "nodeCount": 29,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1.1,
+        "walk": 0.7,
+        "freezeTransforms": 0.8,
+        "nodes": 8.9,
+        "text": 0.3,
+        "assets": 0,
+        "fonts": 0.8,
+        "prepare": 2.1,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 16.1
+      },
+      "counts": {
+        "elementsWalked": 25,
+        "nodesEmitted": 29,
+        "textCharsMeasured": 0,
+        "transformedElements": 1,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 15101
+      },
+      "jsonMB": 0.014,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 8.9
+      },
+      "hotspots": [],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/fixture-1440/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/fixture-1440/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/fixture-1440/run-3/diff-mask.png"
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "fixture",
+      "url": "tools/fidelity/fixture.html",
+      "why": "control — must stay 100%",
+      "width": 390,
+      "status": "ok",
+      "runs": 3,
+      "wallMs": 11503,
+      "score": 100,
+      "strictScore": 99.39,
+      "widthDelta": 1,
+      "heightDelta": 2,
+      "nodeCount": 29,
+      "stages": {
+        "scroll": 0,
+        "waitImages": 1.2,
+        "walk": 0.6,
+        "freezeTransforms": 0.7,
+        "nodes": 9.1,
+        "text": 0.4,
+        "assets": 0,
+        "fonts": 0.7,
+        "prepare": 2.3,
+        "raster": 0,
+        "fetchBridge": 0,
+        "svgInline": 0,
+        "total": 16.6
+      },
+      "counts": {
+        "elementsWalked": 25,
+        "nodesEmitted": 29,
+        "textCharsMeasured": 0,
+        "transformedElements": 1,
+        "assetsFetched": 0,
+        "assetsFailed": 0,
+        "assetsTimedOut": 0,
+        "assetBytes": 0,
+        "jsonBytes": 15102
+      },
+      "jsonMB": 0.014,
+      "slowestStage": {
+        "stage": "nodes",
+        "ms": 9.1
+      },
+      "hotspots": [],
+      "files": {
+        "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/fixture-390/run-3/original.png",
+        "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/fixture-390/run-3/rendered.png",
+        "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/fixture-390/run-3/diff-mask.png"
+      },
+      "diagnostics": []
+    }
+  ]
+}
