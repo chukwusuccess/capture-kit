@@ -1,5 +1,12 @@
 import { CaptureSchema, type Capture } from '@capture-kit/model';
 import { CaptureSessionStore, type CaptureSession, type SessionInput } from './sessions';
+import {
+  captureElementRects,
+  type RasterCanvas,
+  type RasterCaptureDeps,
+  type RasterCaptureItem,
+  type RasterCaptureResult,
+} from './raster-capture';
 
 interface CaptureResponse {
   success: boolean;
@@ -12,6 +19,8 @@ interface CaptureResponse {
   data?: string | null;
   mimeType?: string;
   base64?: string;
+  results?: RasterCaptureResult[];
+  reason?: string;
 }
 
 interface WindowWithCaptureKit {
@@ -828,64 +837,70 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: unknown, sendRes
     return true;
   }
 
-async function captureElementRect(
-  tabId: number,
-  windowId: number,
-  box: { x: number; y: number; w: number; h: number }
-): Promise<{ success: boolean; mimeType?: string; base64?: string }> {
-  if (!(box.w > 0 && box.h > 0)) return { success: false };
-  try {
-    const [posRes] = await chrome.scripting.executeScript({
+const chromeRasterDeps: RasterCaptureDeps = {
+  async getPageInfoAndHideOverlays(tabId) {
+    const [res] = await chrome.scripting.executeScript({
       target: { tabId },
-      args: [box.x, box.y],
-      func: (...args: unknown[]) => {
-        const bx = Number(args[0] ?? 0);
-        const by = Number(args[1] ?? 0);
-        const prevX = window.scrollX;
-        const prevY = window.scrollY;
-        window.scrollTo(Math.max(0, bx), Math.max(0, by));
+      func: () => {
+        const hidden: Array<{ el: HTMLElement; prev: string }> = [];
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+          try {
+            const pos = getComputedStyle(el).position;
+            if (pos === 'fixed' || pos === 'sticky') {
+              hidden.push({ el, prev: el.style.visibility });
+              el.style.setProperty('visibility', 'hidden', 'important');
+            }
+          } catch {
+            // ignore
+          }
+        }
+        (window as unknown as { __ckHiddenOverlays?: Array<{ el: HTMLElement; prev: string }> }).__ckHiddenOverlays = hidden;
+        const docEl = document.documentElement;
         return {
-          prevX,
-          prevY,
-          scrollX: window.scrollX,
-          scrollY: window.scrollY,
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+          scrollWidth: Math.max(docEl?.scrollWidth ?? 0, document.body?.scrollWidth ?? 0, window.innerWidth),
+          scrollHeight: Math.max(docEl?.scrollHeight ?? 0, document.body?.scrollHeight ?? 0, window.innerHeight),
+          prevX: window.scrollX,
+          prevY: window.scrollY,
           dpr: window.devicePixelRatio || 1,
         };
       },
     });
-    const pos = posRes?.result;
-    if (!pos) return { success: false };
-    await new Promise((r) => setTimeout(r, 60));
-    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+    return res?.result ?? null;
+  },
+  async scrollTo(tabId, x, y) {
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [x, y],
+      func: (...args: unknown[]) => {
+        window.scrollTo(Number(args[0] ?? 0), Number(args[1] ?? 0));
+        return { scrollX: window.scrollX, scrollY: window.scrollY };
+      },
+    });
+    return res?.result ?? null;
+  },
+  async restoreOverlaysAndScroll(tabId, prevX, prevY) {
     await chrome.scripting.executeScript({
       target: { tabId },
-      args: [pos.prevX, pos.prevY],
-      func: (...args: unknown[]) => { window.scrollTo(Number(args[0] ?? 0), Number(args[1] ?? 0)); },
-    }).catch(() => undefined);
-
-    const blob = await (await fetch(dataUrl)).blob();
-    const bitmap = await createImageBitmap(blob);
-    try {
-      const sx = Math.max(0, Math.round((box.x - pos.scrollX) * pos.dpr));
-      const sy = Math.max(0, Math.round((box.y - pos.scrollY) * pos.dpr));
-      const sw = Math.max(1, Math.min(bitmap.width - sx, Math.round(box.w * pos.dpr)));
-      const sh = Math.max(1, Math.min(bitmap.height - sy, Math.round(box.h * pos.dpr)));
-      const canvas = new OffscreenCanvas(sw, sh);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return { success: false };
-      ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
-      const outBlob = await canvas.convertToBlob({ type: 'image/png' });
-      const bytes = new Uint8Array(await outBlob.arrayBuffer());
-      let bin = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      return { success: true, mimeType: 'image/png', base64: btoa(bin) };
-    } finally {
-      bitmap.close();
-    }
-  } catch {
-    return { success: false };
-  }
-}
+      args: [prevX, prevY],
+      func: (...args: unknown[]) => {
+        const hidden = (window as unknown as { __ckHiddenOverlays?: Array<{ el: HTMLElement; prev: string }> }).__ckHiddenOverlays ?? [];
+        for (const item of hidden) {
+          if (item.prev) item.el.style.visibility = item.prev;
+          else item.el.style.removeProperty('visibility');
+        }
+        delete (window as unknown as { __ckHiddenOverlays?: Array<{ el: HTMLElement; prev: string }> }).__ckHiddenOverlays;
+        window.scrollTo(Number(args[0] ?? 0), Number(args[1] ?? 0));
+      },
+    });
+  },
+  captureVisibleTab: (windowId) => chrome.tabs.captureVisibleTab(windowId, { format: 'png' }),
+  decodeBitmap: async (dataUrl) => createImageBitmap(await (await fetch(dataUrl)).blob()),
+  createCanvas: (w, h) => new OffscreenCanvas(w, h) as unknown as RasterCanvas,
+  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  now: () => Date.now(),
+};
 
   // One handler for both callers: the replica passes `as` and reads `data` (a
   // data: URL or text); the serializer's CORS fallback omits `as` and reads
@@ -902,9 +917,18 @@ async function captureElementRect(
     return true;
   }
   const senderTab = (sender && typeof sender === 'object' && 'tab' in sender ? (sender as { tab?: { id?: number; windowId?: number } }).tab : undefined);
+  if (action === 'capture-element-rects' && Array.isArray(request.items) && senderTab?.id !== undefined && senderTab.windowId !== undefined) {
+    captureElementRects(chromeRasterDeps, senderTab.id, senderTab.windowId, request.items as RasterCaptureItem[])
+      .then((results) => sendResponse({ success: true, results }), () => sendResponse({ success: false }));
+    return true;
+  }
   if (action === 'capture-element-rect' && request.box && senderTab?.id !== undefined && senderTab.windowId !== undefined) {
-    captureElementRect(senderTab.id, senderTab.windowId, request.box as { x: number; y: number; w: number; h: number })
-      .then(sendResponse, () => sendResponse({ success: false }));
+    captureElementRects(chromeRasterDeps, senderTab.id, senderTab.windowId, [
+      { key: 'single', box: request.box as { x: number; y: number; w: number; h: number } },
+    ]).then(
+      (results) => sendResponse(results[0] ?? { success: false }),
+      () => sendResponse({ success: false })
+    );
     return true;
   }
   return false;
