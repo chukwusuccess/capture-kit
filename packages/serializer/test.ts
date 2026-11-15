@@ -749,6 +749,16 @@ async function runReadinessTests() {
     assert.strictEqual(attrs.get('srcset'), '/real-2x.png 2x');
   }
 
+  // A page with nothing loading must not pay the stable-height idle floor.
+  {
+    const { doc, body } = createMockDocument();
+    body.appendChild(new MockElement('img'));
+    Object.defineProperty(doc.documentElement, 'scrollHeight', { value: 1200 });
+    const t0 = Date.now();
+    await serializeDocument(doc as unknown as Document, { scrollStitch: false, imageOptions: { idleMs: 800 } });
+    assert.ok(Date.now() - t0 < 400, `static page waited ${Date.now() - t0}ms for a height that cannot change`);
+  }
+
   // Multi-line text runs use binary search over clientRects with O(lines * log chars) calls.
   {
     const { doc, body, styleMap } = createMockDocument();
