@@ -59,6 +59,7 @@ interface TimingContext {
   totalStart: number;
   scrollMs: number;
   waitImagesMs: number;
+  prepareMs: number;
   wantTimings: boolean;
   onTiming?: (stage: string, ms: number) => void;
 }
@@ -76,12 +77,13 @@ function roundMs(ms: number): number {
 function finalizeTimings(
   capture: Capture,
   ctx: TimingContext,
-  stages: Omit<CaptureTimings['stages'], 'scroll' | 'waitImages' | 'total'>,
+  stages: Omit<CaptureTimings['stages'], 'scroll' | 'waitImages' | 'prepare' | 'total'>,
   counts: Omit<CaptureTimings['counts'], 'jsonBytes'>
 ): void {
   const fullStages: CaptureTimings['stages'] = {
     scroll: roundMs(ctx.scrollMs),
     waitImages: roundMs(ctx.waitImagesMs),
+    prepare: roundMs(ctx.prepareMs),
     ...stages,
     total: roundMs(nowMs() - ctx.totalStart),
   };
@@ -476,7 +478,8 @@ async function prepareCapture(
   opts: SerializeOptions | undefined,
   scroll: boolean,
   readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000)
-): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; fontDeadline: number }> {
+): Promise<{ diagnostics: CaptureDiagnostic[]; scrollMs: number; waitImagesMs: number; prepareMs: number; fontDeadline: number }> {
+  const prepareStart = nowMs();
   const diagnostics: CaptureDiagnostic[] = [];
   const seen = new Set<string>();
   const report: ReportDiagnostic = (diagnostic) => {
@@ -530,11 +533,14 @@ async function prepareCapture(
       waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
     ]);
     // ponytail: nothing loading → height can't shift from images; skip the idleMs floor.
-    if (layoutMayShift) await waitForStableScrollHeight(doc, idleMs, readinessDeadline, trackedHeight, stableSince);
+    if (layoutMayShift) {
+      const settleIdleMs = state.pending === 0 ? Math.min(idleMs, 50) : idleMs;
+      await waitForStableScrollHeight(doc, settleIdleMs, readinessDeadline, trackedHeight, stableSince);
+    }
   } finally {
     if (heightPoll !== undefined) clearInterval(heightPoll);
   }
-  return { diagnostics, scrollMs, waitImagesMs, fontDeadline };
+  return { diagnostics, scrollMs, waitImagesMs, prepareMs: nowMs() - prepareStart, fontDeadline };
 }
 
 async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
@@ -2139,6 +2145,7 @@ async function serializeSubtree(
     Math.min(4096, Math.max(1, Math.round(boxW * 2 * dpr)));
   const transcodeStats: TranscodeStats = { toJpeg: 0, toPng: 0, downscaled: 0 };
   const pendingAssetFetches: Array<{ url: string; assetKey: string; nodeId: string; maxWidth?: number }> = [];
+  let fetchBridgeMs = 0;
   const assetConcurrency = Math.floor(boundedNumber(opts?.assetConcurrency, 8, 1));
   let nextFetch = 0;
   let activeAssetWorkers = 0;
@@ -2174,7 +2181,9 @@ async function serializeSubtree(
           if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
             try {
               const remBg = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+              const fbStart = nowMs();
               const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              fetchBridgeMs += nowMs() - fbStart;
               if (bg?.success && bg.base64) {
                 let mimeType = bg.mimeType || 'image/png';
                 let base64 = bg.base64;
@@ -2574,16 +2583,7 @@ async function serializeSubtree(
       let assetRef: string | undefined;
       let rasterized: { reason: string } | undefined;
       const canvasEl = el as HTMLCanvasElement;
-      const hasWebgl = Boolean(
-        typeof canvasEl.getContext === 'function' &&
-        (canvasEl.getContext('webgl2') || canvasEl.getContext('webgl') || canvasEl.getContext('experimental-webgl'))
-      );
-      if (hasWebgl && w > 0 && h > 0 && hasRuntimeBridge) {
-        const assetKey = `asset-${nextAssetId++}`;
-        assetRef = assetKey;
-        rasterized = { reason: 'webgl-canvas' };
-        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
-      } else {
+      const tryCanvasDataUrl = (): boolean => {
         try {
           if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
             const dataUrl = canvasEl.toDataURL('image/png');
@@ -2596,16 +2596,47 @@ async function serializeSubtree(
                 base64,
               };
               assetRef = assetKey;
+              return true;
             }
           }
         } catch {
-          if (w > 0 && h > 0 && hasRuntimeBridge) {
-            const assetKey = `asset-${nextAssetId++}`;
-            assetRef = assetKey;
-            rasterized = { reason: 'tainted-canvas' };
-            enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
-          }
+          // tainted or unreadable canvas
         }
+        return false;
+      };
+      const canvasHasReadablePixels = (): boolean => {
+        try {
+          const probe = doc.createElement('canvas');
+          probe.width = 16;
+          probe.height = 16;
+          const pctx = probe.getContext('2d');
+          if (!pctx) return false;
+          pctx.drawImage(canvasEl, 0, 0, 16, 16);
+          const d = pctx.getImageData(0, 0, 16, 16).data;
+          for (let i = 3; i < d.length; i += 4) {
+            if (d[i] > 0) return true;
+          }
+        } catch {
+          // tainted or unsupported
+        }
+        return false;
+      };
+      const hasWebgl = Boolean(
+        typeof canvasEl.getContext === 'function' &&
+        (canvasEl.getContext('webgl2') || canvasEl.getContext('webgl') || canvasEl.getContext('experimental-webgl'))
+      );
+      if (hasWebgl && w > 0 && h > 0) {
+        if (!(canvasHasReadablePixels() && tryCanvasDataUrl()) && hasRuntimeBridge) {
+          const assetKey = `asset-${nextAssetId++}`;
+          assetRef = assetKey;
+          rasterized = { reason: 'webgl-canvas' };
+          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
+        }
+      } else if (!tryCanvasDataUrl() && w > 0 && h > 0 && hasRuntimeBridge) {
+        const assetKey = `asset-${nextAssetId++}`;
+        assetRef = assetKey;
+        rasterized = { reason: 'tainted-canvas' };
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas', invisible: parseFloat(computed.opacity) <= 0 || computed.visibility === 'hidden' });
       }
       if (!assetRef) warning(report, 'canvas_unavailable', 'Canvas pixels could not be captured; the image layer has no embedded snapshot.', nodeId);
 
@@ -3461,7 +3492,9 @@ async function serializeSubtree(
     const fallback = parts.slice(1).join(', ') || 'system-ui';
     warning(report, 'font_missing', `Font face ${f.family} (${f.weight ?? '400'} ${f.style ?? 'normal'}) could not be embedded; fallback: ${fallback}`, matchNode.id);
   }
+  let svgInlineMs = 0;
   if (pendingSvgImageInlines.length > 0) {
+    const svgInlineStart = nowMs();
     for (const item of pendingSvgImageInlines) {
       const asset = assets[item.assetKey];
       if (!asset || asset.mimeType !== 'image/svg+xml') continue;
@@ -3497,6 +3530,7 @@ async function serializeSubtree(
       }
       asset.base64 = btoa(unescape(encodeURIComponent(svgText)));
     }
+    svgInlineMs = nowMs() - svgInlineStart;
   }
   if (skippedRasterCount > 0) {
     diagnostics.push({
@@ -3505,7 +3539,9 @@ async function serializeSubtree(
       message: `Skipped ${skippedRasterCount} off-screen or invisible raster fallback target(s)`,
     });
   }
+  let rasterMs = 0;
   if (pendingRectCaptures.length > 0 && sendRuntimeMessage) {
+    const rasterStart = nowMs();
     try {
       const rem = Math.min(assetTimeoutMs * pendingRectCaptures.length, Math.max(1500, readinessDeadline - Date.now()));
       const batchRes = (await withTimeout(
@@ -3566,6 +3602,7 @@ async function serializeSubtree(
         warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) timed out or failed.`, req.nodeId);
       }
     }
+    rasterMs = nowMs() - rasterStart;
   }
   const assetsMs = assetsStart ? Math.max(0, (assetsEnd || nowMs()) - assetsStart) : 0;
   capture.assets = assets;
@@ -3580,6 +3617,9 @@ async function serializeSubtree(
       text: roundMs(textMs),
       assets: roundMs(assetsMs),
       fonts: roundMs(fontsMs),
+      raster: roundMs(rasterMs),
+      fetchBridge: roundMs(fetchBridgeMs),
+      svgInline: roundMs(svgInlineMs),
     }, {
       elementsWalked: elements.length,
       nodesEmitted: nodes.length,
@@ -3603,7 +3643,7 @@ export async function serializeDocument(
   const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
   const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
 
-  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
+  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -3628,8 +3668,8 @@ export async function serializeDocument(
       ...(diagnostics.length ? { diagnostics } : {}),
     });
     if (wantTimings) {
-      finalizeTimings(empty, { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming },
-        { walk: 0, freezeTransforms: 0, nodes: 0, text: 0, assets: 0, fonts: 0 },
+      finalizeTimings(empty, { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming },
+        { walk: 0, freezeTransforms: 0, nodes: 0, text: 0, assets: 0, fonts: 0, raster: 0, fetchBridge: 0, svgInline: 0 },
         { elementsWalked: 0, nodesEmitted: 0, textCharsMeasured: 0, transformedElements: 0, assetsFetched: 0, assetsFailed: 0, assetsTimedOut: 0, assetBytes: 0 });
     }
     return empty;
@@ -3646,7 +3686,7 @@ export async function serializeDocument(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming } : undefined,
     fontDeadline,
     readinessDeadline
   );
@@ -3661,7 +3701,7 @@ export async function serializeElement(
   const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const { diagnostics, scrollMs, waitImagesMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
+  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -3682,7 +3722,7 @@ export async function serializeElement(
     },
     opts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming } : undefined,
     fontDeadline,
     readinessDeadline
   );

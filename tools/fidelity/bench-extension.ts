@@ -17,6 +17,8 @@ interface CaptureTimingLog {
   replicaMs: number;
   storageWriteMs: number;
   jobMs?: number;
+  serializer?: Record<string, number> | null;
+  counts?: Record<string, number> | null;
 }
 
 interface ExportTimingLog {
@@ -191,6 +193,9 @@ async function main(): Promise<void> {
 
   try {
     const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker'));
+    await sw.evaluate(() => {
+      (globalThis as { __captureKitDebugTimings?: boolean }).__captureKitDebugTimings = true;
+    });
     const extId = new URL(sw.url()).host;
     sw.on('console', (msg) => {
       const txt = msg.text();
@@ -231,6 +236,12 @@ async function main(): Promise<void> {
         console.log(`  status=${res.status} wall=${(res.wallMs / 1000).toFixed(2)}s capture=${capture} jobs=${res.jobs.length}${res.error ? ` err=${res.error}` : ''}`);
         for (const j of res.jobs) {
           console.log(`    w=${j.width} load=${j.loadMs}ms fit=${j.fitViewportMs}ms inject=${j.injectMs}ms serialize=${j.serializeMs}ms replica=${j.replicaMs}ms write=${j.storageWriteMs}ms job=${j.jobMs}ms`);
+          if (j.serializer) {
+            const s = Object.entries(j.serializer).map(([k, v]) => `${k}=${v}ms`).join(' ');
+            const c = j.counts ? Object.entries(j.counts).map(([k, v]) => `${k}=${v}`).join(' ') : '';
+            console.log(`      stages: ${s}`);
+            if (c) console.log(`      counts: ${c}`);
+          }
         }
         if (res.exportTiming) {
           console.log(`    export: read=${res.exportTiming.storageReadMs}ms export=${res.exportTiming.exportMs}ms`);
