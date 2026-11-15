@@ -58,6 +58,9 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.backgroundClip) {
     styles.push(`background-clip: ${style.backgroundClip}`, `-webkit-background-clip: ${style.backgroundClip}`);
   }
+  if (style.maskImage) {
+    styles.push(`mask-image: ${style.maskImage}`, `-webkit-mask-image: ${style.maskImage}`);
+  }
 
   // Radius
   const r = style.radius;
@@ -67,8 +70,10 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 
   // Strokes / borders
   if (style.strokes && style.strokes.length > 0) {
-    const stroke = style.strokes[0];
-    styles.push(`border: ${stroke.width}px ${stroke.style || 'solid'} ${stroke.color}`);
+    for (const stroke of style.strokes) {
+      const prop = stroke.side && stroke.side !== 'all' ? `border-${stroke.side}` : 'border';
+      styles.push(`${prop}: ${stroke.width}px ${stroke.style || 'solid'} ${stroke.color}`);
+    }
   }
 
   // Shadows
@@ -79,30 +84,66 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 
   // Fills
   const solidFill = style.fills.find((f) => f.type === 'solid' && f.color);
-  const imageFill = style.fills.find((f) => f.type === 'image' && f.assetRef);
-
   if (solidFill && solidFill.color) {
     styles.push(`background-color: ${solidFill.color}`);
   }
-  const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
-  if (gradFill && gradFill.stops) {
-    const stopsStr = gradFill.stops
-      .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
-      .join(', ');
-    if (gradFill.gradientType === 'radial') {
-      styles.push(`background-image: radial-gradient(circle, ${stopsStr})`);
+
+  const bgLayers: string[] = [];
+  const bgSizes: string[] = [];
+  const bgPositions: string[] = [];
+  const bgRepeats: string[] = [];
+  let hasLayerMeta = false;
+
+  for (const fill of style.fills) {
+    if (fill.type === 'gradient' && fill.stops && fill.stops.length > 0) {
+      const stopsStr = fill.stops
+        .map((s) => `${s.color} ${s.positionPx !== undefined ? `${s.positionPx}px` : `${Math.round(s.position * 10000) / 100}%`}`)
+        .join(', ');
+      const prefix = fill.repeating ? 'repeating-' : '';
+      if (fill.gradientType === 'radial') {
+        const atStr =
+          fill.cx !== undefined || fill.cy !== undefined
+            ? `at ${Math.round((fill.cx ?? 0.5) * 10000) / 100}% ${Math.round((fill.cy ?? 0.5) * 10000) / 100}%`
+            : '';
+        const pre = [fill.radialShape || (fill.radialSize ? undefined : 'circle'), fill.radialSize, atStr]
+          .filter(Boolean)
+          .join(' ');
+        bgLayers.push(`${prefix}radial-gradient(${pre ? `${pre}, ` : ''}${stopsStr})`);
+      } else if (fill.gradientType === 'conic') {
+        const fromStr = fill.angle !== undefined ? `from ${fill.angle}deg` : '';
+        const atStr =
+          fill.cx !== undefined || fill.cy !== undefined
+            ? `at ${Math.round((fill.cx ?? 0.5) * 10000) / 100}% ${Math.round((fill.cy ?? 0.5) * 10000) / 100}%`
+            : '';
+        const pre = [fromStr, atStr].filter(Boolean).join(' ');
+        bgLayers.push(`${prefix}conic-gradient(${pre ? `${pre}, ` : ''}${stopsStr})`);
+      } else {
+        bgLayers.push(`${prefix}linear-gradient(${fill.angle ?? 180}deg, ${stopsStr})`);
+      }
+    } else if (fill.type === 'image' && fill.assetRef && assets[fill.assetRef]) {
+      const asset = assets[fill.assetRef];
+      bgLayers.push(`url('data:${asset.mimeType};base64,${asset.base64}')`);
     } else {
-      styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+      continue;
     }
+    if (fill.backgroundSize || fill.backgroundPosition || fill.backgroundRepeat) hasLayerMeta = true;
+    bgSizes.push(fill.backgroundSize || style.backgroundSize || (fill.type === 'image' ? 'cover' : 'auto'));
+    bgPositions.push(fill.backgroundPosition || style.backgroundPosition || (fill.type === 'image' ? 'center' : '0% 0%'));
+    bgRepeats.push(fill.backgroundRepeat || style.backgroundRepeat || 'repeat');
   }
 
-
-  if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
-    const asset = assets[imageFill.assetRef];
-    styles.push(`background-image: url('data:${asset.mimeType};base64,${asset.base64}')`);
-    // Defaults only when the capture didn't record a real value (CSS last-wins).
-    if (!style.backgroundSize) styles.push('background-size: cover');
-    if (!style.backgroundPosition) styles.push('background-position: center');
+  if (bgLayers.length > 0) {
+    styles.push(`background-image: ${bgLayers.join(', ')}`);
+    if (hasLayerMeta) {
+      styles.push(
+        `background-size: ${bgSizes.join(', ')}`,
+        `background-position: ${bgPositions.join(', ')}`,
+        `background-repeat: ${bgRepeats.join(', ')}`
+      );
+    } else if (style.fills.some((f) => f.type === 'image' && f.assetRef)) {
+      if (!style.backgroundSize) styles.push('background-size: cover');
+      if (!style.backgroundPosition) styles.push('background-position: center');
+    }
   }
 
   const styleAttr = ` style="${escapeHtml(styles.join('; '))}"`;
@@ -133,12 +174,17 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   }
 
   if (type === 'text' && text) {
+    const isTightSingleLineBox =
+      !text.runs &&
+      !text.content.includes('\n') &&
+      typeof text.lineHeight === 'number' &&
+      box.h < text.lineHeight - 1;
     const textStyles: string[] = [
       ...styles,
       `font-family: ${text.fontFamily}`,
       `font-size: ${text.fontSize}px`,
       `font-weight: ${text.fontWeight}`,
-      `line-height: ${typeof text.lineHeight === 'number' ? `${text.lineHeight}px` : text.lineHeight}`,
+      `line-height: ${isTightSingleLineBox ? 'normal' : typeof text.lineHeight === 'number' ? `${text.lineHeight}px` : text.lineHeight}`,
       `color: ${style.backgroundClip === 'text' ? 'transparent' : text.color}`,
       `text-align: ${text.align}`,
       'white-space: pre-wrap',
@@ -153,6 +199,19 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     if (text.textShadow) textStyles.push(`text-shadow: ${text.textShadow}`);
     if (text.overflow === 'ellipsis') {
       textStyles.push('overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap');
+    }
+
+    if (text.runs && text.runs.length > 0) {
+      const positioned = text.runs.every((r) => typeof r.x === 'number' && typeof r.y === 'number');
+      if (positioned) {
+        const spans = text.runs.map((r) => {
+          const rx = Math.round(((r.x ?? box.x) - box.x) * 100) / 100;
+          const ry = Math.round(((r.y ?? box.y) - box.y) * 100) / 100;
+          return `<span style="position: absolute; left: ${rx}px; top: ${ry}px; line-height: normal; white-space: pre">${escapeHtml(r.text)}</span>`;
+        }).join('');
+        return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${spans}</div>`;
+      }
+      return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${escapeHtml(text.runs.map((r) => r.text).join('\n'))}</div>`;
     }
 
     return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${escapeHtml(text.content)}</div>`;
@@ -181,7 +240,7 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
     return canvasHtml;
   }
 
-  const fontFaceRules = capture.fonts
+  const fontFaceRules = (capture.fonts ?? [])
     .map((f) => {
       if (!f.assetRef || !capture.assets[f.assetRef]) return '';
       const asset = capture.assets[f.assetRef];

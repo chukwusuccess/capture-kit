@@ -204,7 +204,33 @@ function runTests(): void {
   assert.deepStrictEqual(rasterizedNode.rasterized, { reason: 'webgl-canvas' });
   assert.strictEqual(parsedFull.nodes[2].rasterized, undefined);
 
-  console.log('packages/model tests passed: 8/8 assertions verified');
+  const radialGradNode = NodeSchema.parse({
+    id: 'node-grad',
+    type: 'frame',
+    box: { x: 0, y: 0, w: 200, h: 120 },
+    style: {
+      fills: [
+        {
+          type: 'gradient',
+          gradientType: 'radial',
+          repeating: true,
+          radialShape: 'circle',
+          radialSize: '55px',
+          cx: 0.3,
+          cy: 0.35,
+          stops: [{ color: '#38bdf8', position: 0 }, { color: '#3b82f6', position: 0.55 }],
+        },
+      ],
+      strokes: [],
+      opacity: 1,
+      radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+      shadows: [],
+    },
+  });
+  assert.strictEqual(radialGradNode.style.fills[0].radialSize, '55px');
+  assert.strictEqual(radialGradNode.style.fills[0].repeating, true);
+
+  console.log('packages/model tests passed: 9/9 assertions verified');
 }
 
 runTests();

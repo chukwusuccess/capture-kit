@@ -824,6 +824,68 @@ async function runReadinessTests() {
       `Expected binary search rect calls < 35% of ${fullStr.length}, got ${capture.timings?.counts.textCharsMeasured}`);
   }
 
+  // Whitespace collapsing across adjacent/inline text nodes never injects extra spaces ("Examples ( 3 )" bug).
+  {
+    const { doc, body, styleMap } = createMockDocument();
+    const div = new MockElement('div');
+    div.rect = { left: 0, top: 0, width: 200, height: 24 };
+    styleMap.set(div, {
+      display: 'block',
+      visibility: 'visible',
+      opacity: '1',
+      fontSize: '14px',
+      lineHeight: '20px',
+      fontFamily: 'Inter',
+      textAlign: 'left',
+      color: 'rgb(0, 0, 0)',
+    });
+    div.appendChild({ nodeType: 3, textContent: 'Examples   (\n  ' } as unknown as MockElement);
+    div.appendChild({ nodeType: 3, textContent: '3' } as unknown as MockElement);
+    div.appendChild({ nodeType: 3, textContent: ')' } as unknown as MockElement);
+    body.appendChild(div);
+
+    const capture = await serializeDocument(doc as unknown as Document);
+    const tNode = capture.nodes.find((n) => n.type === 'text');
+    assert.strictEqual(tNode?.text?.content, 'Examples ( 3)');
+
+    const { doc: doc2, body: body2, styleMap: sm2 } = createMockDocument();
+    const btn = new MockElement('button');
+    btn.rect = { left: 0, top: 0, width: 140, height: 28 };
+    sm2.set(btn, {
+      display: 'inline-block',
+      visibility: 'visible',
+      opacity: '1',
+      fontSize: '14px',
+      lineHeight: '20px',
+      fontFamily: 'Inter',
+      textAlign: 'left',
+      color: 'rgb(0, 0, 0)',
+    });
+    const span = new MockElement('span');
+    span.rect = { left: 68, top: 4, width: 10, height: 18 };
+    sm2.set(span, {
+      display: 'inline',
+      visibility: 'visible',
+      opacity: '1',
+      fontSize: '14px',
+      lineHeight: '20px',
+      fontFamily: 'Inter',
+      textAlign: 'left',
+      color: 'rgb(0, 0, 0)',
+    });
+    span.appendChild({ nodeType: 3, textContent: '3' } as unknown as MockElement);
+    btn.appendChild({ nodeType: 3, textContent: 'Examples (' } as unknown as MockElement);
+    btn.appendChild(span);
+    btn.appendChild({ nodeType: 3, textContent: ')' } as unknown as MockElement);
+    body2.appendChild(btn);
+
+    const capture2 = await serializeDocument(doc2 as unknown as Document);
+    const texts = capture2.nodes
+      .filter((n) => n.type === 'text' && n.text)
+      .map((n) => n.text!.content);
+    assert.deepStrictEqual(texts, ['Examples (', ')', '3']);
+  }
+
   // Chunked arrayBufferToBase64 matches Node Buffer.toString('base64') across 0 B, 1 B, 32 KB+1, and 3 MB.
   for (const size of [0, 1, 32 * 1024 + 1, 3 * 1024 * 1024]) {
     const bytes = new Uint8Array(size);

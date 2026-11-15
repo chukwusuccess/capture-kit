@@ -10,6 +10,7 @@ export const BoxSchema = z.object({
 export const GradientStopSchema = z.object({
   color: z.string(),
   position: z.number().min(0).max(1),
+  positionPx: z.number().optional(),
 });
 
 export const FillSchema = z.object({
@@ -18,6 +19,9 @@ export const FillSchema = z.object({
   assetRef: z.string().optional(),
   opacity: z.number().min(0).max(1).optional(),
   gradientType: z.enum(['linear', 'radial', 'conic']).optional(),
+  repeating: z.boolean().optional(),
+  radialShape: z.enum(['circle', 'ellipse']).optional(),
+  radialSize: z.string().optional(),
   angle: z.number().optional(),
   stops: z.array(GradientStopSchema).optional(),
   cx: z.number().min(0).max(1).optional(),

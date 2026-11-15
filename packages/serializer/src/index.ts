@@ -706,125 +706,218 @@ function resolveHighestDpiSrc(img: HTMLImageElement): string {
 // at any real zoom, but long float tails make exports non-repeatable.
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-function parseCssGradients(bgImage: string): Fill[] {
+function splitTopLevelCommas(input: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '(') depth++;
+    else if (ch === ')' && depth > 0) depth--;
+    else if (ch === ',' && depth === 0) {
+      out.push(input.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  const tail = input.slice(start).trim();
+  if (tail) out.push(tail);
+  return out;
+}
+
+function parseCssAngle(token: string): number | undefined {
+  const t = token.trim().toLowerCase();
+  if (t.endsWith('deg')) return parseFloat(t);
+  if (t.endsWith('turn')) return (parseFloat(t) || 0) * 360;
+  if (t.endsWith('rad')) return ((parseFloat(t) || 0) * 180) / Math.PI;
+  if (t.endsWith('grad')) return (parseFloat(t) || 0) * 0.9;
+  return undefined;
+}
+
+function parseAtPosition(preamble: string): { cx?: number; cy?: number } {
+  const atMatch = preamble.match(/\bat\s+([^\s,]+)(?:\s+([^\s,]+))?/i);
+  if (!atMatch) return {};
+  const parseAxis = (tok: string | undefined): number => {
+    if (!tok || tok === 'center') return 0.5;
+    if (tok === 'left' || tok === 'top') return 0;
+    if (tok === 'right' || tok === 'bottom') return 1;
+    if (tok.endsWith('%')) return Math.max(0, Math.min(1, (parseFloat(tok) || 50) / 100));
+    return 0.5;
+  };
+  return { cx: parseAxis(atMatch[1]), cy: parseAxis(atMatch[2] ?? atMatch[1]) };
+}
+
+function parseGradientStops(rawStops: string[], isConic = false): Array<{ color: string; position: number; positionPx?: number }> {
+  const parsed: Array<{ color: string; position?: number; positionPx?: number }> = [];
+  const colorRe = /^(rgba?\([^)]+\)|hsla?\([^)]+\)|#[0-9a-fA-F]+|[a-zA-Z]+)(.*)$/i;
+  const parsePos = (tok: string): { position?: number; positionPx?: number } | undefined => {
+    const t = tok.trim().toLowerCase();
+    if (t.endsWith('%')) return { position: Math.max(0, Math.min(1, parseFloat(t) / 100)) };
+    if (t.endsWith('px')) {
+      const px = parseFloat(t);
+      if (!Number.isNaN(px)) return { position: Math.max(0, Math.min(1, px / 200)), positionPx: px };
+    }
+    if (isConic) {
+      const ang = parseCssAngle(t);
+      if (ang !== undefined) return { position: Math.max(0, Math.min(1, ang / 360)) };
+    }
+    if (t === '0') return { position: 0 };
+    return undefined;
+  };
+
+  for (const raw of rawStops) {
+    const s = raw.trim();
+    if (!s) continue;
+    // Pure color-stop hint (no color): e.g. "40%"
+    if (/^[\d.]+(?:%|px|deg|turn|rad|grad)?$/i.test(s)) continue;
+    const m = s.match(colorRe);
+    if (!m) continue;
+    const color = m[1];
+    const rest = m[2].trim();
+    if (!rest) {
+      parsed.push({ color });
+      continue;
+    }
+    const posTokens = rest.split(/\s+/).map(parsePos).filter((p): p is { position?: number; positionPx?: number } => p !== undefined);
+    if (posTokens.length === 0) {
+      parsed.push({ color });
+    } else {
+      for (const p of posTokens) parsed.push({ color, ...p });
+    }
+  }
+
+  if (parsed.length === 0) return [];
+  if (parsed[0].position === undefined) parsed[0].position = 0;
+  if (parsed.length > 1 && parsed[parsed.length - 1].position === undefined) parsed[parsed.length - 1].position = 1;
+  for (let i = 0; i < parsed.length; i++) {
+    if (parsed[i].position !== undefined) continue;
+    let nextIdx = i + 1;
+    while (nextIdx < parsed.length && parsed[nextIdx].position === undefined) nextIdx++;
+    const prevPos = parsed[i - 1].position ?? 0;
+    const nextPos = parsed[nextIdx]?.position ?? 1;
+    const span = nextIdx - (i - 1);
+    parsed[i].position = prevPos + ((nextPos - prevPos) * 1) / span;
+  }
+  return parsed.map((p) => ({
+    color: p.color,
+    position: Math.max(0, Math.min(1, p.position ?? 0)),
+    ...(p.positionPx !== undefined ? { positionPx: p.positionPx } : {}),
+  }));
+}
+
+function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string, bgRepeat?: string): Fill[] {
   if (!bgImage || bgImage === 'none') return [];
   const fills: Fill[] = [];
+  const layers = splitTopLevelCommas(bgImage);
+  const sizes = bgSize && bgSize !== 'auto' ? splitTopLevelCommas(bgSize) : [];
+  const positions = bgPosition && bgPosition !== '0% 0%' ? splitTopLevelCommas(bgPosition) : [];
+  const repeats = bgRepeat && bgRepeat !== 'repeat' ? splitTopLevelCommas(bgRepeat) : [];
 
-  const linearMatches = bgImage.matchAll(/linear-gradient\(\s*([^()]+|\([^()]*\))+\)/gi);
-  for (const m of linearMatches) {
-    const inside = m[0].replace(/^linear-gradient\(\s*|\s*\)$/gi, '').trim();
-    const parts = inside.split(/,(?![^(]*\))/).map((s) => s.trim());
-    if (parts.length >= 2) {
+  for (let idx = 0; idx < layers.length; idx++) {
+    const layer = layers[idx];
+    const gm = layer.match(/^(repeating-)?(linear|radial|conic)-gradient\(([\s\S]*)\)$/i);
+    if (!gm) continue;
+    const repeating = Boolean(gm[1]);
+    const kind = gm[2].toLowerCase() as 'linear' | 'radial' | 'conic';
+    const parts = splitTopLevelCommas(gm[3]);
+    if (parts.length < 1) continue;
+
+    const layerMeta: Partial<Fill> = {
+      ...(repeating ? { repeating: true } : {}),
+      ...(sizes.length > 0 ? { backgroundSize: sizes[idx % sizes.length] } : {}),
+      ...(positions.length > 0 ? { backgroundPosition: positions[idx % positions.length] } : {}),
+      ...(repeats.length > 0 ? { backgroundRepeat: repeats[idx % repeats.length] } : {}),
+    };
+
+    if (kind === 'linear') {
       let angle = 180;
       let stopStartIndex = 0;
-
       const first = parts[0].toLowerCase();
-      if (first.includes('deg')) {
-        angle = parseFloat(first) || 180;
+      const parsedAng = parseCssAngle(first);
+      if (parsedAng !== undefined) {
+        angle = parsedAng;
         stopStartIndex = 1;
-      } else if (first.includes('to right') && first.includes('top')) {
-        angle = 45;
+      } else if (first.startsWith('to ')) {
         stopStartIndex = 1;
-      } else if (first.includes('to right') && first.includes('bottom')) {
-        angle = 135;
-        stopStartIndex = 1;
-      } else if (first.includes('to left') && first.includes('bottom')) {
-        angle = 225;
-        stopStartIndex = 1;
-      } else if (first.includes('to left') && first.includes('top')) {
-        angle = 315;
-        stopStartIndex = 1;
-      } else if (first.includes('to right')) {
-        angle = 90;
-        stopStartIndex = 1;
-      } else if (first.includes('to left')) {
-        angle = 270;
-        stopStartIndex = 1;
-      } else if (first.includes('to top')) {
-        angle = 0;
-        stopStartIndex = 1;
-      } else if (first.includes('to bottom')) {
-        angle = 180;
-        stopStartIndex = 1;
+        if (first.includes('right') && first.includes('top')) angle = 45;
+        else if (first.includes('right') && first.includes('bottom')) angle = 135;
+        else if (first.includes('left') && first.includes('bottom')) angle = 225;
+        else if (first.includes('left') && first.includes('top')) angle = 315;
+        else if (first.includes('right')) angle = 90;
+        else if (first.includes('left')) angle = 270;
+        else if (first.includes('top')) angle = 0;
+        else if (first.includes('bottom')) angle = 180;
       }
-
-      const rawStops = parts.slice(stopStartIndex);
-      const stops: Array<{ color: string; position: number }> = [];
-
-      for (let i = 0; i < rawStops.length; i++) {
-        const s = rawStops[i];
-        const match = s.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+)(?:\s+([\d.]+)%)?/i);
-        if (match) {
-          const color = match[1];
-          const defaultPos = rawStops.length > 1 ? i / (rawStops.length - 1) : 0;
-          const position = match[2] ? parseFloat(match[2]) / 100 : defaultPos;
-          stops.push({ color, position: Math.max(0, Math.min(1, position)) });
-        }
+      const stops = parseGradientStops(parts.slice(stopStartIndex));
+      if (stops.length >= 2) {
+        fills.push({ type: 'gradient', gradientType: 'linear', angle, stops, opacity: 1, ...layerMeta });
       }
-
+    } else if (kind === 'radial') {
+      let stopStartIndex = 0;
+      let radialShape: 'circle' | 'ellipse' | undefined;
+      let radialSize: string | undefined;
+      let cx: number | undefined;
+      let cy: number | undefined;
+      const first = parts[0].toLowerCase();
+      if (
+        first.includes('circle') ||
+        first.includes('ellipse') ||
+        first.includes('closest') ||
+        first.includes('farthest') ||
+        first.includes('at ') ||
+        /^\d/.test(first)
+      ) {
+        stopStartIndex = 1;
+        if (first.includes('circle')) radialShape = 'circle';
+        else if (first.includes('ellipse')) radialShape = 'ellipse';
+        const pos = parseAtPosition(first);
+        cx = pos.cx;
+        cy = pos.cy;
+        const beforeAt = first.split(/\bat\b/i)[0].replace(/\b(circle|ellipse)\b/gi, '').trim();
+        if (beforeAt) radialSize = beforeAt;
+      }
+      const stops = parseGradientStops(parts.slice(stopStartIndex));
       if (stops.length >= 2) {
         fills.push({
           type: 'gradient',
-          gradientType: 'linear',
-          angle,
+          gradientType: 'radial',
           stops,
           opacity: 1,
+          ...(radialShape ? { radialShape } : {}),
+          ...(radialSize ? { radialSize } : {}),
+          ...(cx !== undefined ? { cx } : {}),
+          ...(cy !== undefined ? { cy } : {}),
+          ...layerMeta,
+        });
+      }
+    } else if (kind === 'conic') {
+      let stopStartIndex = 0;
+      let angle: number | undefined;
+      let cx: number | undefined;
+      let cy: number | undefined;
+      const first = parts[0].toLowerCase();
+      if (first.includes('from ') || first.includes('at ')) {
+        stopStartIndex = 1;
+        const fromMatch = first.match(/\bfrom\s+([^\s,]+)/i);
+        if (fromMatch) angle = parseCssAngle(fromMatch[1]);
+        const pos = parseAtPosition(first);
+        cx = pos.cx;
+        cy = pos.cy;
+      }
+      const stops = parseGradientStops(parts.slice(stopStartIndex), true);
+      if (stops.length >= 2) {
+        fills.push({
+          type: 'gradient',
+          gradientType: 'conic',
+          stops,
+          opacity: 1,
+          ...(angle !== undefined ? { angle } : {}),
+          ...(cx !== undefined ? { cx } : {}),
+          ...(cy !== undefined ? { cy } : {}),
+          ...layerMeta,
         });
       }
     }
   }
-  const radialMatches = bgImage.matchAll(/radial-gradient\(\s*([^()]+|\([^()]*\))+\)/gi);
-  for (const m of radialMatches) {
-    const inside = m[0].replace(/^radial-gradient\(\s*|\s*\)$/gi, '').trim();
-    const parts = inside.split(/,(?![^(]*\))/).map((s) => s.trim());
-    if (parts.length < 1) continue;
-
-    // Skip the optional shape/size/position preamble (circle, ellipse, at center…).
-    let stopStartIndex = 0;
-    let cx: number | undefined;
-    let cy: number | undefined;
-    const first = parts[0].toLowerCase();
-    if (first.includes('circle') || first.includes('ellipse') || first.includes('closest') || first.includes('farthest') || first.includes('at ') || /^\d/.test(first)) {
-      stopStartIndex = 1;
-      const atMatch = first.match(/at\s+([^\s,]+)(?:\s+([^\s,]+))?/);
-      if (atMatch) {
-        const parseAxis = (tok: string | undefined): number => {
-          if (!tok || tok === 'center') return 0.5;
-          if (tok === 'left' || tok === 'top') return 0;
-          if (tok === 'right' || tok === 'bottom') return 1;
-          if (tok.endsWith('%')) return Math.max(0, Math.min(1, (parseFloat(tok) || 50) / 100));
-          return 0.5;
-        };
-        cx = parseAxis(atMatch[1]);
-        cy = parseAxis(atMatch[2] ?? atMatch[1]);
-      }
-    }
-    const rawStops = parts.slice(stopStartIndex);
-    const stops: Array<{ color: string; position: number }> = [];
-
-    for (let i = 0; i < rawStops.length; i++) {
-      const s = rawStops[i];
-      const match = s.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+)(?:\s+([\d.]+)%)?/i);
-      if (match) {
-        const color = match[1];
-        const defaultPos = rawStops.length > 1 ? i / (rawStops.length - 1) : 0;
-        const position = match[2] ? parseFloat(match[2]) / 100 : defaultPos;
-        stops.push({ color, position: Math.max(0, Math.min(1, position)) });
-      }
-    }
-
-    if (stops.length >= 2) {
-      fills.push({
-        type: 'gradient',
-        gradientType: 'radial',
-        stops,
-        opacity: 1,
-        ...(cx !== undefined ? { cx } : {}),
-        ...(cy !== undefined ? { cy } : {}),
-      });
-    }
-  }
-
 
   return fills;
 }
@@ -1590,10 +1683,19 @@ function measureWrappedLines(
   scrollX: number,
   scrollY: number,
   originX: number,
-  originY: number
+  originY: number,
+  preserveWs = false
 ): { lines: MeasuredTextLine[]; measuredCalls: number } {
   const range = doc.createRange();
-  range.selectNodeContents(textNode);
+  const leadTrim = preserveWs ? 0 : fullStr.length - fullStr.trimStart().length;
+  const trailTrim = preserveWs ? fullStr.length : fullStr.trimEnd().length;
+  if (leadTrim > 0 || trailTrim < fullStr.length) {
+    if (leadTrim >= trailTrim) return { lines: [], measuredCalls: 0 };
+    range.setStart(textNode, leadTrim);
+    range.setEnd(textNode, trailTrim);
+  } else {
+    range.selectNodeContents(textNode);
+  }
   const rawRects = range.getClientRects?.();
   if (!rawRects || rawRects.length <= 1) return { lines: [], measuredCalls: 0 };
 
@@ -1633,13 +1735,14 @@ function measureWrappedLines(
   };
 
   const lines: MeasuredTextLine[] = [];
-  let start = 0;
+  let start = leadTrim;
+  const maxEnd = trailTrim;
   for (let li = 0; li < lineRects.length; li++) {
     const lr = lineRects[li];
-    let end = fullStr.length;
-    if (li < lineRects.length - 1 && start < fullStr.length) {
+    let end = maxEnd;
+    if (li < lineRects.length - 1 && start < maxEnd) {
       let lo = start + 1;
-      let hi = fullStr.length;
+      let hi = maxEnd;
       let best = start;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
@@ -1652,7 +1755,8 @@ function measureWrappedLines(
       }
       end = best;
     }
-    const text = fullStr.slice(start, end).trim();
+    const rawSlice = fullStr.slice(start, end);
+    const text = preserveWs ? rawSlice.replace(/[\r\n]+/g, '') : rawSlice.trim();
     if (text) {
       lines.push({
         text,
@@ -1810,7 +1914,10 @@ async function extractWebFonts(
           try {
             const resolved = new URL(fontUrl, baseURI);
             const isSameOrigin = resolved.origin === defaultView.location?.origin;
-            if (isSameOrigin || resolved.protocol === 'blob:') {
+            const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+            const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+            const hasRuntime = Boolean(runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function');
+            if (isSameOrigin || resolved.protocol === 'blob:' || hasRuntime) {
               seenFamilies.add(fontIdentity);
               pendingFetches.push({ family, weight, fontStyle, fontUrl, resolvedHref: resolved.href, fontIdentity });
             } else {
@@ -1848,9 +1955,31 @@ async function extractWebFonts(
         assets[assetKey] = { kind: 'font', mimeType: blob.type || 'font/woff2', base64 };
         urlToAssetKey.set(href, assetKey);
       } catch (error) {
-        const sample = pendingFetches.find((f) => f.resolvedHref === href);
-        warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
-          `Font asset could not be embedded: ${sample?.family ?? href} (${sample?.fontUrl ?? href})`);
+        let fetchedViaBridge = false;
+        const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+        const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+        if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
+          try {
+            const rem = Math.max(250, deadline - Date.now());
+            const bg = (await withTimeout(
+              Promise.resolve((runtime.sendMessage as (m: unknown) => Promise<unknown>)({ action: 'fetch-asset', url: href })),
+              rem
+            )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+            if (bg?.success && bg.base64) {
+              const assetKey = nextAssetId();
+              assets[assetKey] = { kind: 'font', mimeType: bg.mimeType || 'font/woff2', base64: bg.base64 };
+              urlToAssetKey.set(href, assetKey);
+              fetchedViaBridge = true;
+            }
+          } catch {
+            // fall through to warning
+          }
+        }
+        if (!fetchedViaBridge) {
+          const sample = pendingFetches.find((f) => f.resolvedHref === href);
+          warning(report, error instanceof CaptureTimeout ? 'asset_timeout' : 'asset_failed',
+            `Font asset could not be embedded: ${sample?.family ?? href} (${sample?.fontUrl ?? href})`);
+        }
       }
     }
   }));
@@ -1931,11 +2060,12 @@ async function serializeSubtree(
 
   let rootBackground: string | undefined;
   try {
-    const rootEl = doc.documentElement;
-    if (rootEl) {
+    for (const rootEl of [doc.documentElement, doc.body]) {
+      if (!rootEl) continue;
       const rootBg = defaultView.getComputedStyle(rootEl).backgroundColor;
       if (rootBg && rootBg !== 'transparent' && rootBg !== 'rgba(0, 0, 0, 0)') {
         rootBackground = rootBg;
+        break;
       }
     }
   } catch {
@@ -2318,7 +2448,12 @@ async function serializeSubtree(
       }
     }
     // CSS gradient resolution
-    const gradients = parseCssGradients(computed.backgroundImage);
+    const gradients = parseCssGradients(
+      computed.backgroundImage,
+      computed.backgroundSize,
+      computed.backgroundPosition,
+      computed.backgroundRepeat
+    );
     fills.push(...gradients);
 
 
@@ -2911,20 +3046,21 @@ async function serializeSubtree(
       radius.topLeft > 0;
 
     if (!hasVisualDecoration && !hasChildren && childTextNodes.length > 0) {
-      const combinedText = childTextNodes
-        .map((n) => n.textContent || '')
-        .join(' ')
-        .trim();
+      const whiteSpace = computed.whiteSpace || 'normal';
+      const collapseWs = (raw: string): string => {
+        if (whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces') return raw;
+        if (whiteSpace === 'pre-line') return raw.replace(/[ \t\r]+/g, ' ');
+        return raw.replace(/\s+/g, ' ');
+      };
+      let combinedText = collapseWs(childTextNodes.map((n) => n.textContent || '').join('')).trim();
 
       const fontSize = parseFloat(computed.fontSize) || 16;
       const lineHeightValue = parseFloat(computed.lineHeight);
-      const lineHeight: number | string = Number.isNaN(lineHeightValue)
-        ? 'normal'
-        : lineHeightValue;
+      let lineHeight: number = Number.isNaN(lineHeightValue) ? round2(fontSize * 1.2) : lineHeightValue;
       const letterSpacingValue = parseFloat(computed.letterSpacing);
       const letterSpacing = Number.isNaN(letterSpacingValue)
         ? 0
-        : letterSpacingValue;
+        : round2(letterSpacingValue);
 
       // Content box, not border box: text never starts under the padding.
       const num2 = (v: string | undefined): number => Math.max(0, parseFloat(v ?? '') || 0);
@@ -2954,13 +3090,54 @@ async function serializeSubtree(
           const tNode = childTextNodes[0];
           const fullStr = tNode.textContent || '';
           const textStart = nowMs();
+          const preserveWs = whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces';
           const { lines, measuredCalls } = measureWrappedLines(
-            doc, tNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+            doc, tNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY, preserveWs
           );
           textMs += nowMs() - textStart;
           textCharsMeasured += measuredCalls;
-          if (lines.length > 1) {
-            runs = lines.map((l) => ({
+
+          if (Number.isNaN(lineHeightValue)) {
+            if (lines.length > 0 && lines[0].h > 0) {
+              lineHeight = round2(lines[0].h);
+            } else {
+              const r = doc.createRange();
+              r.selectNodeContents(tNode);
+              const rect = r.getClientRects?.()[0] ?? r.getBoundingClientRect();
+              if (rect && rect.height > 0) lineHeight = round2(rect.height);
+            }
+          }
+
+          let effectiveLines = lines;
+          const clampCount = parseInt((computed as unknown as Record<string, string>).webkitLineClamp || '0', 10);
+          if (clampCount > 0 && computed.overflow !== 'visible' && effectiveLines.length > clampCount) {
+            effectiveLines = effectiveLines.slice(0, clampCount).map((l) => ({ ...l }));
+            const last = effectiveLines[effectiveLines.length - 1];
+            const trimmed = last.text.replace(/\s+\S*$/, '').trimEnd();
+            last.text = `${trimmed || last.text.slice(0, Math.max(1, last.text.length - 3))}…`;
+            combinedText = effectiveLines.map((l) => l.text).join('\n');
+          } else if (
+            computed.textOverflow === 'ellipsis' &&
+            computed.overflow !== 'visible' &&
+            (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 &&
+            fullStr.length > 1
+          ) {
+            const clientW = (el as HTMLElement).clientWidth;
+            let lo = 0;
+            let hi = fullStr.length;
+            const r = doc.createRange();
+            while (lo < hi) {
+              const mid = Math.ceil((lo + hi) / 2);
+              r.setStart(tNode, 0);
+              r.setEnd(tNode, mid);
+              if (r.getBoundingClientRect().width <= Math.max(4, clientW - fontSize * 0.7)) lo = mid;
+              else hi = mid - 1;
+            }
+            combinedText = `${fullStr.slice(0, Math.max(1, lo)).trimEnd()}…`;
+          }
+
+          if (effectiveLines.length > 1) {
+            runs = effectiveLines.map((l) => ({
               text: l.text,
               x: round2(l.x),
               y: round2(l.y),
@@ -3052,16 +3229,24 @@ async function serializeSubtree(
       if (typeof doc.createRange === 'function') {
         try {
           const fullStr = textNode.textContent || '';
+          const preserveWs = computed.whiteSpace === 'pre' || computed.whiteSpace === 'pre-wrap' || computed.whiteSpace === 'break-spaces';
           const textStart = nowMs();
           const { lines, measuredCalls } = measureWrappedLines(
-            doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY
+            doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY, preserveWs
           );
           textMs += nowMs() - textStart;
           textCharsMeasured += measuredCalls;
           for (const l of lines) lineBoxes.push(l);
           if (lineBoxes.length === 0) {
             const range = doc.createRange();
-            range.selectNodeContents(textNode);
+            const leadWs = fullStr.length - fullStr.trimStart().length;
+            const trailWs = fullStr.trimEnd().length;
+            if ((leadWs > 0 || trailWs < fullStr.length) && leadWs < trailWs && typeof range.setStart === 'function' && typeof range.setEnd === 'function') {
+              range.setStart(textNode, leadWs);
+              range.setEnd(textNode, trailWs);
+            } else {
+              range.selectNodeContents(textNode);
+            }
             const rangeRect = range.getBoundingClientRect();
             if (rangeRect.width > 0 && rangeRect.height > 0) {
               lineBoxes.push({ text: textVal, x: rangeRect.left + scrollX - frameRect.originX, y: rangeRect.top + scrollY - frameRect.originY, w: rangeRect.width + 2, h: rangeRect.height });
@@ -3169,6 +3354,22 @@ async function serializeSubtree(
     ),
   ]);
   const fontsMs = nowMs() - fontsStart;
+  const reportedMissingFaces = new Set<string>();
+  for (const f of extractedFonts) {
+    if (f.assetRef) continue;
+    const key = `${f.family}|${f.weight ?? '400'}|${f.style ?? 'normal'}`.toLowerCase();
+    if (reportedMissingFaces.has(key)) continue;
+    const matchNode = nodes.find((n) => {
+      if (!n.text) return false;
+      const first = n.text.fontFamily.split(',')[0]?.replace(/['"]/g, '').trim().toLowerCase();
+      return first === f.family.toLowerCase();
+    });
+    if (!matchNode?.text) continue;
+    reportedMissingFaces.add(key);
+    const parts = matchNode.text.fontFamily.split(',').map((p) => p.replace(/['"]/g, '').trim()).filter(Boolean);
+    const fallback = parts.slice(1).join(', ') || 'system-ui';
+    warning(report, 'font_missing', `Font face ${f.family} (${f.weight ?? '400'} ${f.style ?? 'normal'}) could not be embedded; fallback: ${fallback}`, matchNode.id);
+  }
   if (pendingSvgImageInlines.length > 0) {
     for (const item of pendingSvgImageInlines) {
       const asset = assets[item.assetKey];
