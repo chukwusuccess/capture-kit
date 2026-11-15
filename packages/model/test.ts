@@ -174,7 +174,37 @@ function runTests(): void {
   assert.strictEqual(parsedSite.pages.length, 2);
   assert.strictEqual(parsedSite.pages[1].path, '/pricing');
 
-  console.log('packages/model tests passed: 7/7 assertions verified');
+  // 8. Accepts optional rasterized metadata and per-fill layer properties while preserving old captures
+  const rasterizedNode = NodeSchema.parse({
+    id: 'node-raster',
+    type: 'image',
+    box: { x: 0, y: 0, w: 100, h: 100 },
+    style: {
+      fills: [
+        {
+          type: 'gradient',
+          gradientType: 'conic',
+          angle: 45,
+          cx: 0.5,
+          cy: 0.5,
+          stops: [{ color: '#fff', position: 0 }, { color: '#000', position: 1 }],
+          backgroundSize: '24px 24px',
+          backgroundPosition: '0 0',
+          backgroundRepeat: 'repeat',
+        },
+      ],
+      strokes: [],
+      opacity: 1,
+      radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+      shadows: [],
+    },
+    assetRef: 'img-1',
+    rasterized: { reason: 'webgl-canvas' },
+  });
+  assert.deepStrictEqual(rasterizedNode.rasterized, { reason: 'webgl-canvas' });
+  assert.strictEqual(parsedFull.nodes[2].rasterized, undefined);
+
+  console.log('packages/model tests passed: 8/8 assertions verified');
 }
 
 runTests();

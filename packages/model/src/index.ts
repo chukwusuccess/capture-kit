@@ -17,11 +17,14 @@ export const FillSchema = z.object({
   color: z.string().optional(),
   assetRef: z.string().optional(),
   opacity: z.number().min(0).max(1).optional(),
-  gradientType: z.enum(['linear', 'radial']).optional(),
+  gradientType: z.enum(['linear', 'radial', 'conic']).optional(),
   angle: z.number().optional(),
   stops: z.array(GradientStopSchema).optional(),
   cx: z.number().min(0).max(1).optional(),
   cy: z.number().min(0).max(1).optional(),
+  backgroundSize: z.string().optional(),
+  backgroundPosition: z.string().optional(),
+  backgroundRepeat: z.string().optional(),
 });
 
 export const StrokeSchema = z.object({
@@ -162,6 +165,10 @@ export const VectorViewBoxSchema = z.object({
   height: z.number().positive(),
 });
 
+export const RasterizedSchema = z.object({
+  reason: z.string(),
+});
+
 export const NodeSchema = z.object({
   id: z.string(),
   name: z.string().optional(),
@@ -176,6 +183,7 @@ export const NodeSchema = z.object({
   vectorViewBox: VectorViewBoxSchema.optional(),
   objectFit: z.enum(['fill', 'contain', 'cover', 'none', 'scale-down']).optional(),
   objectPosition: z.string().optional(),
+  rasterized: RasterizedSchema.optional(),
 });
 
 export const CaptureDiagnosticSchema = z.object({

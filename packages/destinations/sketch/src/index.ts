@@ -161,9 +161,20 @@ function convertShadows(shadows: Shadow[]): {
 
   return { outerShadows, innerShadows };
 }
+function resolvePatternFillType(fill: Fill, nodeStyle?: Node['style']): number {
+  const repeat = (fill.backgroundRepeat ?? nodeStyle?.backgroundRepeat ?? '').trim().toLowerCase();
+  const size = (fill.backgroundSize ?? nodeStyle?.backgroundSize ?? '').trim().toLowerCase();
+  if (repeat === 'repeat' || repeat === 'repeat-x' || repeat === 'repeat-y') return 0;
+  if (size === 'contain') return 3;
+  if (size === 'cover') return 1;
+  if (size === '100% 100%') return 2;
+  return 1;
+}
+
 function convertFills(
   fills: Fill[],
-  assets: Capture['assets']
+  assets: Capture['assets'],
+  nodeStyle?: Node['style']
 ): Array<Record<string, unknown>> {
   const fillList: Array<Record<string, unknown>> = [];
 
@@ -178,7 +189,7 @@ function convertFills(
           _ref_class: 'MSImageData',
           _ref: `images/${fill.assetRef}.png`,
         },
-        patternFillType: 1, // fill / stretch
+        patternFillType: resolvePatternFillType(fill, nodeStyle),
         patternTileScale: 1,
         noiseIntensity: 0,
         noiseIndex: 0,
@@ -610,7 +621,7 @@ function convertNodeToSketchLayer(
   }
 
   // Handle frame and rect
-  const fillList = convertFills(node.style.fills ?? [], assets);
+  const fillList = convertFills(node.style.fills ?? [], assets, node.style);
 
   const rawRadius = node.style.radius?.topLeft ?? 0;
   const radius = Math.min(rawRadius, node.box.w / 2, node.box.h / 2);

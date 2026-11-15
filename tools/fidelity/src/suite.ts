@@ -14,6 +14,12 @@ const fixtures = [
   ['responsive', 'Responsive fixture complete'],
 ] as const;
 
+const phase3Fixtures = [
+  ['images', 'Images fixture complete'],
+  ['text-metrics', 'Text metrics fixture complete'],
+  ['backgrounds', 'Backgrounds fixture complete'],
+] as const;
+
 /** No remote resources, clocks, random content, or implicit viewport selection. */
 export const fidelityCases: FidelityCase[] = [
   {
@@ -35,6 +41,24 @@ export const fidelityCases: FidelityCase[] = [
         scrollStitch: name === 'growing-lazy',
         scrollOptions: { delayMs: 60, maxPasses: 40, maxDurationMs: 12000, maxHeight: 12000, stablePasses: 2 },
         imageOptions: { timeoutMs: 1500, totalTimeoutMs: 5000 },
+        fontTimeoutMs: 2000,
+      },
+    },
+  }))),
+  ...phase3Fixtures.flatMap(([name, marker]) => [
+    { name: 'desktop', width: 1440, height: 900, mobile: false },
+    { name: 'mobile', width: 390, height: 844, mobile: true },
+  ].map((viewport): FidelityCase => ({
+    name: `${name}-${viewport.name}`,
+    options: {
+      url: new URL(`../fixtures/${name}.html`, import.meta.url).href,
+      width: viewport.width,
+      height: viewport.height,
+      mobile: viewport.mobile,
+      requiredText: [marker],
+      serializeOptions: {
+        scrollStitch: false,
+        imageOptions: { timeoutMs: 2000, totalTimeoutMs: 5000 },
         fontTimeoutMs: 2000,
       },
     },

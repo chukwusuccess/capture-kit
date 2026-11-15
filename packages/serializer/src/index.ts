@@ -663,12 +663,16 @@ function extractCssUrl(bgImage: string): string | null {
 // data: URIs come in two flavors — `;base64,...` and URL-encoded (common for
 // inline SVG: `data:image/svg+xml,%3Csvg...`). Normalize both to base64.
 function dataUriToAsset(uri: string): { mimeType: string; base64: string } | null {
-  const m = uri.match(/^data:([^;,]+)(;base64)?,([\s\S]*)$/);
-  if (!m) return null;
-  const mimeType = m[1];
-  if (m[2]) return { mimeType, base64: m[3] };
+  const comma = uri.indexOf(',');
+  if (!uri.startsWith('data:') || comma === -1) return null;
+  const meta = uri.slice(5, comma);
+  const body = uri.slice(comma + 1);
+  const parts = meta.split(';').map((p) => p.trim()).filter(Boolean);
+  const mimeType = parts[0] && !parts[0].includes('=') ? parts[0] : 'text/plain';
+  const isBase64 = parts.some((p) => p.toLowerCase() === 'base64');
+  if (isBase64) return { mimeType, base64: body };
   try {
-    const decoded = decodeURIComponent(m[3]);
+    const decoded = decodeURIComponent(body);
     return { mimeType, base64: btoa(unescape(encodeURIComponent(decoded))) };
   } catch {
     return null;
@@ -2015,6 +2019,35 @@ async function serializeSubtree(
       assetsEnd = nowMs();
     }
   };
+  const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
+  const runtimeBridge = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+  const sendRuntimeMessage = (
+    runtimeBridge && typeof runtimeBridge === 'object' && 'sendMessage' in runtimeBridge && typeof runtimeBridge.sendMessage === 'function'
+      ? (runtimeBridge.sendMessage as (msg: unknown) => Promise<unknown>)
+      : null
+  );
+  const hasRuntimeBridge = sendRuntimeMessage !== null;
+
+  const pendingRectCaptures: Array<{
+    box: { x: number; y: number; w: number; h: number };
+    assetKey: string;
+    nodeId: string;
+    reason: string;
+  }> = [];
+  const enqueueRectCapture = (item: {
+    box: { x: number; y: number; w: number; h: number };
+    assetKey: string;
+    nodeId: string;
+    reason: string;
+  }) => {
+    pendingRectCaptures.push(item);
+  };
+  const pendingSvgImageInlines: Array<{
+    assetKey: string;
+    urls: Array<{ raw: string; resolved: string }>;
+    nodeId: string;
+  }> = [];
+
   const enqueueAssetFetch = (item: { url: string; assetKey: string; nodeId: string }) => {
     if (!assetsStart) assetsStart = nowMs();
     pendingAssetFetches.push(item);
@@ -2266,7 +2299,7 @@ async function serializeSubtree(
         try {
           const resolvedUrl = new URL(bgImageUrl, baseURI);
           const isSameOrigin = resolvedUrl.origin === defaultView.location?.origin;
-          if (isSameOrigin || resolvedUrl.protocol === 'blob:') {
+          if (isSameOrigin || resolvedUrl.protocol === 'blob:' || hasRuntimeBridge) {
             const cachedKey = urlToAssetKeyCache.get(resolvedUrl.href);
             if (cachedKey) {
               fills.push({ type: 'image', assetRef: cachedKey, opacity: 1 });
@@ -2327,23 +2360,40 @@ async function serializeSubtree(
     // 1. Canvas elements (WebGL shaders, Three.js, charts, 2D canvas)
     if (tagName === 'canvas') {
       let assetRef: string | undefined;
-      try {
-        const canvasEl = el as HTMLCanvasElement;
-        if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
-          const dataUrl = canvasEl.toDataURL('image/png');
-          if (dataUrl && dataUrl.startsWith('data:image/png;base64,') && dataUrl.length > 'data:image/png;base64,'.length) {
-            const base64 = dataUrl.slice('data:image/png;base64,'.length);
+      let rasterized: { reason: string } | undefined;
+      const canvasEl = el as HTMLCanvasElement;
+      const hasWebgl = Boolean(
+        typeof canvasEl.getContext === 'function' &&
+        (canvasEl.getContext('webgl2') || canvasEl.getContext('webgl') || canvasEl.getContext('experimental-webgl'))
+      );
+      if (hasWebgl && w > 0 && h > 0 && hasRuntimeBridge) {
+        const assetKey = `asset-${nextAssetId++}`;
+        assetRef = assetKey;
+        rasterized = { reason: 'webgl-canvas' };
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'webgl-canvas' });
+      } else {
+        try {
+          if (typeof canvasEl.toDataURL === 'function' && canvasEl.width > 0 && canvasEl.height > 0) {
+            const dataUrl = canvasEl.toDataURL('image/png');
+            if (dataUrl && dataUrl.startsWith('data:image/png;base64,') && dataUrl.length > 'data:image/png;base64,'.length) {
+              const base64 = dataUrl.slice('data:image/png;base64,'.length);
+              const assetKey = `asset-${nextAssetId++}`;
+              assets[assetKey] = {
+                kind: 'image',
+                mimeType: 'image/png',
+                base64,
+              };
+              assetRef = assetKey;
+            }
+          }
+        } catch {
+          if (w > 0 && h > 0 && hasRuntimeBridge) {
             const assetKey = `asset-${nextAssetId++}`;
-            assets[assetKey] = {
-              kind: 'image',
-              mimeType: 'image/png',
-              base64,
-            };
             assetRef = assetKey;
+            rasterized = { reason: 'tainted-canvas' };
+            enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'tainted-canvas' });
           }
         }
-      } catch {
-        // Report the unavailable snapshot below, including tainted canvases.
       }
       if (!assetRef) warning(report, 'canvas_unavailable', 'Canvas pixels could not be captured; the image layer has no embedded snapshot.', nodeId);
 
@@ -2354,6 +2404,7 @@ async function serializeSubtree(
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
         style,
         assetRef,
+        ...(rasterized ? { rasterized } : {}),
       });
       continue;
     }
@@ -2443,7 +2494,7 @@ async function serializeSubtree(
                  .replace('>', `><style>${childStyles.join('')}</style>`);
              }
            }
-           const base64 = btoa(unescape(encodeURIComponent(svgString)));
+          const base64 = btoa(unescape(encodeURIComponent(svgString)));
           const assetKey = `asset-${nextAssetId++}`;
           assets[assetKey] = {
             kind: 'image',
@@ -2451,6 +2502,22 @@ async function serializeSubtree(
             base64,
           };
           assetRef = assetKey;
+          if (typeof el.querySelectorAll === 'function') {
+            const svgImgUrls: Array<{ raw: string; resolved: string }> = [];
+            el.querySelectorAll('image').forEach((imgNode) => {
+              const rawHref = imgNode.getAttribute('href') || imgNode.getAttribute('xlink:href');
+              if (rawHref && !rawHref.startsWith('data:')) {
+                try {
+                  svgImgUrls.push({ raw: rawHref, resolved: new URL(rawHref, baseURI).href });
+                } catch {
+                  // ignore unresolvable
+                }
+              }
+            });
+            if (svgImgUrls.length > 0) {
+              pendingSvgImageInlines.push({ assetKey, urls: svgImgUrls, nodeId });
+            }
+          }
         }
       } catch {
         warning(report, 'asset_failed', 'Inline SVG bytes could not be captured.', nodeId);
@@ -2488,11 +2555,12 @@ async function serializeSubtree(
           return new Set<string>();
         }
       })();
+      const hasSvgImages = typeof el.querySelector === 'function' && Boolean(el.querySelector('image'));
       const vectorPaths = extractSvgPaths(spriteTarget ?? el).filter((p) => !clipDs.has(p.d));
       // Vector-first: path-bearing svgs travel as real vector data, which
       // every importer honors. The base64 asset stays as fallback for
-      // shape types paths can't express.
-      const vectorFirst = vectorPaths.length > 0;
+      // shape types paths can't express (or svgs with embedded <image>).
+      const vectorFirst = vectorPaths.length > 0 && !hasSvgImages;
        // Intrinsic viewBox size: destinations scale path units into the box.
        const vectorViewBox = (() => {
          try {
@@ -2546,7 +2614,7 @@ async function serializeSubtree(
             const resolvedUrl = new URL(src, baseURI);
             const isSameOrigin =
               resolvedUrl.origin === defaultView.location?.origin;
-            if (isSameOrigin || resolvedUrl.protocol === 'blob:') {
+            if (isSameOrigin || resolvedUrl.protocol === 'blob:' || hasRuntimeBridge) {
               const cachedKey = urlToAssetKeyCache.get(resolvedUrl.href);
               if (cachedKey) {
                 assetRef = cachedKey;
@@ -2583,7 +2651,7 @@ async function serializeSubtree(
       continue;
     }
 
-    // 3. Iframe elements (same-origin traversal)
+    // 3. Iframe elements (same-origin traversal, cross-origin raster fallback)
     if (tagName === 'iframe') {
       let iframeLabel: string | undefined;
       try {
@@ -2592,19 +2660,21 @@ async function serializeSubtree(
       } catch {
         // ignore
       }
-      nodes.push({
-        id: nodeId,
-        ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
-        parentId,
-        type: 'frame',
-        box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
-        style,
-      });
 
+      let capturedSameOrigin = false;
       try {
         const iframeEl = el as HTMLIFrameElement;
         const iframeDoc = iframeEl.contentDocument;
         if (iframeDoc && (iframeDoc.body || iframeDoc.documentElement)) {
+          capturedSameOrigin = true;
+          nodes.push({
+            id: nodeId,
+            ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
+            parentId,
+            type: 'frame',
+            box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+            style,
+          });
           const iframeRoot = iframeDoc.body || iframeDoc.documentElement;
           const { diagnostics: iframeDiagnostics } = await prepareCapture(iframeRoot, iframeDoc, opts, false);
           const iframeCapture = await serializeSubtree(
@@ -2629,20 +2699,45 @@ async function serializeSubtree(
 
           Object.assign(assets, iframeCapture.assets);
           for (const diagnostic of iframeCapture.diagnostics ?? []) report({ ...diagnostic, nodeId });
-        } else {
-          warning(report, 'asset_unavailable', 'Embedded document is unavailable or cross-origin; its content was not captured.', nodeId);
         }
       } catch {
-        warning(report, 'asset_unavailable', 'Embedded document content could not be captured.', nodeId);
+        capturedSameOrigin = false;
+      }
+
+      if (!capturedSameOrigin) {
+        if (w > 0 && h > 0 && hasRuntimeBridge) {
+          const assetKey = `asset-${nextAssetId++}`;
+          enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'cross-origin-iframe' });
+          nodes.push({
+            id: nodeId,
+            ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
+            parentId,
+            type: 'image',
+            box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+            style,
+            assetRef: assetKey,
+            rasterized: { reason: 'cross-origin-iframe' },
+          });
+        } else {
+          warning(report, 'asset_unavailable', 'Embedded document is unavailable or cross-origin; its content was not captured.', nodeId);
+          nodes.push({
+            id: nodeId,
+            ...(iframeLabel ? { name: iframeLabel } : semanticName ? { name: semanticName } : {}),
+            parentId,
+            type: 'frame',
+            box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
+            style,
+          });
+        }
       }
       continue;
     }
 
-    // 2b. Video elements: rasterize the current frame so the replica shows
-    // exactly what the user saw instead of a dead black box.
+    // 2b. Video elements: rasterize the current frame or poster.
     if (tagName === 'video') {
       const videoEl = el as HTMLVideoElement;
       let assetRef: string | undefined;
+      let rasterized: { reason: string } | undefined;
       try {
         if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
           const canvas = doc.createElement('canvas');
@@ -2659,16 +2754,38 @@ async function serializeSubtree(
           }
         }
       } catch {
-        // Tainted/cross-origin video: fall back to poster attribute below.
+        // Tainted/cross-origin video: fall back to poster or raster capture below.
+      }
+      if (!assetRef) {
         const poster = videoEl.getAttribute('poster');
-        if (poster?.startsWith('data:image/')) {
-          const m = poster.match(/^data:([^;]+);base64,(.+)$/);
-          if (m) {
-            const assetKey = `asset-${nextAssetId++}`;
-            assets[assetKey] = { kind: 'image', mimeType: m[1], base64: m[2] };
-            assetRef = assetKey;
+        if (poster) {
+          if (poster.startsWith('data:')) {
+            const parsed = dataUriToAsset(poster);
+            if (parsed) {
+              const assetKey = `asset-${nextAssetId++}`;
+              assets[assetKey] = { kind: 'image', mimeType: parsed.mimeType, base64: parsed.base64 };
+              assetRef = assetKey;
+            }
+          } else {
+            try {
+              const resolvedPoster = new URL(poster, baseURI);
+              const isSameOrigin = resolvedPoster.origin === defaultView.location?.origin;
+              if (isSameOrigin || resolvedPoster.protocol === 'blob:' || hasRuntimeBridge) {
+                const assetKey = `asset-${nextAssetId++}`;
+                enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId });
+                assetRef = assetKey;
+              }
+            } catch {
+              // ignore unresolvable poster
+            }
           }
         }
+      }
+      if (!assetRef && w > 0 && h > 0 && hasRuntimeBridge) {
+        const assetKey = `asset-${nextAssetId++}`;
+        assetRef = assetKey;
+        rasterized = { reason: 'video-frame' };
+        enqueueRectCapture({ box: { x, y, w, h }, assetKey, nodeId, reason: 'video-frame' });
       }
       if (!assetRef) warning(report, 'asset_unavailable', 'Video frame pixels could not be captured.', nodeId);
 
@@ -2679,6 +2796,7 @@ async function serializeSubtree(
         box: { x, y, w: Math.max(0, w), h: Math.max(0, h) },
         style,
         assetRef,
+        ...(rasterized ? { rasterized } : {}),
       });
       continue;
     }
@@ -3051,6 +3169,65 @@ async function serializeSubtree(
     ),
   ]);
   const fontsMs = nowMs() - fontsStart;
+  if (pendingSvgImageInlines.length > 0) {
+    for (const item of pendingSvgImageInlines) {
+      const asset = assets[item.assetKey];
+      if (!asset || asset.mimeType !== 'image/svg+xml') continue;
+      let svgText = decodeURIComponent(escape(atob(asset.base64)));
+      for (const u of item.urls) {
+        let dataUrl: string | null = null;
+        try {
+          const rem = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+          if (rem > 0) {
+            const blob = await fetchAssetBlob(u.resolved, rem);
+            const buf = await withTimeout(blob.arrayBuffer(), rem);
+            const b64 = await arrayBufferToBase64(buf);
+            dataUrl = `data:${blob.type || 'image/png'};base64,${b64}`;
+          }
+        } catch {
+          if (sendRuntimeMessage) {
+            try {
+              const rem = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+              const bg = (await withTimeout(Promise.resolve(sendRuntimeMessage({ action: 'fetch-asset', url: u.resolved })), rem)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              if (bg?.success && bg.base64) {
+                dataUrl = `data:${bg.mimeType || 'image/png'};base64,${bg.base64}`;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+        if (dataUrl) {
+          svgText = svgText.split(u.raw).join(dataUrl);
+        } else {
+          warning(report, 'asset_failed', `SVG <image> asset could not be embedded: ${u.resolved}`, item.nodeId);
+        }
+      }
+      asset.base64 = btoa(unescape(encodeURIComponent(svgText)));
+    }
+  }
+  if (pendingRectCaptures.length > 0 && sendRuntimeMessage) {
+    for (const req of pendingRectCaptures) {
+      try {
+        const rem = Math.min(assetTimeoutMs, Math.max(1000, readinessDeadline - Date.now()));
+        const res = (await withTimeout(
+          Promise.resolve(sendRuntimeMessage({ action: 'capture-element-rect', box: req.box })),
+          rem
+        )) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+        if (res?.success && res.base64) {
+          assets[req.assetKey] = { kind: 'image', mimeType: res.mimeType || 'image/png', base64: res.base64 };
+          assetsFetched++;
+          assetBytes += Math.floor((res.base64.length * 3) / 4);
+        } else {
+          assetsFailed++;
+          warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) could not capture element.`, req.nodeId);
+        }
+      } catch {
+        assetsFailed++;
+        warning(report, 'asset_unavailable', `Raster fallback (${req.reason}) timed out or failed.`, req.nodeId);
+      }
+    }
+  }
   const assetsMs = assetsStart ? Math.max(0, (assetsEnd || nowMs()) - assetsStart) : 0;
   capture.assets = assets;
   capture.fonts = extractedFonts;

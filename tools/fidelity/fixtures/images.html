@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Images and media fidelity</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f5f6f8; color: #1a2230; font: 15px/1.4 Arial, sans-serif; }
+    h1 { margin: 0 0 18px; font-size: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .card { background: #fff; border: 1px solid #d4dbe4; border-radius: 8px; padding: 12px; }
+    .card h2 { margin: 0 0 8px; font-size: 13px; color: #475569; }
+    .media { width: 100%; height: 110px; border-radius: 4px; display: block; object-fit: cover; }
+    .bg-cover {
+      width: 100%; height: 110px; border-radius: 4px;
+      background-size: cover; background-position: 80% 20%; background-repeat: no-repeat;
+    }
+    .bg-multi {
+      width: 100%; height: 110px; border-radius: 4px;
+      background-image:
+        linear-gradient(135deg, rgba(25, 118, 210, 0.45), rgba(216, 27, 96, 0.35)),
+        radial-gradient(circle at 75% 25%, #ffd166 0 28px, transparent 29px),
+        linear-gradient(180deg, #e2e8f0, #cbd5e1);
+      background-size: 100% 100%, 100% 100%, 100% 100%;
+      background-position: 0 0, 0 0, 0 0;
+    }
+    canvas, video, iframe { width: 100%; height: 110px; border-radius: 4px; display: block; border: 0; }
+    footer { margin-top: 16px; font-size: 12px; color: #64748b; }
+    @media (max-width: 600px) {
+      body { padding: 16px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Images &amp; Media Fixture</h1>
+  <div class="grid">
+    <div class="card">
+      <h2>Cross-origin &lt;img&gt;</h2>
+      <img id="xorigin-img" class="media" alt="Cross origin">
+    </div>
+    <div class="card">
+      <h2>&lt;picture&gt; + srcset</h2>
+      <picture>
+        <source id="pic-source" media="(min-width: 600px)">
+        <img id="pic-img" class="media" alt="Picture srcset">
+      </picture>
+    </div>
+    <div class="card">
+      <h2>CSS background-size: cover</h2>
+      <div id="bg-cover" class="bg-cover"></div>
+    </div>
+    <div class="card">
+      <h2>Multiple backgrounds</h2>
+      <div class="bg-multi"></div>
+    </div>
+    <div class="card">
+      <h2>2D &lt;canvas&gt;</h2>
+      <canvas id="canvas-2d" width="240" height="110"></canvas>
+    </div>
+    <div class="card">
+      <h2>WebGL &lt;canvas&gt;</h2>
+      <canvas id="canvas-webgl" width="240" height="110"></canvas>
+    </div>
+    <div class="card">
+      <h2>&lt;video poster&gt;</h2>
+      <video id="poster-video" muted playsinline></video>
+    </div>
+    <div class="card">
+      <h2>Cross-origin &lt;iframe&gt;</h2>
+      <iframe id="xorigin-frame" title="Cross origin frame"></iframe>
+    </div>
+  </div>
+  <footer>Images fixture complete</footer>
+  <script>
+    (function () {
+      const makeSvgData = (bg, accent, label) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" fill="${bg}"/><circle cx="170" cy="40" r="28" fill="${accent}"/><rect x="20" y="72" width="120" height="16" rx="4" fill="#ffffff" fill-opacity="0.85"/><text x="20" y="42" fill="#ffffff" font-family="Arial" font-size="18" font-weight="bold">${label}</text></svg>`;
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      };
+
+      const xoriginBase = new URLSearchParams(location.search).get('xorigin');
+      const fallbackImg = makeSvgData('#1d3557', '#e63946', 'IMG');
+      const xImgUrl = xoriginBase ? `${xoriginBase}/xorigin.png` : fallbackImg;
+      document.getElementById('xorigin-img').src = xImgUrl;
+
+      const desktopSrc = makeSvgData('#2a9d8f', '#e9c46a', 'DESKTOP');
+      const mobileSrc = makeSvgData('#264653', '#f4a261', 'MOBILE');
+      document.getElementById('pic-source').srcset = `${desktopSrc} 1x, ${desktopSrc} 2x`;
+      const picImg = document.getElementById('pic-img');
+      picImg.srcset = `${mobileSrc} 1x, ${mobileSrc} 2x`;
+      picImg.src = mobileSrc;
+
+      document.getElementById('bg-cover').style.backgroundImage = `url("${makeSvgData('#4a154b', '#ecb22e', 'COVER')}")`;
+
+      const c2d = document.getElementById('canvas-2d').getContext('2d');
+      c2d.fillStyle = '#0f172a';
+      c2d.fillRect(0, 0, 240, 110);
+      c2d.fillStyle = '#38bdf8';
+      c2d.beginPath();
+      c2d.arc(70, 55, 36, 0, Math.PI * 2);
+      c2d.fill();
+      c2d.fillStyle = '#f8fafc';
+      c2d.font = 'bold 18px Arial';
+      c2d.fillText('2D Canvas', 120, 62);
+
+      const glCanvas = document.getElementById('canvas-webgl');
+      const gl = glCanvas.getContext('webgl');
+      if (gl) {
+        gl.viewport(0, 0, 240, 110);
+        gl.clearColor(0.11, 0.16, 0.28, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vs, 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }');
+        gl.compileShader(vs);
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, 'precision mediump float; void main(){ gl_FragColor = vec4(0.95, 0.45, 0.22, 1.0); }');
+        gl.compileShader(fs);
+        const prog = gl.createProgram();
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        gl.useProgram(prog);
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0.75, -0.7, -0.65, 0.7, -0.65]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, 'p');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
+
+      document.getElementById('poster-video').setAttribute('poster', makeSvgData('#3b0764', '#f43f5e', 'POSTER'));
+      const frame = document.getElementById('xorigin-frame');
+      if (xoriginBase) {
+        frame.src = `${xoriginBase}/xorigin-frame.html`;
+      } else {
+        frame.srcdoc = '<body style="margin:0;background:#1b3b5a;color:#fff;font:14px Arial;padding:12px">Frame</body>';
+      }
+    })();
+  </script>
+</body>
+</html>

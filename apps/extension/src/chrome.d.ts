@@ -27,6 +27,7 @@ declare const chrome: {
     setZoomSettings(tabId: number, settings: { scope?: 'per-origin' | 'per-tab'; mode?: 'automatic' }): Promise<void>;
     create(createProperties: { url: string; active?: boolean }): Promise<{ id?: number }>;
     remove(tabId: number): Promise<void>;
+    captureVisibleTab(windowId: number, options?: { format?: 'png' | 'jpeg'; quality?: number }): Promise<string>;
     onUpdated: {
       addListener(
         callback: (tabId: number, changeInfo: { status?: string }) => void

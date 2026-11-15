@@ -125,7 +125,7 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     if (assetRef && assets[assetRef]) {
       const asset = assets[assetRef];
       const src = `data:${asset.mimeType};base64,${asset.base64}`;
-      const fit = node.objectFit && node.objectFit !== 'fill' ? node.objectFit : 'cover';
+      const fit = node.objectFit || 'fill';
       const posStyle = node.objectPosition ? `; object-position: ${escapeHtml(node.objectPosition)}` : '';
       return `    <img id="${escapeHtml(node.id)}" src="${src}" alt="Captured image" width="${box.w}" height="${box.h}" style="${escapeHtml(`${styles.join('; ')}; object-fit: ${fit}${posStyle}`)}" />`;
     }

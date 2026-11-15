@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Text metrics fidelity</title>
+  <style>
+    @font-face {
+      font-family: 'MissingWebFont';
+      src: url('/nonexistent-font.woff2') format('woff2');
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px; background: #faf8f5; color: #1f2937; font-family: Arial, sans-serif; }
+    main { max-width: 960px; margin: 0 auto; }
+    h1.responsive-wrap {
+      font-family: Georgia, serif;
+      font-size: 38px;
+      line-height: 1.15;
+      margin: 0 0 18px;
+      max-width: 760px;
+    }
+    h2.balanced {
+      font-size: 24px;
+      line-height: 1.25;
+      text-wrap: balance;
+      max-width: 420px;
+      margin: 0 0 18px;
+      color: #0f172a;
+    }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; }
+    .fallback-font { font-family: 'MissingWebFont', Georgia, serif; font-size: 18px; line-height: 28px; margin: 0 0 12px; }
+    .lh-unitless { font-size: 16px; line-height: 1.55; letter-spacing: 0.4px; margin: 0 0 12px; }
+    .lh-normal { font-size: 16px; line-height: normal; letter-spacing: 2px; margin: 0 0 12px; }
+    .inline-ws { font-size: 16px; line-height: 24px; margin: 0 0 12px; }
+    .inline-ws span { font-weight: bold; color: #2563eb; }
+    .clamp-2 {
+      font-size: 15px;
+      line-height: 22px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin: 0 0 12px;
+      max-width: 320px;
+    }
+    .ellipsis {
+      font-size: 15px;
+      line-height: 22px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 240px;
+      margin: 0;
+    }
+    footer { margin-top: 20px; font-size: 12px; color: #64748b; }
+    @media (max-width: 600px) {
+      body { padding: 16px; }
+      .grid { grid-template-columns: 1fr; }
+      h1.responsive-wrap { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 class="responsive-wrap">Single line at desktop width wraps cleanly on mobile</h1>
+    <h2 class="balanced">Balanced headings distribute words evenly across multiple lines</h2>
+    <div class="grid">
+      <div class="card">
+        <p class="fallback-font">Web font fallback with fixed 28px line-height and serif metrics.</p>
+        <p class="lh-unitless">Unitless 1.55 line-height with subtle positive letter-spacing across wrapping lines.</p>
+        <p class="lh-normal">Normal line-height with wide 2px tracking.</p>
+      </div>
+      <div class="card">
+        <p class="inline-ws">Examples (<span>3</span>) and spaced <strong>inline</strong> tokens.</p>
+        <p class="clamp-2">Line clamp should truncate this long paragraph after two visible lines with an ellipsis rather than overflowing into the rest of the card.</p>
+        <p class="ellipsis">Single line overflow text that must end in an ellipsis when constrained</p>
+      </div>
+    </div>
+    <footer>Text metrics fixture complete</footer>
+  </main>
+</body>
+</html>

@@ -5,6 +5,7 @@ import { runFidelity, type FidelityReport } from './src/index.js';
 import { fileURLToPath } from 'node:url';
 import { parseFidelityArgs } from './src/cli.js';
 import { defaultSuiteOutDir, fidelityCases, suiteFailures, type FidelityCaseResult } from './src/suite.js';
+import { startFixtureServers, type FixtureServers } from './src/fixture-server.js';
 
 function print(r: FidelityReport): void {
   console.log(`  Score: ${r.score}% within tolerance; ${r.strictScore}% byte-identical`);
@@ -70,21 +71,32 @@ is not evidence of native importer fidelity. Unsupported rendering remains visib
   }];
   const outDir = resolve(options.outDir ?? (options.suite ? defaultSuiteOutDir : fileURLToPath(new URL('./src/out/', import.meta.url))));
   mkdirSync(outDir, { recursive: true });
+  let servers: FixtureServers | null = null;
   const results: FidelityCaseResult[] = [];
-  for (const fixture of cases) {
-    const caseOut = options.suite ? join(outDir, fixture.name) : outDir;
-    mkdirSync(caseOut, { recursive: true });
-    console.log(`\n${fixture.name}: ${fixture.options.width ?? 1000}x${fixture.options.height ?? 800} ${fixture.options.mobile ? 'mobile' : 'desktop'} ${fixture.options.url}`);
-    try {
-      const report = await runFidelity({ ...fixture.options, ...common, outDir: caseOut });
-      results.push({ name: fixture.name, status: 'measured', report });
-      print(report);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.stack ?? error.message : String(error);
-      results.push({ name: fixture.name, status: 'error', error: message, artifacts: caseOut });
-      writeFileSync(join(caseOut, 'error.json'), JSON.stringify({ case: fixture.name, error: message }, null, 2));
-      console.error(`  ERROR: ${message}\n  Partial artifacts: ${caseOut}`);
+  try {
+    if (options.suite) {
+      servers = await startFixtureServers(fileURLToPath(new URL('./fixtures', import.meta.url)));
     }
+    for (const fixture of cases) {
+      const caseOut = options.suite ? join(outDir, fixture.name) : outDir;
+      mkdirSync(caseOut, { recursive: true });
+      const resolvedUrl = servers && fixture.options.url.endsWith('/images.html')
+        ? `${servers.primaryBaseUrl}/images.html?xorigin=${encodeURIComponent(servers.crossOriginBaseUrl)}`
+        : fixture.options.url;
+      console.log(`\n${fixture.name}: ${fixture.options.width ?? 1000}x${fixture.options.height ?? 800} ${fixture.options.mobile ? 'mobile' : 'desktop'} ${resolvedUrl}`);
+      try {
+        const report = await runFidelity({ ...fixture.options, url: resolvedUrl, ...common, outDir: caseOut });
+        results.push({ name: fixture.name, status: 'measured', report });
+        print(report);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.stack ?? error.message : String(error);
+        results.push({ name: fixture.name, status: 'error', error: message, artifacts: caseOut });
+        writeFileSync(join(caseOut, 'error.json'), JSON.stringify({ case: fixture.name, error: message }, null, 2));
+        console.error(`  ERROR: ${message}\n  Partial artifacts: ${caseOut}`);
+      }
+    }
+  } finally {
+    await servers?.close();
   }
   const failures = suiteFailures(cases.map((fixture) => fixture.name), results, options.minimum);
   const summaryPath = join(outDir, 'summary.json');
