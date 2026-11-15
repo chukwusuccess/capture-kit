@@ -102,7 +102,58 @@ function runHtmlDestinationTests() {
   assert.ok(!snippet.includes('<!DOCTYPE html>'), 'Standalone false should omit doctype');
   assert.ok(snippet.includes('class="capture-canvas"'), 'Snippet should contain canvas');
 
-  console.log('packages/destinations/html tests passed: 6/6 assertions verified');
+  // 7. Assert radialSize, conic, repeating, positionPx, and maskImage rendering
+  const gradHtml = modelToHtml({
+    url: 'https://example.com',
+    version: '0.2.2',
+    frame: { width: 400, height: 200, baseURI: 'https://example.com/' },
+    nodes: [
+      {
+        id: 'grad-card',
+        type: 'frame',
+        box: { x: 0, y: 0, w: 200, h: 100 },
+        style: {
+          fills: [
+            {
+              type: 'gradient',
+              gradientType: 'radial',
+              radialShape: 'circle',
+              radialSize: '55px',
+              cx: 0.3,
+              cy: 0.35,
+              stops: [
+                { color: '#38bdf8', position: 0 },
+                { color: 'transparent', position: 0.15, positionPx: 29 },
+              ],
+            },
+            {
+              type: 'gradient',
+              gradientType: 'conic',
+              repeating: true,
+              angle: 45,
+              cx: 0.5,
+              cy: 0.45,
+              stops: [
+                { color: '#f43f5e', position: 0 },
+                { color: '#3b82f6', position: 1 },
+              ],
+            },
+          ],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+          maskImage: 'linear-gradient(to right, #000, transparent)',
+        },
+      },
+    ],
+    assets: {},
+  });
+  assert.ok(gradHtml.includes('radial-gradient(circle 55px at 30% 35%, #38bdf8 0%, transparent 29px)'), 'Radial size/positionPx missing');
+  assert.ok(gradHtml.includes('repeating-conic-gradient(from 45deg at 50% 45%, #f43f5e 0%, #3b82f6 100%)'), 'Repeating conic gradient missing');
+  assert.ok(gradHtml.includes('mask-image: linear-gradient(to right, #000, transparent)'), 'mask-image missing');
+
+  console.log('packages/destinations/html tests passed: 7/7 assertions verified');
 }
 
 runHtmlDestinationTests();

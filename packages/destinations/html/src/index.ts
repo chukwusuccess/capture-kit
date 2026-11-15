@@ -58,6 +58,9 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   if (style.backgroundClip) {
     styles.push(`background-clip: ${style.backgroundClip}`, `-webkit-background-clip: ${style.backgroundClip}`);
   }
+  if (style.maskImage) {
+    styles.push(`mask-image: ${style.maskImage}`, `-webkit-mask-image: ${style.maskImage}`);
+  }
 
   // Radius
   const r = style.radius;
@@ -81,30 +84,66 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 
   // Fills
   const solidFill = style.fills.find((f) => f.type === 'solid' && f.color);
-  const imageFill = style.fills.find((f) => f.type === 'image' && f.assetRef);
-
   if (solidFill && solidFill.color) {
     styles.push(`background-color: ${solidFill.color}`);
   }
-  const gradFill = style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
-  if (gradFill && gradFill.stops) {
-    const stopsStr = gradFill.stops
-      .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
-      .join(', ');
-    if (gradFill.gradientType === 'radial') {
-      styles.push(`background-image: radial-gradient(circle, ${stopsStr})`);
+
+  const bgLayers: string[] = [];
+  const bgSizes: string[] = [];
+  const bgPositions: string[] = [];
+  const bgRepeats: string[] = [];
+  let hasLayerMeta = false;
+
+  for (const fill of style.fills) {
+    if (fill.type === 'gradient' && fill.stops && fill.stops.length > 0) {
+      const stopsStr = fill.stops
+        .map((s) => `${s.color} ${s.positionPx !== undefined ? `${s.positionPx}px` : `${Math.round(s.position * 10000) / 100}%`}`)
+        .join(', ');
+      const prefix = fill.repeating ? 'repeating-' : '';
+      if (fill.gradientType === 'radial') {
+        const atStr =
+          fill.cx !== undefined || fill.cy !== undefined
+            ? `at ${Math.round((fill.cx ?? 0.5) * 10000) / 100}% ${Math.round((fill.cy ?? 0.5) * 10000) / 100}%`
+            : '';
+        const pre = [fill.radialShape || (fill.radialSize ? undefined : 'circle'), fill.radialSize, atStr]
+          .filter(Boolean)
+          .join(' ');
+        bgLayers.push(`${prefix}radial-gradient(${pre ? `${pre}, ` : ''}${stopsStr})`);
+      } else if (fill.gradientType === 'conic') {
+        const fromStr = fill.angle !== undefined ? `from ${fill.angle}deg` : '';
+        const atStr =
+          fill.cx !== undefined || fill.cy !== undefined
+            ? `at ${Math.round((fill.cx ?? 0.5) * 10000) / 100}% ${Math.round((fill.cy ?? 0.5) * 10000) / 100}%`
+            : '';
+        const pre = [fromStr, atStr].filter(Boolean).join(' ');
+        bgLayers.push(`${prefix}conic-gradient(${pre ? `${pre}, ` : ''}${stopsStr})`);
+      } else {
+        bgLayers.push(`${prefix}linear-gradient(${fill.angle ?? 180}deg, ${stopsStr})`);
+      }
+    } else if (fill.type === 'image' && fill.assetRef && assets[fill.assetRef]) {
+      const asset = assets[fill.assetRef];
+      bgLayers.push(`url('data:${asset.mimeType};base64,${asset.base64}')`);
     } else {
-      styles.push(`background-image: linear-gradient(${gradFill.angle ?? 180}deg, ${stopsStr})`);
+      continue;
     }
+    if (fill.backgroundSize || fill.backgroundPosition || fill.backgroundRepeat) hasLayerMeta = true;
+    bgSizes.push(fill.backgroundSize || style.backgroundSize || (fill.type === 'image' ? 'cover' : 'auto'));
+    bgPositions.push(fill.backgroundPosition || style.backgroundPosition || (fill.type === 'image' ? 'center' : '0% 0%'));
+    bgRepeats.push(fill.backgroundRepeat || style.backgroundRepeat || 'repeat');
   }
 
-
-  if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
-    const asset = assets[imageFill.assetRef];
-    styles.push(`background-image: url('data:${asset.mimeType};base64,${asset.base64}')`);
-    // Defaults only when the capture didn't record a real value (CSS last-wins).
-    if (!style.backgroundSize) styles.push('background-size: cover');
-    if (!style.backgroundPosition) styles.push('background-position: center');
+  if (bgLayers.length > 0) {
+    styles.push(`background-image: ${bgLayers.join(', ')}`);
+    if (hasLayerMeta) {
+      styles.push(
+        `background-size: ${bgSizes.join(', ')}`,
+        `background-position: ${bgPositions.join(', ')}`,
+        `background-repeat: ${bgRepeats.join(', ')}`
+      );
+    } else if (style.fills.some((f) => f.type === 'image' && f.assetRef)) {
+      if (!style.backgroundSize) styles.push('background-size: cover');
+      if (!style.backgroundPosition) styles.push('background-position: center');
+    }
   }
 
   const styleAttr = ` style="${escapeHtml(styles.join('; '))}"`;
