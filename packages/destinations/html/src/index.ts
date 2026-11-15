@@ -67,8 +67,10 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
 
   // Strokes / borders
   if (style.strokes && style.strokes.length > 0) {
-    const stroke = style.strokes[0];
-    styles.push(`border: ${stroke.width}px ${stroke.style || 'solid'} ${stroke.color}`);
+    for (const stroke of style.strokes) {
+      const prop = stroke.side && stroke.side !== 'all' ? `border-${stroke.side}` : 'border';
+      styles.push(`${prop}: ${stroke.width}px ${stroke.style || 'solid'} ${stroke.color}`);
+    }
   }
 
   // Shadows
@@ -133,12 +135,17 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
   }
 
   if (type === 'text' && text) {
+    const isTightSingleLineBox =
+      !text.runs &&
+      !text.content.includes('\n') &&
+      typeof text.lineHeight === 'number' &&
+      box.h < text.lineHeight - 1;
     const textStyles: string[] = [
       ...styles,
       `font-family: ${text.fontFamily}`,
       `font-size: ${text.fontSize}px`,
       `font-weight: ${text.fontWeight}`,
-      `line-height: ${typeof text.lineHeight === 'number' ? `${text.lineHeight}px` : text.lineHeight}`,
+      `line-height: ${isTightSingleLineBox ? 'normal' : typeof text.lineHeight === 'number' ? `${text.lineHeight}px` : text.lineHeight}`,
       `color: ${style.backgroundClip === 'text' ? 'transparent' : text.color}`,
       `text-align: ${text.align}`,
       'white-space: pre-wrap',
@@ -153,6 +160,19 @@ function renderNodeToHtml(node: Node, assets: Capture['assets']): string {
     if (text.textShadow) textStyles.push(`text-shadow: ${text.textShadow}`);
     if (text.overflow === 'ellipsis') {
       textStyles.push('overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap');
+    }
+
+    if (text.runs && text.runs.length > 0) {
+      const positioned = text.runs.every((r) => typeof r.x === 'number' && typeof r.y === 'number');
+      if (positioned) {
+        const spans = text.runs.map((r) => {
+          const rx = Math.round(((r.x ?? box.x) - box.x) * 100) / 100;
+          const ry = Math.round(((r.y ?? box.y) - box.y) * 100) / 100;
+          return `<span style="position: absolute; left: ${rx}px; top: ${ry}px; line-height: normal; white-space: pre">${escapeHtml(r.text)}</span>`;
+        }).join('');
+        return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${spans}</div>`;
+      }
+      return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${escapeHtml(text.runs.map((r) => r.text).join('\n'))}</div>`;
     }
 
     return `    <div id="${escapeHtml(node.id)}" style="${escapeHtml(textStyles.join('; '))}">${escapeHtml(text.content)}</div>`;
