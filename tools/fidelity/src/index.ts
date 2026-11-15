@@ -504,8 +504,50 @@ export async function runFidelity(opts: FidelityOptions): Promise<FidelityReport
       unsubscribeShim();
     }
     // Readiness can grow the page. The reference must be taken AFTER it, not
-    // before lazy sections exist. Do not scroll nested surfaces or reload here.
-    await evaluate(cdp, s, '(() => { const { promise, resolve } = Promise.withResolvers(); requestAnimationFrame(() => requestAnimationFrame(resolve)); return promise; })()', true);
+    // before lazy sections exist. Force lazy/placeholder images to load for
+    // the reference shot so cross-origin lazy photos aren't missing from it.
+    await evaluate(
+      cdp,
+      s,
+      `(() => {
+        for (const srcEl of Array.from(document.querySelectorAll('picture source[data-srcset]'))) {
+          if (!srcEl.getAttribute('srcset')) {
+            const v = srcEl.getAttribute('data-srcset');
+            if (v) srcEl.setAttribute('srcset', v);
+          }
+        }
+        for (const img of Array.from(document.images)) {
+          if (!img.getAttribute('srcset')) {
+            const ls = img.getAttribute('data-srcset') || img.getAttribute('data-lazy-srcset');
+            if (ls) img.setAttribute('srcset', ls);
+          }
+          const cur = img.getAttribute('src') || '';
+          if (!cur || /^data:image\\/(gif|svg\\+xml)/i.test(cur)) {
+            const lsrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
+            if (lsrc) img.setAttribute('src', lsrc);
+          }
+          try { img.loading = 'eager'; } catch {}
+          try { img.setAttribute('loading', 'eager'); } catch {}
+        }
+        const decodeAll = Promise.all(
+          Array.from(document.images, (img) =>
+            (img.complete && img.naturalWidth > 0
+              ? Promise.resolve()
+              : new Promise((res) => {
+                  img.addEventListener('load', res, { once: true });
+                  img.addEventListener('error', res, { once: true });
+                })
+            ).then(() => (typeof img.decode === 'function' ? img.decode().catch(() => {}) : undefined))
+          )
+        );
+        return Promise.race([decodeAll, new Promise((r) => setTimeout(r, 10000))]).then(() => {
+          const { promise, resolve } = Promise.withResolvers();
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+          return promise;
+        });
+      })()`,
+      true
+    );
     const shotOriginal = await screenshot(cdp, s);
     const originalPath = join(outDir, 'original.png');
     const capturePath = join(outDir, 'capture.json');
