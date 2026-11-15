@@ -21,10 +21,34 @@ customWindow.__captureKitSerialize = async (opts?: SerializeOptions): Promise<un
   return await serializeDocument(document, opts);
 };
 
+// The page just loaded these files, so its HTTP cache usually has them; the
+// background worker's cache is separate and would refetch every one over the
+// network. Returns null (caller falls back) when CORS or anything else blocks it.
+async function fetchFromPage(url: string, as: 'text' | 'data-url'): Promise<string | null> {
+  try {
+    const res = await fetch(url, { cache: 'force-cache' });
+    if (!res.ok) return null;
+    if (as === 'text') return await res.text();
+    const blob = await res.blob();
+    if (blob.size > 15 * 1024 * 1024) return null;
+    // <img> refuses SVG served as octet-stream (S3 and friends).
+    const typed = /\.svg(\?|#|$)/i.test(url) && blob.type !== 'image/svg+xml' ? new Blob([blob], { type: 'image/svg+xml' }) : blob;
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(typed);
+    });
+  } catch {
+    return null;
+  }
+}
+
 customWindow.__captureKitReplica = () =>
   replicateDocument(document, {
-    // The background fetches: it has host permissions, so CORS can't block fonts or CSS.
-    fetch: (url, as) =>
+    // Page cache first; the background has host permissions, so CORS can't block it there.
+    fetch: async (url, as) =>
+      (await fetchFromPage(url, as)) ??
       chrome.runtime.sendMessage({ action: 'fetch-asset', url, as }).then(
         (r) => (r as { data?: string | null } | undefined)?.data ?? null,
         () => null
