@@ -476,10 +476,15 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
   // clamping can make the initial outer-width estimate inaccurate.
   let resizeError: unknown;
   for (let attempt = 0; attempt < 3 && inner !== width; attempt++) {
+    const prevInner = inner;
     try {
       const window = await chrome.windows.get(windowId);
       const outerWidth = window.width ?? inner + frame;
-      await chrome.windows.update(windowId, { width: Math.max(1, outerWidth + width - inner) });
+      const nextHeight = (window.height ?? 0) < 1000 ? 1000 : undefined;
+      await chrome.windows.update(windowId, {
+        width: Math.max(1, outerWidth + width - inner),
+        ...(nextHeight ? { height: nextHeight } : {}),
+      });
     } catch (error) {
       resizeError = error;
       break;
@@ -487,6 +492,7 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
     await waitForLayout(tabId);
     ({ inner, frame } = await measure(tabId));
     if (inner <= 0) throw new Error('Could not measure the page viewport after resizing.');
+    if (inner === prevInner) break;
   }
 
   // If the OS window-size limit prevented an exact resize, use page zoom to

@@ -61,7 +61,7 @@ export interface RasterCaptureDeps {
 
 const DEFAULT_MIN_INTERVAL_MS = 510;
 const DEFAULT_MAX_TILES = 4;
-const DEFAULT_SETTLE_MS = 60;
+const DEFAULT_SETTLE_MS = 16;
 
 let lastShotAt = 0;
 let queueTail: Promise<unknown> = Promise.resolve();
