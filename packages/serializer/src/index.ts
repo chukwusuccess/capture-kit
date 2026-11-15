@@ -393,7 +393,10 @@ async function waitForFonts(
   }
 }
 
-function eagerLoadImages(root: Document | Element, doc: Document): void {
+// Returns whether any image may still load (promoted here or not yet complete),
+// i.e. whether the page height can still shift under us.
+function eagerLoadImages(root: Document | Element, doc: Document): boolean {
+  let mayShift = false;
   const origin = doc.defaultView?.location?.origin;
   const images: HTMLImageElement[] = [];
   if ('tagName' in root && root.tagName.toLowerCase() === 'img') images.push(root as HTMLImageElement);
@@ -403,7 +406,7 @@ function eagerLoadImages(root: Document | Element, doc: Document): void {
     if (!existingSrcset) {
       const lazySrcset = img.getAttribute?.('data-srcset') || img.getAttribute?.('data-lazy-srcset');
       if (lazySrcset) {
-        try { img.setAttribute?.('srcset', lazySrcset); } catch { /* ignore */ }
+        try { img.setAttribute?.('srcset', lazySrcset); mayShift = true; } catch { /* ignore */ }
       }
     }
     const existingSrc = img.getAttribute?.('src') || '';
@@ -411,7 +414,7 @@ function eagerLoadImages(root: Document | Element, doc: Document): void {
     if (isPlaceholder) {
       const lazySrc = img.getAttribute?.('data-src') || img.getAttribute?.('data-lazy-src');
       if (lazySrc) {
-        try { img.setAttribute?.('src', lazySrc); } catch { /* ignore */ }
+        try { img.setAttribute?.('src', lazySrc); mayShift = true; } catch { /* ignore */ }
       }
     }
     const loadingAttr = img.getAttribute?.('loading') ?? (img as HTMLImageElement).loading;
@@ -428,9 +431,12 @@ function eagerLoadImages(root: Document | Element, doc: Document): void {
       if (sameOrigin) {
         try { (img as HTMLImageElement).loading = 'eager'; } catch { /* ignore */ }
         try { img.setAttribute?.('loading', 'eager'); } catch { /* ignore */ }
+        mayShift = true;
       }
     }
+    if (img.complete === false) mayShift = true;
   }
+  return mayShift;
 }
 
 async function waitForStableScrollHeight(
@@ -480,7 +486,7 @@ async function prepareCapture(
       diagnostics.push(diagnostic);
     }
   };
-  eagerLoadImages(root, doc);
+  const layoutMayShift = eagerLoadImages(root, doc);
   const state: ImageReadinessState = { sources: new Map(), considered: 0, pending: 0, report };
   const fontState: FontReadinessState = { ready: null, waited: false };
   const fontDeadline = Math.min(readinessDeadline, Date.now() + boundedNumber(opts?.fontTimeoutMs, 2500));
@@ -523,7 +529,8 @@ async function prepareCapture(
       }),
       waitForFonts(doc, Math.max(0, fontDeadline - Date.now()), report, fontState),
     ]);
-    await waitForStableScrollHeight(doc, idleMs, readinessDeadline, trackedHeight, stableSince);
+    // ponytail: nothing loading → height can't shift from images; skip the idleMs floor.
+    if (layoutMayShift) await waitForStableScrollHeight(doc, idleMs, readinessDeadline, trackedHeight, stableSince);
   } finally {
     if (heightPoll !== undefined) clearInterval(heightPoll);
   }
