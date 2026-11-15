@@ -385,7 +385,7 @@ async function installBenchRuntimeShim(cdp: Cdp, sessionId: string): Promise<() 
   await cdp.send('Runtime.addBinding', { name: '__captureKitHostBridge' }, sessionId);
   const unsubscribe = cdp.onEvent((method, params) => {
     if (method !== 'Runtime.bindingCalled' || params.name !== '__captureKitHostBridge') return;
-    let parsed: { id?: number; req?: { action?: string; url?: string; as?: unknown } };
+    let parsed: { id?: number; req?: { action?: string; url?: string; as?: unknown; box?: { x: number; y: number; w: number; h: number } } };
     try {
       parsed = JSON.parse(String(params.payload ?? '{}'));
     } catch {
@@ -398,6 +398,22 @@ async function installBenchRuntimeShim(cdp: Cdp, sessionId: string): Promise<() 
       let reply: Record<string, unknown> = { success: false };
       if (req.action === 'fetch-asset' && typeof req.url === 'string') {
         reply = await fetchAssetInNode(req.url, req.as);
+      } else if (req.action === 'capture-element-rect' && req.box && req.box.w > 0 && req.box.h > 0) {
+        try {
+          const shot = await cdp.send<{ data: string }>(
+            'Page.captureScreenshot',
+            {
+              format: 'png',
+              captureBeyondViewport: true,
+              fromSurface: true,
+              clip: { x: req.box.x, y: req.box.y, width: req.box.w, height: req.box.h, scale: 1 },
+            },
+            sessionId
+          );
+          if (shot.data) reply = { success: true, mimeType: 'image/png', base64: shot.data };
+        } catch {
+          reply = { success: false };
+        }
       }
       await cdp.send(
         'Runtime.evaluate',

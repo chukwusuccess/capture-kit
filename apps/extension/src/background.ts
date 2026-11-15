@@ -764,7 +764,7 @@ async function cancelActiveRun(): Promise<void> {
   if (checkpointFailed) throw checkpointError;
 }
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendResponse: (response: CaptureResponse) => void) => {
+chrome.runtime.onMessage.addListener((message: unknown, sender: unknown, sendResponse: (response: CaptureResponse) => void) => {
   if (!message || typeof message !== 'object' || !('action' in message)) return false;
   const request = message as Record<string, unknown>;
   const action = request.action;
@@ -828,6 +828,65 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
     return true;
   }
 
+async function captureElementRect(
+  tabId: number,
+  windowId: number,
+  box: { x: number; y: number; w: number; h: number }
+): Promise<{ success: boolean; mimeType?: string; base64?: string }> {
+  if (!(box.w > 0 && box.h > 0)) return { success: false };
+  try {
+    const [posRes] = await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [box.x, box.y],
+      func: (...args: unknown[]) => {
+        const bx = Number(args[0] ?? 0);
+        const by = Number(args[1] ?? 0);
+        const prevX = window.scrollX;
+        const prevY = window.scrollY;
+        window.scrollTo(Math.max(0, bx), Math.max(0, by));
+        return {
+          prevX,
+          prevY,
+          scrollX: window.scrollX,
+          scrollY: window.scrollY,
+          dpr: window.devicePixelRatio || 1,
+        };
+      },
+    });
+    const pos = posRes?.result;
+    if (!pos) return { success: false };
+    await new Promise((r) => setTimeout(r, 60));
+    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [pos.prevX, pos.prevY],
+      func: (...args: unknown[]) => { window.scrollTo(Number(args[0] ?? 0), Number(args[1] ?? 0)); },
+    }).catch(() => undefined);
+
+    const blob = await (await fetch(dataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const sx = Math.max(0, Math.round((box.x - pos.scrollX) * pos.dpr));
+      const sy = Math.max(0, Math.round((box.y - pos.scrollY) * pos.dpr));
+      const sw = Math.max(1, Math.min(bitmap.width - sx, Math.round(box.w * pos.dpr)));
+      const sh = Math.max(1, Math.min(bitmap.height - sy, Math.round(box.h * pos.dpr)));
+      const canvas = new OffscreenCanvas(sw, sh);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return { success: false };
+      ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+      const outBlob = await canvas.convertToBlob({ type: 'image/png' });
+      const bytes = new Uint8Array(await outBlob.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { success: true, mimeType: 'image/png', base64: btoa(bin) };
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return { success: false };
+  }
+}
+
   // One handler for both callers: the replica passes `as` and reads `data` (a
   // data: URL or text); the serializer's CORS fallback omits `as` and reads
   // `mimeType` + `base64`. Send each only its own fields: assets are megabytes.
@@ -840,6 +899,12 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendRe
       const m = data?.match(/^data:([^;]+);base64,(.*)$/s);
       sendResponse({ success: data !== null, mimeType: m?.[1], base64: m?.[2] });
     });
+    return true;
+  }
+  const senderTab = (sender && typeof sender === 'object' && 'tab' in sender ? (sender as { tab?: { id?: number; windowId?: number } }).tab : undefined);
+  if (action === 'capture-element-rect' && request.box && senderTab?.id !== undefined && senderTab.windowId !== undefined) {
+    captureElementRect(senderTab.id, senderTab.windowId, request.box as { x: number; y: number; w: number; h: number })
+      .then(sendResponse, () => sendResponse({ success: false }));
     return true;
   }
   return false;
