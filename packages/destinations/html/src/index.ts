@@ -240,7 +240,7 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
     return canvasHtml;
   }
 
-  const fontFaceRules = capture.fonts
+  const fontFaceRules = (capture.fonts ?? [])
     .map((f) => {
       if (!f.assetRef || !capture.assets[f.assetRef]) return '';
       const asset = capture.assets[f.assetRef];
