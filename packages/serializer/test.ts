@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { arrayBufferToBase64, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
+import { arrayBufferToBase64, doesFontFaceCover, reconcileMissingFonts, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -964,7 +964,49 @@ async function runReadinessTests() {
   }
 }
 
-runSerializerAccuracyTests().then(runReadinessTests).catch((err) => {
+function runFontMatchingTests() {
+  const variableFace = { family: 'Inter', weight: '1 1000', style: 'normal', embedded: true };
+  assert.strictEqual(doesFontFaceCover(variableFace, 'Inter', 300, 'normal'), true, 'Variable 1..1000 should cover 300');
+  assert.strictEqual(doesFontFaceCover(variableFace, '"Inter", sans-serif', '300', 'normal'), true, 'Quoted family stack should match');
+  assert.strictEqual(doesFontFaceCover(variableFace, 'Inter', 300, 'italic'), false, 'Normal variable face should not cover italic');
+
+  const exact300 = { family: 'Roboto', weight: '300', style: 'normal', embedded: true };
+  assert.strictEqual(doesFontFaceCover(exact300, 'Roboto', 300, 'normal'), true, 'Exact 300 should cover 300');
+  assert.strictEqual(doesFontFaceCover(exact300, 'Roboto', 400, 'normal'), false, 'Exact 300 should not cover 400');
+
+  const normal700 = { family: 'Lato', weight: '700', style: 'normal', embedded: true };
+  assert.strictEqual(doesFontFaceCover(normal700, 'Lato', 300, 'italic'), false, '700 normal should not cover 300 italic');
+
+  const diags: Array<{ code: string; message: string; nodeId?: string }> = [];
+  const fonts = [
+    { family: 'Inter', weight: '1 1000', style: 'normal', embedded: true },
+    { family: 'Lato', weight: '700', style: 'normal', embedded: true },
+    { family: 'Missing Sans', weight: '400', style: 'normal', embedded: false },
+  ];
+  const nodes: any[] = [
+    { id: 'n1', type: 'text', text: { fontFamily: 'Inter, sans-serif', fontWeight: 300, italic: false } },
+    { id: 'n2', type: 'text', text: { fontFamily: 'Missing Sans, Arial, sans-serif', fontWeight: 400, italic: false } },
+    { id: 'n3', type: 'text', text: { fontFamily: 'Missing Sans, Arial, sans-serif', fontWeight: 700, italic: false } },
+    { id: 'n4', type: 'text', text: { fontFamily: 'Lato', fontWeight: 300, italic: true } },
+  ];
+  reconcileMissingFonts(nodes, fonts as any, (d) => diags.push(d));
+
+  assert.strictEqual(diags.filter((d) => d.code === 'font_missing' && d.message.includes('Inter')).length, 0, 'Variable Inter covers 300');
+  assert.strictEqual(diags.filter((d) => d.code === 'font_missing' && d.message.includes('Missing Sans')).length, 1, 'Missing family aggregated to 1 diagnostic');
+  assert.strictEqual(diags.filter((d) => d.code === 'font_missing' && d.message.includes('Lato')).length, 1, 'Lato 300 italic missing reported once');
+
+  const missingEntry = fonts.find((f) => f.family === 'Missing Sans') as any;
+  assert.strictEqual(missingEntry.embedded, false);
+  assert.strictEqual(missingEntry.fallbackStack, 'Missing Sans, Arial, sans-serif');
+
+  const latoMissing = fonts.find((f) => f.family === 'Lato' && f.weight === '300' && f.style === 'italic') as any;
+  assert.ok(latoMissing, 'Unmatched style/weight face recorded in capture.fonts');
+  assert.strictEqual(latoMissing.embedded, false);
+  assert.strictEqual(latoMissing.fallbackStack, 'Lato');
+  console.log('✓ font matching & missing-font diagnostic tests passed');
+}
+
+runSerializerAccuracyTests().then(runReadinessTests).then(runFontMatchingTests).catch((err) => {
   console.error('packages/serializer test failure:', err);
   process.exit(1);
 });

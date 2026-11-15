@@ -153,7 +153,44 @@ function runHtmlDestinationTests() {
   assert.ok(gradHtml.includes('repeating-conic-gradient(from 45deg at 50% 45%, #f43f5e 0%, #3b82f6 100%)'), 'Repeating conic gradient missing');
   assert.ok(gradHtml.includes('mask-image: linear-gradient(to right, #000, transparent)'), 'mask-image missing');
 
-  console.log('packages/destinations/html tests passed: 7/7 assertions verified');
+  // 8. Assert non-standalone @font-face rules include variable ranges, stretch, unicode-range, and skip unembedded fonts
+  const fontSnippet = modelToHtml(
+    {
+      url: 'https://example.com',
+      version: '0.2.2',
+      frame: { width: 200, height: 100, baseURI: 'https://example.com/' },
+      nodes: [],
+      assets: {
+        f1: { kind: 'font', mimeType: 'font/woff2', base64: 'AAAA' },
+      },
+      fonts: [
+        {
+          family: 'SohneVar',
+          weight: '1 1000',
+          style: 'normal',
+          stretch: '75% 125%',
+          unicodeRange: 'U+0000-00FF',
+          assetRef: 'f1',
+          embedded: true,
+        },
+        {
+          family: 'MissingFont',
+          weight: '400',
+          style: 'normal',
+          embedded: false,
+          fallbackStack: 'Arial, sans-serif',
+        },
+      ],
+    },
+    { standalone: false }
+  );
+  assert.ok(fontSnippet.includes('<style>') && fontSnippet.includes("@font-face { font-family: 'SohneVar'"), 'Non-standalone output missing @font-face');
+  assert.ok(fontSnippet.includes('font-weight: 1 1000'), 'Variable font-weight range missing');
+  assert.ok(fontSnippet.includes('font-stretch: 75% 125%'), 'font-stretch missing');
+  assert.ok(fontSnippet.includes('unicode-range: U+0000-00FF'), 'unicode-range missing');
+  assert.ok(!fontSnippet.includes('MissingFont'), 'Unembedded font should not emit @font-face');
+
+  console.log('packages/destinations/html tests passed: 8/8 assertions verified');
 }
 
 runHtmlDestinationTests();

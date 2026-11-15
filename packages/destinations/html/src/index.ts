@@ -1,4 +1,4 @@
-import type { Capture, Node, Shadow } from '@capture-kit/model';
+import { buildFontFaceCss, type Capture, type Node, type Shadow } from '@capture-kit/model';
 
 export interface HtmlExportOptions {
   standalone?: boolean;
@@ -230,6 +230,8 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
     .map((node) => renderNodeToHtml(node, capture.assets))
     .join('\n');
 
+  const fontFaceRules = buildFontFaceCss(capture).map((rule) => `    ${rule}`);
+
   const canvasHtml = [
   `  <div class="capture-canvas" style="position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: ${escapeHtml(frameBg)};">`,
     renderedNodes,
@@ -237,16 +239,14 @@ export function modelToHtml(capture: Capture, opts?: HtmlExportOptions): string 
   ].join('\n');
 
   if (!standalone) {
-    return canvasHtml;
+    if (fontFaceRules.length === 0) return canvasHtml;
+    return [
+      '  <style>',
+      ...fontFaceRules,
+      '  </style>',
+      canvasHtml,
+    ].join('\n');
   }
-
-  const fontFaceRules = (capture.fonts ?? [])
-    .map((f) => {
-      if (!f.assetRef || !capture.assets[f.assetRef]) return '';
-      const asset = capture.assets[f.assetRef];
-      return `    @font-face { font-family: '${escapeHtml(f.family)}'; font-weight: ${f.weight || '400'}; font-style: ${f.style || 'normal'}; src: url('data:${asset.mimeType};base64,${asset.base64}'); }`;
-    })
-    .filter(Boolean);
 
   return [
     '<!DOCTYPE html>',

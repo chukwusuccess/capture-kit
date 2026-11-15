@@ -147,7 +147,11 @@ export const FontSchema = z.object({
   family: z.string(),
   weight: z.union([z.string(), z.number()]).optional(),
   style: z.string().optional(),
+  stretch: z.string().optional(),
+  unicodeRange: z.string().optional(),
   assetRef: z.string().optional(),
+  embedded: z.boolean().optional(),
+  fallbackStack: z.string().optional(),
 });
 
 export const FrameSchema = z.object({
@@ -291,4 +295,29 @@ export function emptyCapture(opts: Partial<Capture> = {}): Capture {
     ...(opts.diagnostics?.length ? { diagnostics: opts.diagnostics } : {}),
     ...(opts.timings ? { timings: opts.timings } : {}),
   };
+}
+
+/**
+ * Build `@font-face` CSS rules for all embedded fonts present in `capture.assets`.
+ */
+export function buildFontFaceCss(capture: Pick<Capture, 'fonts' | 'assets'>): string[] {
+  const rules: string[] = [];
+  for (const f of capture.fonts ?? []) {
+    if (f.embedded === false || !f.assetRef) continue;
+    const asset = capture.assets[f.assetRef];
+    if (!asset) continue;
+    const fam = f.family.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const weight = f.weight !== undefined && f.weight !== '' ? String(f.weight) : '400';
+    const style = f.style || 'normal';
+    const parts = [
+      `font-family: '${fam}'`,
+      `font-weight: ${weight}`,
+      `font-style: ${style}`,
+    ];
+    if (f.stretch) parts.push(`font-stretch: ${f.stretch}`);
+    if (f.unicodeRange) parts.push(`unicode-range: ${f.unicodeRange}`);
+    parts.push(`src: url('data:${asset.mimeType};base64,${asset.base64}')`);
+    rules.push(`@font-face { ${parts.join('; ')}; }`);
+  }
+  return rules;
 }
