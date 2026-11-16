@@ -9,7 +9,8 @@
     "storage",
     "tabs",
     "downloads",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"

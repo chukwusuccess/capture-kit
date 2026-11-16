@@ -1,4 +1,5 @@
 import { CaptureSchema, type Capture } from '@capture-kit/model';
+import { modelToFigma } from '@capture-kit/destination-figma';
 import { CaptureSessionStore, type CaptureSession, type SessionInput } from './sessions';
 import { createExtensionSessionStorage } from './idb-storage';
 import {
@@ -634,11 +635,36 @@ function launchSession(session: CaptureSession): void {
   });
 }
 
+async function copyViaOffscreen(text: string): Promise<boolean> {
+  try {
+    const offscreen = (chrome as unknown as {
+      offscreen?: {
+        hasDocument?: () => Promise<boolean>;
+        createDocument: (opts: { url: string; reasons: string[]; justification: string }) => Promise<void>;
+      };
+    }).offscreen;
+    if (!offscreen) return false;
+    const has = typeof offscreen.hasDocument === 'function' ? await offscreen.hasDocument() : false;
+    if (!has) {
+      await offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['CLIPBOARD'],
+        justification: 'Copy captured SVG layers to the clipboard for Figma or Sketch paste',
+      });
+    }
+    const res = await chrome.runtime.sendMessage({ type: 'offscreen-copy', text }) as { success?: boolean } | undefined;
+    return Boolean(res?.success);
+  } catch {
+    return false;
+  }
+}
+
 async function executeSession(session: CaptureSession, control: ActiveRun): Promise<void> {
   let captureWindowId: number | undefined;
   let captureTabId: number | undefined;
   let loadedUrl = '';
   replicaAssetCache = new Map();
+  const completedCaptures: Capture[] = [];
   try {
     for (const job of session.jobs) {
       if (job.status === 'completed') continue;
@@ -726,6 +752,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
       // for a saved result, and never mark a job complete before this resolves.
       const storageWriteStart = performance.now();
       await sessionStore.completeJob(session.id, job.id, captures);
+      completedCaptures.push(...captures);
       const storageWriteMs = roundTiming(performance.now() - storageWriteStart);
       console.info('[capture-kit] timings', JSON.stringify({
         phase: 'capture',
@@ -743,6 +770,10 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
       announceSession(session.id);
     }
     const finished = await sessionStore.finish(session.id);
+    if (finished.status === 'completed' && completedCaptures.length > 0 && (session.format === 'figma' || session.format === 'sketch')) {
+      const payload = modelToFigma(completedCaptures, { includeDesignSystem: session.includeDesignSystem });
+      await copyViaOffscreen(payload.svg);
+    }
     sendToPopup({ type: 'run-done', sessionId: finished.id });
   } catch (error) {
     let message = error instanceof Error ? error.message : String(error);
