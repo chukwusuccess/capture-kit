@@ -516,11 +516,11 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
     }
   }
 
-  if (inner <= 0 || Math.abs(inner - width) > 2) {
+  if (inner <= 0) {
     const limitedBy = resizeError
       ? `window resizing failed (${resizeError instanceof Error ? resizeError.message : String(resizeError)})`
       : 'the operating system or browser window/zoom limits';
-    throw new Error(`Could not capture the requested ${width}px CSS viewport; the page measured ${inner}px after resizing and zoom. ${limitedBy}. Close other windows or choose a width closer to ${inner}px.`);
+    throw new Error(`Could not capture the requested ${width}px CSS viewport; the page measured ${inner}px after resizing and zoom. ${limitedBy}.`);
   }
 }
 
@@ -652,8 +652,16 @@ async function copyViaOffscreen(text: string): Promise<boolean> {
         justification: 'Copy captured SVG layers to the clipboard for Figma or Sketch paste',
       });
     }
-    const res = await chrome.runtime.sendMessage({ type: 'offscreen-copy', text }) as { success?: boolean } | undefined;
-    return Boolean(res?.success);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const res = await chrome.runtime.sendMessage({ type: 'offscreen-copy', text }) as { success?: boolean } | undefined;
+        if (res?.success) return true;
+      } catch {
+        // offscreen module script may still be registering its listener
+      }
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    return false;
   } catch {
     return false;
   }
@@ -739,7 +747,14 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
         }
         if (captures.some((capture) => Math.abs(capture.frame.width - job.width) > 2)) {
           const measuredWidths = [...new Set(captures.map((capture) => capture.frame.width))].join(', ');
-          throw new Error(`Capture output did not retain the requested ${job.width}px CSS viewport (serialized width: ${measuredWidths || 'none'}px). No result was saved for this job.`);
+          for (const capture of captures) {
+            capture.diagnostics ??= [];
+            capture.diagnostics.push({
+              code: 'viewport_clamped',
+              severity: 'warning',
+              message: `Requested ${job.width}px CSS viewport; browser zoom/window limits produced ${measuredWidths}px.`,
+            });
+          }
         }
       } catch (error) {
         control.pickerTabId = undefined;
