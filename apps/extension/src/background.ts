@@ -497,15 +497,15 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
   }
 
   // If the OS window-size limit prevented an exact resize, use page zoom to
-  // request the remaining CSS viewport width, then verify the actual result.
-  if (inner !== width) {
+  // request the remaining CSS viewport width, then verify within +/-2px.
+  if (Math.abs(inner - width) > 2) {
     let zoom = Math.min(5, Math.max(0.25, inner / width));
     try {
-      for (let attempt = 0; attempt < 4 && inner !== width; attempt++) {
+      for (let attempt = 0; attempt < 5 && Math.abs(inner - width) > 2; attempt++) {
         await chrome.tabs.setZoom(tabId, zoom);
         await waitForLayout(tabId);
         ({ inner } = await measure(tabId));
-        if (inner > 0 && inner !== width) {
+        if (inner > 0 && Math.abs(inner - width) > 2) {
           zoom = Math.min(5, Math.max(0.25, zoom * inner / width));
         }
       }
@@ -515,7 +515,7 @@ async function fitViewport(windowId: number, tabId: number, width: number): Prom
     }
   }
 
-  if (inner <= 0 || inner !== width) {
+  if (inner <= 0 || Math.abs(inner - width) > 2) {
     const limitedBy = resizeError
       ? `window resizing failed (${resizeError instanceof Error ? resizeError.message : String(resizeError)})`
       : 'the operating system or browser window/zoom limits';
@@ -566,7 +566,7 @@ async function loadInTab(tabId: number, targetUrl: string, maxWaitMs = 12000): P
           const [res] = await chrome.scripting.executeScript<{ ready: boolean; href: string }>({
             target: { tabId },
             func: () => ({
-              ready: document.readyState === 'interactive' || document.readyState === 'complete',
+              ready: document.readyState === 'complete',
               href: location.href,
             }),
           });

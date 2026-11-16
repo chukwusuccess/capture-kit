@@ -507,15 +507,34 @@ function fileName(capture: Capture, withWidth: boolean): string {
   }
 }
 
+async function copyTextSafe(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch (err) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (ok) return;
+    throw err;
+  }
+}
+
 async function exportCaptures(
   captures: Capture[],
   format = getFormat(),
   includeDesignSystem = optDesignSystem?.checked ?? false
 ): Promise<string> {
   if (captures.length === 0) throw new Error('No saved captures are available to export');
-  if (format === 'figma') {
+  if (format === 'figma' || format === 'sketch') {
     await copyToFigmaClipboard(captures, { includeDesignSystem });
-    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — paste into Figma`;
+    const appName = format === 'sketch' ? 'Sketch' : 'Figma';
+    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — paste into ${appName} (Cmd+V)`;
   }
   let host = 'site';
   try {
@@ -530,11 +549,11 @@ async function exportCaptures(
     return `Downloaded ${baseName}.capture.json for the Capture Kit Figma plugin`;
   }
   if (format === 'react' && captures.length === 1) {
-    await navigator.clipboard.writeText(modelToReact(captures[0]));
+    await copyTextSafe(modelToReact(captures[0]));
     return 'Copied React component';
   }
   if (format === 'md' && captures.length === 1) {
-    await navigator.clipboard.writeText(modelToMarkdown(captures[0]));
+    await copyTextSafe(modelToMarkdown(captures[0]));
     return 'Copied Markdown component spec';
   }
   const withWidth = new Set(captures.map((capture) => capture.frame.width)).size > 1;
@@ -821,11 +840,17 @@ async function finishSessionRun(sessionId: string | undefined): Promise<void> {
       storageReadMs,
       exportMs,
     }));
-    if (figmaBtn) figmaBtn.hidden = session.format !== 'figma';
+    if (figmaBtn) figmaBtn.hidden = session.format !== 'figma' && session.format !== 'sketch';
     setStatus(output, 'ok');
     setSessionFeedback(`Saved results exported using ${session.format}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (figmaBtn && (session.format === 'figma' || session.format === 'sketch') && latestCaptures.length > 0) {
+      figmaBtn.hidden = false;
+      setSessionFeedback('Ready to copy — click "Copy again" below.');
+      setStatus('Ready — click Copy again', 'ok');
+      return;
+    }
     setSessionFeedback(message);
     setStatus(message, 'error');
   }
@@ -880,7 +905,7 @@ async function handleSessionAction(event: Event): Promise<void> {
         storageReadMs,
         exportMs,
       }));
-      if (figmaBtn) figmaBtn.hidden = format !== 'figma';
+      if (figmaBtn) figmaBtn.hidden = format !== 'figma' && format !== 'sketch';
       setSessionFeedback(`${output}${action === 'export-current' ? ' (current format)' : ' (saved format)'}`);
       setStatus(output, 'ok');
       void loadSessionDiagnostics(session);

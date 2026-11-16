@@ -791,19 +791,31 @@ export function modelToFigma(
 
 export async function copyToFigmaClipboard(capture: Capture | Capture[], opts?: FigmaExportOptions): Promise<void> {
   const payload = modelToFigma(capture, opts);
-  if (
-    typeof navigator !== 'undefined' &&
-    navigator.clipboard &&
-    typeof ClipboardItem !== 'undefined'
-  ) {
-    const htmlBlob = new Blob([payload.html], { type: 'text/html' });
-    const textBlob = new Blob([payload.plain], { type: 'text/plain' });
-    const item = new ClipboardItem({
-      'text/html': htmlBlob,
-      'text/plain': textBlob,
-    });
-    await navigator.clipboard.write([item]);
-  } else {
-    throw new Error('Clipboard API is unavailable in current environment');
+  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    try {
+      if (typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(payload.svg);
+        return;
+      }
+      if (typeof ClipboardItem !== 'undefined' && typeof navigator.clipboard.write === 'function') {
+        const textBlob = new Blob([payload.plain], { type: 'text/plain' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': textBlob })]);
+        return;
+      }
+    } catch (err) {
+      if (typeof document !== 'undefined' && typeof document.execCommand === 'function') {
+        const ta = document.createElement('textarea');
+        ta.value = payload.svg;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        if (ok) return;
+      }
+      throw err;
+    }
   }
+  throw new Error('Clipboard API is unavailable in current environment');
 }
