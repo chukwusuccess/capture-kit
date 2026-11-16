@@ -1,5 +1,6 @@
 import { CaptureSchema, type Capture } from '@capture-kit/model';
 import { CaptureSessionStore, type CaptureSession, type SessionInput } from './sessions';
+import { createExtensionSessionStorage } from './idb-storage';
 import {
   captureElementRects,
   type RasterCanvas,
@@ -56,7 +57,7 @@ async function getActiveTabId(): Promise<number> {
 
 // Captures and job checkpoints are durable; popup delivery only announces changes.
 const MAX_SITE_PAGES = 50;
-const sessionStore = new CaptureSessionStore(chrome.storage.local);
+const sessionStore = new CaptureSessionStore(createExtensionSessionStorage());
 const sessionsReady = sessionStore.initialize();
 void sessionsReady.catch(() => undefined);
 function sendToPopup(message: unknown): void {
