@@ -461,10 +461,18 @@ function resolveSketchFontName(
   return raw;
 }
 
+function applyTextTransformSketch(str: string, tt?: string): string {
+  if (tt === 'uppercase') return str.toUpperCase();
+  if (tt === 'lowercase') return str.toLowerCase();
+  if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
+  return str;
+}
+
 function buildSketchParagraphStyle(
   align: string | undefined,
   lineHeight: string | number | undefined,
-  fontSize: number
+  fontSize: number,
+  boxHeight?: number
 ): Record<string, unknown> {
   const alignment = align === 'right' ? 1 : align === 'center' ? 2 : align === 'justify' ? 3 : 0;
   let pxLineHeight = 0;
@@ -476,10 +484,11 @@ function buildSketchParagraphStyle(
       pxLineHeight = lineHeight.endsWith('px') ? parsed : parsed < 4 ? parsed * fontSize : parsed;
     }
   }
+  const isSingleLine = boxHeight !== undefined && boxHeight <= fontSize * 1.45;
   return {
     _class: 'paragraphStyle',
     alignment,
-    ...(pxLineHeight > 0
+    ...(!isSingleLine && pxLineHeight > 0
       ? {
           maximumLineHeight: Math.round(pxLineHeight * 100) / 100,
           minimumLineHeight: Math.round(pxLineHeight * 100) / 100,
@@ -521,13 +530,18 @@ function convertNodeToSketchLayer(
     };
 
     const textColor = parseCssColor(textProps.color);
-    const content = textProps.content;
+    const content = applyTextTransformSketch(textProps.content, textProps.textTransform);
     const baseFontName = resolveSketchFontName(textProps.fontFamily, textProps.fontWeight, textProps.italic);
-    const paragraphStyle = buildSketchParagraphStyle(textProps.align, textProps.lineHeight, textProps.fontSize);
+    const paragraphStyle = buildSketchParagraphStyle(textProps.align, textProps.lineHeight, textProps.fontSize, node.box.h);
     const kerning =
       typeof textProps.letterSpacing === 'number'
         ? textProps.letterSpacing
         : Number.parseFloat(String(textProps.letterSpacing || '0')) || 0;
+    const runsMatchContent = Boolean(
+      textProps.runs &&
+      textProps.runs.length > 0 &&
+      applyTextTransformSketch(textProps.runs.map((r) => r.text).join(''), textProps.textTransform) === content
+    );
 
     return {
       _class: 'text',
@@ -579,11 +593,12 @@ function convertNodeToSketchLayer(
         _class: 'attributedString',
         string: content,
         attributes:
-          textProps.runs && textProps.runs.length > 0
+          runsMatchContent && textProps.runs
             ? (() => {
                 const attrs: Array<Record<string, unknown>> = [];
                 let loc = 0;
                 for (const r of textProps.runs) {
+                  const rText = applyTextTransformSketch(r.text, textProps.textTransform);
                   const rColor = r.color ? parseCssColor(r.color) : textColor;
                   const rFontName = resolveSketchFontName(
                     r.fontFamily || textProps.fontFamily,
@@ -593,7 +608,7 @@ function convertNodeToSketchLayer(
                   attrs.push({
                     _class: 'stringAttribute',
                     location: loc,
-                    length: r.text.length,
+                    length: rText.length,
                     attributes: {
                       MSAttributedStringFontAttribute: {
                         _class: 'fontDescriptor',
@@ -607,7 +622,7 @@ function convertNodeToSketchLayer(
                       ...(kerning !== 0 ? { kerning } : {}),
                     },
                   });
-                  loc += r.text.length;
+                  loc += rText.length;
                 }
                 return attrs;
               })()
@@ -667,7 +682,12 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
   while ((match = shapeRegex.exec(svgText)) !== null) {
     const tagName = match[1].toLowerCase();
     const tag = match[0];
-    const fill = attr(tag, 'fill') || '#000000';
+    let fill = attr(tag, 'fill') || '#000000';
+    const fillOpacity = Number.parseFloat(attr(tag, 'fill-opacity') || attr(tag, 'opacity') || '1');
+    if (fill !== 'none' && Number.isFinite(fillOpacity) && fillOpacity < 1) {
+      const c = parseCssColor(fill);
+      fill = `rgba(${Math.round(c.red * 255)}, ${Math.round(c.green * 255)}, ${Math.round(c.blue * 255)}, ${c.alpha * fillOpacity})`;
+    }
     const stroke = attr(tag, 'stroke');
     const strokeWidth = Number.parseFloat(attr(tag, 'stroke-width') || '1') || 1;
     let d = '';
@@ -717,6 +737,18 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
 
   if (node.type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     return convertVectorLayer(node, assets, commonFrame);
+  }
+
+  // Handle rect/frame with an inline SVG background-image fill
+  const svgFill = (node.style.fills ?? []).find(
+    (f) => f.type === 'image' && f.assetRef && assets[f.assetRef]?.mimeType === 'image/svg+xml' && assets[f.assetRef]?.base64
+  );
+  if (svgFill?.assetRef) {
+    const svgText = decodeBase64Utf8(assets[svgFill.assetRef].base64);
+    const vectorNode = parseSvgToVectorNode(node, svgText);
+    if (vectorNode) {
+      return convertVectorLayer(vectorNode, assets, commonFrame);
+    }
   }
 
   // Handle image and vector types: convert inline SVG assets to vector paths, or bitmap layer for raster
