@@ -711,7 +711,7 @@ async function executeSession(session: CaptureSession, control: ActiveRun): Prom
             }
           }
         }
-        if (captures.some((capture) => capture.frame.width !== job.width)) {
+        if (captures.some((capture) => Math.abs(capture.frame.width - job.width) > 2)) {
           const measuredWidths = [...new Set(captures.map((capture) => capture.frame.width))].join(', ');
           throw new Error(`Capture output did not retain the requested ${job.width}px CSS viewport (serialized width: ${measuredWidths || 'none'}px). No result was saved for this job.`);
         }
