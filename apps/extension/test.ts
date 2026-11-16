@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import { groupPages, pagePath } from './src/pages.js';
 import { emptyCapture } from '@capture-kit/model';
 import { CaptureSessionStore, sessionResultKey, type SessionStorage } from './src/sessions.js';
+import { createIndexedDbStorage } from './src/idb-storage.js';
 import { captureElementRects, resetRasterCaptureQueueForTest, type RasterCaptureDeps } from './src/raster-capture.js';
 
 const o = 'https://site.test';
@@ -298,6 +299,90 @@ async function rasterCaptureTests(): Promise<void> {
   void scrollPos;
 }
 
+async function idbStorageTests(): Promise<void> {
+  const idbData = new Map<string, unknown>();
+  const legacyData = new Map<string, unknown>([['legacy-key', { ok: true }]]);
+  const legacyStorage: SessionStorage = {
+    async get(keys) {
+      const list = keys === null ? [...legacyData.keys()] : Array.isArray(keys) ? keys : [keys];
+      const out: Record<string, unknown> = {};
+      for (const k of list) if (legacyData.has(k)) out[k] = legacyData.get(k);
+      return out;
+    },
+    async set(items) {
+      for (const [k, v] of Object.entries(items)) legacyData.set(k, v);
+    },
+    async remove(keys) {
+      for (const k of Array.isArray(keys) ? keys : [keys]) legacyData.delete(k);
+    },
+  };
+
+  const makeReq = <T>(fn: () => T): IDBRequest<T> => {
+    const req: any = { result: undefined, error: null, onsuccess: null, onerror: null };
+    queueMicrotask(() => {
+      try {
+        req.result = fn();
+        req.onsuccess?.({});
+      } catch (err) {
+        req.error = err;
+        req.onerror?.({});
+      }
+    });
+    return req as IDBRequest<T>;
+  };
+
+  const mockFactory = {
+    open: () => {
+      const req: any = {
+        result: {
+          objectStoreNames: { contains: () => true },
+          createObjectStore: () => ({}),
+          transaction: () => {
+            const tx: any = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              objectStore: () => ({
+                get: (k: string) => makeReq(() => idbData.get(k)),
+                getAllKeys: () => makeReq(() => [...idbData.keys()]),
+                getAll: () => makeReq(() => [...idbData.values()]),
+                put: (v: unknown, k: string) => {
+                  idbData.set(k, v);
+                  return makeReq(() => k);
+                },
+                delete: (k: string) => {
+                  idbData.delete(k);
+                  return makeReq(() => undefined);
+                },
+              }),
+            };
+            setTimeout(() => tx.oncomplete?.({}), 0);
+            return tx;
+          },
+        },
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      queueMicrotask(() => {
+        req.onupgradeneeded?.({});
+        req.onsuccess?.({});
+      });
+      return req;
+    },
+  } as unknown as IDBFactory;
+
+  const store = createIndexedDbStorage('test-db', 'kv', legacyStorage, mockFactory);
+  await store.set({ 'new-key': { count: 42 } });
+  const got = await store.get(['new-key', 'legacy-key']);
+  assert.deepStrictEqual(got['new-key'], { count: 42 }, 'IndexedDB storage must return newly written keys');
+  assert.deepStrictEqual(got['legacy-key'], { ok: true }, 'IndexedDB storage must fall back to legacy storage for old keys');
+  await store.remove(['new-key', 'legacy-key']);
+  const afterRemove = await store.get(['new-key', 'legacy-key']);
+  assert.deepStrictEqual(afterRemove, {}, 'remove must clear both IndexedDB and legacy storage');
+}
+
 await sessionTests();
 await rasterCaptureTests();
-console.log('apps/extension tests passed: page grouping, session transitions, recovery, retention, quota, duplicate starts, and raster capture');
+await idbStorageTests();
+console.log('apps/extension tests passed: page grouping, session transitions, recovery, retention, quota, duplicate starts, raster capture, and IndexedDB storage');

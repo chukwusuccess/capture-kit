@@ -7,7 +7,10 @@ import { modelToMarkdown } from '@capture-kit/destination-markdown';
 import { modelToReact } from '@capture-kit/destination-react';
 import JSZip from 'jszip';
 import { isSessionActive, sessionResultKey, SESSION_INDEX_KEY, type CaptureSession } from './sessions';
+import { createExtensionSessionStorage } from './idb-storage';
 import { groupPages, pagePath } from './pages';
+
+const sessionBackingStorage = createExtensionSessionStorage();
 
 interface CaptureMessageResponse {
   success: boolean;
@@ -593,14 +596,40 @@ async function readSessionCaptures(session: CaptureSession): Promise<Capture[]> 
   const jobs = session.jobs.filter((job) => job.status === 'completed');
   if (jobs.length === 0) throw new Error('This session has no completed captures yet');
   const keys = jobs.map((job) => sessionResultKey(session.id, job.id));
-  const stored = await chrome.storage.local.get(keys);
+  const stored = await sessionBackingStorage.get(keys);
+  const assetHashes = new Set<string>();
+  for (const job of jobs) {
+    const result = stored[sessionResultKey(session.id, job.id)] as { assetRefs?: Array<Record<string, string>> } | undefined;
+    for (const map of result?.assetRefs ?? []) {
+      for (const hash of Object.values(map)) assetHashes.add(hash);
+    }
+  }
+  const assetKeyMap = new Map<string, string>();
+  for (const hash of assetHashes) assetKeyMap.set(hash, `capture-kit:asset:${session.id}:${hash}`);
+  const storedAssets = assetKeyMap.size ? await sessionBackingStorage.get([...assetKeyMap.values()]) : {};
+
   const captures: Capture[] = [];
   for (const job of jobs) {
-    const result = stored[sessionResultKey(session.id, job.id)] as { captures?: unknown } | undefined;
+    const result = stored[sessionResultKey(session.id, job.id)] as { captures?: unknown; assetRefs?: Array<Record<string, string>> } | undefined;
     if (!result || !Array.isArray(result.captures) || result.captures.length === 0) {
       throw new Error('A saved capture is missing. No export was produced; resume this session to recover the job.');
     }
-    for (const raw of result.captures) captures.push(CaptureSchema.parse(raw));
+    for (let i = 0; i < result.captures.length; i++) {
+      const raw = result.captures[i];
+      const parsed = CaptureSchema.parse(raw);
+      const refMap = result.assetRefs?.[i];
+      if (refMap) {
+        for (const [assetId, hash] of Object.entries(refMap)) {
+          if (!parsed.assets[assetId]) {
+            const assetVal = storedAssets[`capture-kit:asset:${session.id}:${hash}`];
+            if (assetVal && typeof assetVal === 'object') {
+              parsed.assets[assetId] = assetVal as Capture['assets'][string];
+            }
+          }
+        }
+      }
+      captures.push(parsed);
+    }
   }
   if (captures.length === 0) throw new Error('This session has no saved capture data');
   return captures;
@@ -608,7 +637,11 @@ async function readSessionCaptures(session: CaptureSession): Promise<Capture[]> 
 
 function renderDiagnostics(diagnostics: Array<{ code: string; message: string; severity: 'warning' | 'info' }>): void {
   diagnosticsList?.replaceChildren();
+  let warnCount = 0;
+  let infoCount = 0;
   for (const diagnostic of diagnostics) {
+    if (diagnostic.severity === 'warning') warnCount++;
+    else infoCount++;
     const item = el('li', undefined, diagnostic.message);
     item.title = diagnostic.code;
     item.dataset.severity = diagnostic.severity;
@@ -616,7 +649,14 @@ function renderDiagnostics(diagnostics: Array<{ code: string; message: string; s
   }
   if (captureDiagnostics) {
     captureDiagnostics.hidden = diagnostics.length === 0;
-    captureDiagnostics.open = diagnostics.some((diagnostic) => diagnostic.severity === 'warning');
+    captureDiagnostics.open = warnCount > 0;
+    const summaryEl = captureDiagnostics.querySelector('summary');
+    if (summaryEl) {
+      const parts: string[] = [];
+      if (warnCount > 0) parts.push(`${warnCount} warning${warnCount === 1 ? '' : 's'}`);
+      if (infoCount > 0) parts.push(`${infoCount} info`);
+      summaryEl.textContent = parts.length ? `Diagnostics (${parts.join(', ')})` : 'Diagnostics';
+    }
   }
 }
 
@@ -626,7 +666,7 @@ async function loadSessionDiagnostics(session: CaptureSession): Promise<void> {
   const jobs = session.jobs.filter((job) => job.status === 'completed');
   try {
     const keys = jobs.map((job) => sessionResultKey(session.id, job.id));
-    const stored = keys.length ? await chrome.storage.local.get(keys) : {};
+    const stored = keys.length ? await sessionBackingStorage.get(keys) : {};
     if (diagnosticsVersion !== version) return;
     const diagnostics: Array<{ code: string; message: string; severity: 'warning' | 'info' }> = [];
     for (const job of jobs) {
