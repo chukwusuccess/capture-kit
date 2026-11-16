@@ -177,6 +177,72 @@ async function run(): Promise<void> {
   for (const d of ['L0 0', 'M0 0 X1 2', 'M0 0C1 2', 'M0 0 A10 10 0 2 0 20 20', 'M0 0L1e999 0']) {
     await assert.rejects(exportLayers([vector(d)]), /vector-proof.*path 1/i, `Invalid path must identify its source: ${d}`);
   }
+
+  // Phase 4 B2/B3 tests: embedded fontReferences, PostScript font resolution, SVG asset vector conversion, fill stacking, artboard bg
+  const svgAssetBase64 = Buffer.from('<svg viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" fill="#00ff00"/></svg>', 'utf8').toString('base64');
+  const richCapture = emptyCapture({
+    url: 'https://test.capture-kit.local',
+    version: '0.1.1',
+    frame: { width: 800, height: 600, baseURI: 'https://test.capture-kit.local/' },
+    fonts: [{ family: 'CustomSans', weight: '400', style: 'normal', assetRef: 'font-1', embedded: true }],
+    assets: {
+      'font-1': { kind: 'font', mimeType: 'font/woff2', base64: 'd29mZjI=' },
+      'svg-1': { kind: 'image', mimeType: 'image/svg+xml', base64: svgAssetBase64 },
+    },
+    nodes: [
+      {
+        id: 'root',
+        type: 'frame',
+        box: { x: 0, y: 0, w: 800, h: 400 },
+        style: { fills: [{ type: 'solid', color: 'rgb(15, 23, 42)' }], strokes: [], opacity: 1, radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 }, shadows: [] },
+      },
+      {
+        id: 'txt',
+        parentId: 'root',
+        type: 'text',
+        box: { x: 10, y: 10, w: 200, h: 30 },
+        style,
+        text: { content: 'Hello', fontFamily: '"system-ui", sans-serif', fontSize: 16, fontWeight: 700, lineHeight: 1.5, letterSpacing: 1, align: 'center', color: 'rgb(255,255,255)' },
+      },
+      {
+        id: 'svg-img',
+        parentId: 'root',
+        type: 'image',
+        box: { x: 10, y: 50, w: 40, h: 40 },
+        style,
+        assetRef: 'svg-1',
+      },
+      {
+        id: 'multi-fill',
+        parentId: 'root',
+        type: 'rect',
+        box: { x: 10, y: 100, w: 40, h: 40 },
+        style: {
+          fills: [
+            { type: 'gradient', gradientType: 'linear', angle: 90, stops: [{ color: 'rgba(255,0,0,0.5)', position: 0 }, { color: 'rgba(255,0,0,0.5)', position: 1 }] },
+            { type: 'gradient', gradientType: 'conic', angle: 0, stops: [{ color: 'rgb(0,0,255)', position: 0 }, { color: 'rgb(0,0,255)', position: 1 }] },
+          ],
+          strokes: [], opacity: 1, radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 }, shadows: [],
+        },
+      },
+    ],
+  });
+  const richZip = await JSZip.loadAsync(await (await modelToSketch(richCapture)).arrayBuffer());
+  const docJson = JSON.parse(await richZip.file('document.json')!.async('text'));
+  assert.equal(docJson.fontReferences.length, 1, 'Embedded font must appear in document.json fontReferences');
+  assert.equal(docJson.fontReferences[0].fontFamilyName, 'CustomSans');
+  const richPage = JSON.parse(await richZip.file('pages/page-1.json')!.async('text'));
+  const artboard = richPage.layers[0];
+  assert.ok(artboard.backgroundColor.red < 0.1 && artboard.backgroundColor.blue > 0.1, 'Artboard inherits root solid background');
+  const rootGroup = artboard.layers[0];
+  const txtLayer = rootGroup.layers.find((l: any) => l.do_objectID === 'txt');
+  assert.equal(txtLayer.style.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.name, 'HelveticaNeue-Bold');
+  assert.equal(txtLayer.style.textStyle.encodedAttributes.paragraphStyle.alignment, 2);
+  const svgLayer = rootGroup.layers.find((l: any) => l.do_objectID === 'svg-img');
+  assert.equal(svgLayer._class, 'group', 'SVG image asset converts to Sketch vector group instead of broken bitmap');
+  const multiFillLayer = rootGroup.layers.find((l: any) => l.do_objectID === 'multi-fill');
+  assert.equal(multiFillLayer.style.fills[0].gradient.gradientType, 2, 'Conic gradient maps to Sketch angular gradient and stacks bottom-to-top');
+
   console.log('Sketch vector archive behavior tests passed');
 }
 

@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { type Capture, emptyCapture } from '@capture-kit/model';
 import { modelToFigma } from './src/index.js';
+import { formatFontSubstitutionSummary, resolveFigmaFontChoice } from './src/native.js';
 import { runNativePlanningTests } from './native.test.js';
 
 function runFigmaDestinationTests() {
@@ -264,5 +265,37 @@ function runFigmaDestinationTests() {
   console.log('packages/destinations/figma tests passed: 8/8 assertions verified');
 }
 
+function runFigmaFontResolutionTests() {
+  const available = [
+    { family: 'Inter', style: 'Regular' },
+    { family: 'Inter', style: 'Bold' },
+    { family: 'Tinos', style: 'Regular' },
+    { family: 'Georgia', style: 'Regular' },
+  ];
+  // 1. Exact
+  const exact = resolveFigmaFontChoice(available, 'Inter', 700, false);
+  assert.strictEqual(exact.reason, 'exact');
+  assert.strictEqual(exact.font.style, 'Bold');
+  // 2. Nearest weight within same family
+  const nearest = resolveFigmaFontChoice(available, 'Inter', 600, false);
+  assert.strictEqual(nearest.reason, 'nearest-weight');
+  assert.strictEqual(nearest.font.family, 'Inter');
+  // 3. Capture fallbackStack
+  const fb = resolveFigmaFontChoice(available, 'CustomSerif', 400, false, [
+    { family: 'CustomSerif', weight: '400', style: 'normal', embedded: false, fallbackStack: 'CustomSerif, Georgia, serif' },
+  ]);
+  assert.strictEqual(fb.reason, 'fallback-stack');
+  assert.strictEqual(fb.font.family, 'Georgia');
+  // 4. Metric-compatible Google font table
+  const metric = resolveFigmaFontChoice(available, 'Times New Roman', 400, false);
+  assert.strictEqual(metric.reason, 'metric-table');
+  assert.strictEqual(metric.font.family, 'Tinos');
+  // 5. Formatted summary
+  const summary = formatFontSubstitutionSummary(new Map([['Times New Roman', 'Tinos'], ['CustomSerif', 'Georgia']]));
+  assert.strictEqual(summary, '2 fonts substituted: Times New Roman → Tinos, CustomSerif → Georgia');
+  console.log('packages/destinations/figma font resolution tests passed');
+}
+
 runFigmaDestinationTests();
 runNativePlanningTests();
+runFigmaFontResolutionTests();

@@ -1,34 +1,29 @@
-import type { Node } from '@capture-kit/model';
-import { nativeTextAlignment } from '@capture-kit/destination-figma/native';
+import type { Capture, Node } from '@capture-kit/model';
+import { formatFontSubstitutionSummary, nativeTextAlignment, resolveFigmaFontChoice } from '@capture-kit/destination-figma/native';
 import type { PaintImporter, Warn } from './paints.js';
 export class FontImporter {
   private loaded = new Map<string, Promise<void>>();
+  private availableNames: FontName[];
+  readonly substitutions = new Map<string, string>();
 
-  constructor(private fonts: Font[], private paints: PaintImporter, private warn: Warn) {}
+  constructor(fonts: Font[], private paints: PaintImporter, private warn: Warn, private captureFonts?: Capture['fonts']) {
+    this.availableNames = fonts.map((f) => f.fontName);
+  }
+
+  getSubstitutionsSummary(): string | null {
+    return formatFontSubstitutionSummary(this.substitutions);
+  }
 
   private async resolve(familyList: string, weight: string | number, italic: boolean, nodeId: string): Promise<FontName> {
-    const families = familyList.split(',').map((name) => name.trim().replace(/^['"]|['"]$/g, ''));
-    const numericWeight = typeof weight === 'number' ? weight : weight === 'bold' ? 700 : Number(weight) || 400;
-    const desired = numericWeight >= 850 ? 'black' : numericWeight >= 750 ? 'extrabold' : numericWeight >= 650 ? 'bold' : numericWeight >= 550 ? 'semibold' : numericWeight >= 450 ? 'medium' : numericWeight >= 350 ? 'regular' : numericWeight >= 250 ? 'light' : 'thin';
-    let candidates: FontName[] = [];
-    let usedFamily: string | undefined;
-    for (const family of families) {
-      candidates = this.fonts.filter(({ fontName }) => fontName.family.toLowerCase() === family.toLowerCase()).map(({ fontName }) => fontName);
-      if (candidates.length) { usedFamily = family; break; }
+    const res = resolveFigmaFontChoice(this.availableNames, familyList, weight, italic, this.captureFonts);
+    const font = res.font;
+    if (res.reason === 'nearest-weight') {
+      this.warn('native-font-style-fallback', `Requested ${weight}${italic ? ' italic' : ''} in '${res.requestedFamily}'; using nearest style '${font.style}'.`, nodeId);
+    } else if (res.reason !== 'exact') {
+      const targetLabel = `${font.family} ${font.style}`;
+      this.substitutions.set(res.requestedFamily, font.family);
+      this.warn('native-font-family-fallback', `Font '${res.requestedFamily}' is unavailable (${res.reason}). Substituted '${targetLabel}'.`, nodeId);
     }
-    if (!candidates.length) {
-      const fallback = this.fonts.find(({ fontName }) => fontName.family === 'Inter' && fontName.style === 'Regular')?.fontName ?? this.fonts[0]?.fontName;
-      if (!fallback) throw new Error('No available Figma fonts can render editable text.');
-      candidates = [fallback];
-      this.warn('native-font-family-fallback', `Font '${families[0]}' is unavailable. Using '${fallback.family} ${fallback.style}'. Embedded web fonts cannot be installed by a plugin.`, nodeId);
-    } else if (usedFamily !== families[0]) {
-      this.warn('native-font-family-fallback', `Font '${families[0]}' is unavailable. Using CSS fallback '${usedFamily}'.`, nodeId);
-    }
-    const normalized = (style: string) => style.toLowerCase().replace(/[\s-]/g, '').replace('normal', 'regular');
-    const desiredStyle = `${desired}${italic ? 'italic' : ''}`;
-    const exact = candidates.find((font) => normalized(font.style) === desiredStyle || (desired === 'regular' && italic && normalized(font.style) === 'italic'));
-    const font = exact ?? candidates.find((font) => /italic|oblique/i.test(font.style) === italic) ?? candidates[0];
-    if (!exact && usedFamily) this.warn('native-font-style-fallback', `Requested ${weight}${italic ? ' italic' : ''} in '${usedFamily}'; using available style '${font.style}'.`, nodeId);
     const key = `${font.family}\u0000${font.style}`;
     let loading = this.loaded.get(key);
     if (!loading) {

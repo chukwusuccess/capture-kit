@@ -146,8 +146,10 @@ figma.ui.onmessage = async (message: unknown) => {
       const paints = new PaintImporter(capture, warn);
       const background = capture.frame.background ? paints.color(capture.frame.background, 'capture-root') : undefined;
       root.fills = background ? [background] : [];
-      const fonts = new FontImporter(availableFonts, paints, warn);
+      const fonts = new FontImporter(availableFonts, paints, warn, capture.fonts);
       for (const node of plan.roots) await renderNode(node, root, undefined, capture, paints, fonts, warn);
+      const subSummary = fonts.getSubstitutionsSummary();
+      if (subSummary) diagnostics.push({ code: 'native-font-substitutions', severity: 'warning', message: subSummary });
       const countLayout = (nodes: NativeNodePlan[]): number => nodes.reduce((count, node) => count + (node.layout === 'positioned' ? 0 : 1) + countLayout(node.children), 0);
       autoLayoutCount += countLayout(plan.roots);
       x += root.width + 80;

@@ -176,10 +176,15 @@ function convertFills(
   assets: Capture['assets'],
   nodeStyle?: Node['style']
 ): Array<Record<string, unknown>> {
+  const solidFills = fills.filter((f) => f.type === 'solid');
+  const visualFills = fills.filter((f) => f.type !== 'solid').slice().reverse();
+  const orderedFills = [...solidFills, ...visualFills];
   const fillList: Array<Record<string, unknown>> = [];
 
-  for (const fill of fills) {
+  for (const fill of orderedFills) {
     if (fill.type === 'image' && fill.assetRef && assets[fill.assetRef]) {
+      const asset = assets[fill.assetRef];
+      if (asset.mimeType === 'image/svg+xml') continue;
       fillList.push({
         _class: 'fill',
         isEnabled: true,
@@ -219,13 +224,25 @@ function convertFills(
         },
       });
     } else if (fill.type === 'gradient' && fill.stops && fill.stops.length > 0) {
-      const angleRad = (((fill.angle ?? 180) - 90) * Math.PI) / 180;
-      const cos = Math.cos(angleRad);
-      const sin = Math.sin(angleRad);
-      const fromX = Number((0.5 - cos * 0.5).toFixed(3));
-      const fromY = Number((0.5 - sin * 0.5).toFixed(3));
-      const toX = Number((0.5 + cos * 0.5).toFixed(3));
-      const toY = Number((0.5 + sin * 0.5).toFixed(3));
+      const gType = fill.gradientType === 'radial' ? 1 : fill.gradientType === 'conic' ? 2 : 0;
+      let fromX = 0.5;
+      let fromY = 0;
+      let toX = 0.5;
+      let toY = 1;
+      if (gType === 0) {
+        const angleRad = (((fill.angle ?? 180) - 90) * Math.PI) / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        fromX = Number((0.5 - cos * 0.5).toFixed(3));
+        fromY = Number((0.5 - sin * 0.5).toFixed(3));
+        toX = Number((0.5 + cos * 0.5).toFixed(3));
+        toY = Number((0.5 + sin * 0.5).toFixed(3));
+      } else {
+        fromX = fill.cx ?? 0.5;
+        fromY = fill.cy ?? 0.5;
+        toX = Number(Math.min(1, fromX + 0.5).toFixed(3));
+        toY = fromY;
+      }
 
       const gradientStops = fill.stops.map((s) => ({
         _class: 'gradientStop',
@@ -239,10 +256,10 @@ function convertFills(
         fillType: 1, // 1 = gradient
         gradient: {
           _class: 'gradient',
-          elipseLength: 0,
+          elipseLength: gType === 1 ? 1 : 0,
           from: `{${fromX}, ${fromY}}`,
           to: `{${toX}, ${toY}}`,
-          gradientType: fill.gradientType === 'radial' ? 1 : 0,
+          gradientType: gType,
           stops: gradientStops,
         },
         contextSettings: {
@@ -383,6 +400,103 @@ function convertVectorLayer(
   };
 }
 
+function resolveSketchFontName(
+  fontFamily: string,
+  fontWeight?: string | number,
+  italic?: boolean
+): string {
+  const candidates = (fontFamily || 'Helvetica')
+    .split(',')
+    .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean);
+  const raw = candidates[0] || 'Helvetica';
+  const lower = raw.toLowerCase();
+  const numWeight =
+    typeof fontWeight === 'number'
+      ? fontWeight
+      : fontWeight === 'bold'
+        ? 700
+        : Number.parseFloat(String(fontWeight || '400')) || 400;
+  const isBold = numWeight >= 600;
+  const isMedium = numWeight >= 480 && numWeight < 600;
+
+  if (lower === 'system-ui' || lower === '-apple-system' || lower === 'blinkmacsystemfont' || lower === 'sans-serif' || lower === 'helvetica neue') {
+    if (isBold && italic) return 'HelveticaNeue-BoldItalic';
+    if (isBold) return 'HelveticaNeue-Bold';
+    if (isMedium && italic) return 'HelveticaNeue-MediumItalic';
+    if (isMedium) return 'HelveticaNeue-Medium';
+    if (italic) return 'HelveticaNeue-Italic';
+    return 'HelveticaNeue';
+  }
+  if (lower === 'helvetica') {
+    if (isBold && italic) return 'Helvetica-BoldOblique';
+    if (isBold) return 'Helvetica-Bold';
+    if (italic) return 'Helvetica-Oblique';
+    return 'Helvetica';
+  }
+  if (lower === 'arial') {
+    if (isBold && italic) return 'Arial-BoldItalicMT';
+    if (isBold) return 'Arial-BoldMT';
+    if (italic) return 'Arial-ItalicMT';
+    return 'ArialMT';
+  }
+  if (lower === 'georgia') {
+    if (isBold && italic) return 'Georgia-BoldItalic';
+    if (isBold) return 'Georgia-Bold';
+    if (italic) return 'Georgia-Italic';
+    return 'Georgia';
+  }
+  if (lower === 'serif' || lower === 'times' || lower === 'times new roman') {
+    if (isBold && italic) return 'TimesNewRomanPS-BoldItalicMT';
+    if (isBold) return 'TimesNewRomanPS-BoldMT';
+    if (italic) return 'TimesNewRomanPS-ItalicMT';
+    return 'TimesNewRomanPSMT';
+  }
+  if (lower === 'monospace' || lower === 'menlo' || lower === 'monaco' || lower === 'courier' || lower === 'courier new') {
+    if (isBold && italic) return 'Menlo-BoldItalic';
+    if (isBold) return 'Menlo-Bold';
+    if (italic) return 'Menlo-Italic';
+    return 'Menlo-Regular';
+  }
+  return raw;
+}
+
+function applyTextTransformSketch(str: string, tt?: string): string {
+  if (tt === 'uppercase') return str.toUpperCase();
+  if (tt === 'lowercase') return str.toLowerCase();
+  if (tt === 'capitalize') return str.replace(/\b\w/g, (c) => c.toUpperCase());
+  return str;
+}
+
+function buildSketchParagraphStyle(
+  align: string | undefined,
+  lineHeight: string | number | undefined,
+  fontSize: number,
+  boxHeight?: number
+): Record<string, unknown> {
+  const alignment = align === 'right' ? 1 : align === 'center' ? 2 : align === 'justify' ? 3 : 0;
+  let pxLineHeight = 0;
+  if (typeof lineHeight === 'number' && Number.isFinite(lineHeight) && lineHeight > 0) {
+    pxLineHeight = lineHeight < 4 ? lineHeight * fontSize : lineHeight;
+  } else if (typeof lineHeight === 'string' && lineHeight !== 'normal') {
+    const parsed = Number.parseFloat(lineHeight);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      pxLineHeight = lineHeight.endsWith('px') ? parsed : parsed < 4 ? parsed * fontSize : parsed;
+    }
+  }
+  const isSingleLine = boxHeight !== undefined && boxHeight <= fontSize * 1.45;
+  return {
+    _class: 'paragraphStyle',
+    alignment,
+    ...(!isSingleLine && pxLineHeight > 0
+      ? {
+          maximumLineHeight: Math.round(pxLineHeight * 100) / 100,
+          minimumLineHeight: Math.round(pxLineHeight * 100) / 100,
+        }
+      : {}),
+  };
+}
+
 function convertNodeToSketchLayer(
   node: Node,
   assets: Capture['assets'],
@@ -416,7 +530,18 @@ function convertNodeToSketchLayer(
     };
 
     const textColor = parseCssColor(textProps.color);
-    const content = textProps.content;
+    const content = applyTextTransformSketch(textProps.content, textProps.textTransform);
+    const baseFontName = resolveSketchFontName(textProps.fontFamily, textProps.fontWeight, textProps.italic);
+    const paragraphStyle = buildSketchParagraphStyle(textProps.align, textProps.lineHeight, textProps.fontSize, node.box.h);
+    const kerning =
+      typeof textProps.letterSpacing === 'number'
+        ? textProps.letterSpacing
+        : Number.parseFloat(String(textProps.letterSpacing || '0')) || 0;
+    const runsMatchContent = Boolean(
+      textProps.runs &&
+      textProps.runs.length > 0 &&
+      applyTextTransformSketch(textProps.runs.map((r) => r.text).join(''), textProps.textTransform) === content
+    );
 
     return {
       _class: 'text',
@@ -454,11 +579,13 @@ function convertNodeToSketchLayer(
             MSAttributedStringFontAttribute: {
               _class: 'fontDescriptor',
               attributes: {
-                name: textProps.fontFamily,
+                name: baseFontName,
                 size: textProps.fontSize,
               },
             },
             MSAttributedStringColorAttribute: textColor,
+            paragraphStyle,
+            ...(kerning !== 0 ? { kerning } : {}),
           },
         },
       },
@@ -466,28 +593,36 @@ function convertNodeToSketchLayer(
         _class: 'attributedString',
         string: content,
         attributes:
-          textProps.runs && textProps.runs.length > 0
+          runsMatchContent && textProps.runs
             ? (() => {
                 const attrs: Array<Record<string, unknown>> = [];
                 let loc = 0;
                 for (const r of textProps.runs) {
+                  const rText = applyTextTransformSketch(r.text, textProps.textTransform);
                   const rColor = r.color ? parseCssColor(r.color) : textColor;
+                  const rFontName = resolveSketchFontName(
+                    r.fontFamily || textProps.fontFamily,
+                    r.fontWeight ?? textProps.fontWeight,
+                    r.italic ?? textProps.italic
+                  );
                   attrs.push({
                     _class: 'stringAttribute',
                     location: loc,
-                    length: r.text.length,
+                    length: rText.length,
                     attributes: {
                       MSAttributedStringFontAttribute: {
                         _class: 'fontDescriptor',
                         attributes: {
-                          name: r.fontFamily || textProps.fontFamily,
+                          name: rFontName,
                           size: r.fontSize || textProps.fontSize,
                         },
                       },
                       MSAttributedStringColorAttribute: rColor,
+                      paragraphStyle,
+                      ...(kerning !== 0 ? { kerning } : {}),
                     },
                   });
-                  loc += r.text.length;
+                  loc += rText.length;
                 }
                 return attrs;
               })()
@@ -500,11 +635,13 @@ function convertNodeToSketchLayer(
                     MSAttributedStringFontAttribute: {
                       _class: 'fontDescriptor',
                       attributes: {
-                        name: textProps.fontFamily,
+                        name: baseFontName,
                         size: textProps.fontSize,
                       },
                     },
                     MSAttributedStringColorAttribute: textColor,
+                    paragraphStyle,
+                    ...(kerning !== 0 ? { kerning } : {}),
                   },
                 },
               ],
@@ -516,13 +653,115 @@ function convertNodeToSketchLayer(
     };
   }
 
+function decodeBase64Utf8(base64: string): string {
+  const clean = base64.replace(/^data:[^,]+,/, '');
+  const bin = atob(clean);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
+  const attr = (tag: string, name: string): string | undefined => {
+    const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i'));
+    return m ? m[1] : undefined;
+  };
+  const vbMatch = svgText.match(/\bviewBox\s*=\s*["']\s*([\d.-]+)[,\s]+([\d.-]+)[,\s]+([\d.-]+)[,\s]+([\d.-]+)\s*["']/i);
+  const svgOpen = svgText.match(/<svg\b[^>]*>/i)?.[0] || '';
+  const wAttr = Number.parseFloat(attr(svgOpen, 'width') || '');
+  const hAttr = Number.parseFloat(attr(svgOpen, 'height') || '');
+  const viewBox = vbMatch
+    ? { width: Number.parseFloat(vbMatch[3]) || node.box.w, height: Number.parseFloat(vbMatch[4]) || node.box.h }
+    : Number.isFinite(wAttr) && Number.isFinite(hAttr) && wAttr > 0 && hAttr > 0
+      ? { width: wAttr, height: hAttr }
+      : { width: Math.max(1, node.box.w), height: Math.max(1, node.box.h) };
+
+  const paths: NonNullable<Node['vectorPaths']> = [];
+  const shapeRegex = /<(path|rect|circle|ellipse|polygon)\b[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = shapeRegex.exec(svgText)) !== null) {
+    const tagName = match[1].toLowerCase();
+    const tag = match[0];
+    let fill = attr(tag, 'fill') || '#000000';
+    const fillOpacity = Number.parseFloat(attr(tag, 'fill-opacity') || attr(tag, 'opacity') || '1');
+    if (fill !== 'none' && Number.isFinite(fillOpacity) && fillOpacity < 1) {
+      const c = parseCssColor(fill);
+      fill = `rgba(${Math.round(c.red * 255)}, ${Math.round(c.green * 255)}, ${Math.round(c.blue * 255)}, ${c.alpha * fillOpacity})`;
+    }
+    const stroke = attr(tag, 'stroke');
+    const strokeWidth = Number.parseFloat(attr(tag, 'stroke-width') || '1') || 1;
+    let d = '';
+    if (tagName === 'path') {
+      d = attr(tag, 'd') || '';
+    } else if (tagName === 'rect') {
+      const x = Number.parseFloat(attr(tag, 'x') || '0') || 0;
+      const y = Number.parseFloat(attr(tag, 'y') || '0') || 0;
+      const w = Number.parseFloat(attr(tag, 'width') || '0') || 0;
+      const h = Number.parseFloat(attr(tag, 'height') || '0') || 0;
+      if (w > 0 && h > 0) d = `M ${x} ${y} H ${x + w} V ${y + h} H ${x} Z`;
+    } else if (tagName === 'circle') {
+      const cx = Number.parseFloat(attr(tag, 'cx') || '0') || 0;
+      const cy = Number.parseFloat(attr(tag, 'cy') || '0') || 0;
+      const r = Number.parseFloat(attr(tag, 'r') || '0') || 0;
+      if (r > 0) {
+        d = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+      }
+    } else if (tagName === 'ellipse') {
+      const cx = Number.parseFloat(attr(tag, 'cx') || '0') || 0;
+      const cy = Number.parseFloat(attr(tag, 'cy') || '0') || 0;
+      const rx = Number.parseFloat(attr(tag, 'rx') || '0') || 0;
+      const ry = Number.parseFloat(attr(tag, 'ry') || '0') || 0;
+      if (rx > 0 && ry > 0) {
+        d = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+      }
+    } else if (tagName === 'polygon') {
+      const pts = (attr(tag, 'points') || '').trim().split(/[\s,]+/).map(Number).filter(Number.isFinite);
+      if (pts.length >= 4) {
+        const cmds: string[] = [`M ${pts[0]} ${pts[1]}`];
+        for (let i = 2; i + 1 < pts.length; i += 2) cmds.push(`L ${pts[i]} ${pts[i + 1]}`);
+        cmds.push('Z');
+        d = cmds.join(' ');
+      }
+    }
+    if (d && fill !== 'none') {
+      paths.push({
+        d,
+        fill,
+        ...(stroke && stroke !== 'none' ? { stroke, strokeWidth } : {}),
+      });
+    }
+  }
+  if (!paths.length) return null;
+  return { ...node, type: 'vector', vectorViewBox: viewBox, vectorPaths: paths };
+}
+
   if (node.type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     return convertVectorLayer(node, assets, commonFrame);
   }
 
-  // Handle image and vector types: bitmap layer if asset is present
+  // Handle rect/frame with an inline SVG background-image fill
+  const svgFill = (node.style.fills ?? []).find(
+    (f) => f.type === 'image' && f.assetRef && assets[f.assetRef]?.mimeType === 'image/svg+xml' && assets[f.assetRef]?.base64
+  );
+  if (svgFill?.assetRef) {
+    const svgText = decodeBase64Utf8(assets[svgFill.assetRef].base64);
+    const vectorNode = parseSvgToVectorNode(node, svgText);
+    if (vectorNode) {
+      return convertVectorLayer(vectorNode, assets, commonFrame);
+    }
+  }
+
+  // Handle image and vector types: convert inline SVG assets to vector paths, or bitmap layer for raster
   if (node.type === 'image' || node.type === 'vector') {
-    if (node.assetRef && assets[node.assetRef]) {
+    const asset = node.assetRef ? assets[node.assetRef] : undefined;
+    if (asset?.mimeType === 'image/svg+xml' && asset.base64) {
+      const svgText = decodeBase64Utf8(asset.base64);
+      const vectorNode = parseSvgToVectorNode(node, svgText);
+      if (vectorNode) {
+        return convertVectorLayer(vectorNode, assets, commonFrame);
+      }
+    }
+    if (node.assetRef && asset) {
       return {
         _class: 'bitmap',
         do_objectID: node.id,
@@ -792,7 +1031,8 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
   const pageId = 'page-1';
   const artboardId = 'artboard-1';
 
-  // Embed assets into images/ and fonts/ folder
+  // Embed assets into images/ and fonts/ folder, collecting fontReferences for document.json
+  const fontExtMap = new Map<string, string>();
   for (const [key, asset] of Object.entries(capture.assets)) {
     if (asset.base64) {
       if (asset.kind === 'font') {
@@ -803,12 +1043,33 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
           : asset.mimeType.includes('truetype') || asset.mimeType.includes('ttf')
           ? 'ttf'
           : 'otf';
+        fontExtMap.set(key, `${key}.${ext}`);
         zip.file(`fonts/${key}.${ext}`, asset.base64, { base64: true });
       } else {
         zip.file(`images/${key}.png`, asset.base64, { base64: true });
       }
     }
   }
+
+  const fontReferences = (capture.fonts ?? [])
+    .filter((f) => f.embedded !== false && f.assetRef && fontExtMap.has(f.assetRef))
+    .map((f, idx) => {
+      const fileName = fontExtMap.get(f.assetRef!)!;
+      return {
+        _class: 'fontReference',
+        do_objectID: `font-ref-${idx + 1}`,
+        isUsed: true,
+        fontData: {
+          _class: 'MSJSONFileReference',
+          _ref_class: 'MSFontData',
+          _ref: `fonts/${fileName}`,
+        },
+        fontFamilyName: f.family,
+        fontFileName: fileName,
+        options: 0,
+        postscriptNames: [f.family],
+      };
+    });
 
   // meta.json
   const metaJson = {
@@ -870,6 +1131,7 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
     foreignLayerStyles: [],
     foreignSymbols: [],
     foreignTextStyles: [],
+    fontReferences,
     layerStyles: {
       _class: 'sharedStyleContainer',
       objects: [],
@@ -964,13 +1226,12 @@ export async function modelToSketch(capture: Capture): Promise<Blob> {
           y: 0,
         },
         hasBackgroundColor: true,
-        backgroundColor: {
-          _class: 'color',
-          alpha: 1,
-          blue: 1,
-          green: 1,
-          red: 1,
-        },
+        backgroundColor: (() => {
+          const rootSolid = capture.nodes[0]?.style.fills.find((f) => f.type === 'solid' && f.color);
+          return rootSolid?.color
+            ? parseCssColor(rootSolid.color)
+            : { _class: 'color', alpha: 1, blue: 1, green: 1, red: 1 };
+        })(),
         layers: artboardLayers,
       },
     ],

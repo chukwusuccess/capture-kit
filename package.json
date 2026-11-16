@@ -14,6 +14,7 @@
     "test:diff": "tsx tools/diff/test.ts",
     "fidelity": "tsx tools/fidelity/run.ts",
     "fidelity:suite": "tsx tools/fidelity/run.ts --suite",
+    "fidelity:native": "tsx tools/fidelity/native.ts",
     "bench": "tsx tools/fidelity/bench.ts",
     "bench:extension": "tsx tools/fidelity/bench-extension.ts",
     "test:fidelity": "tsx tools/fidelity/test.ts",

@@ -1,0 +1,3499 @@
+{
+  "generatedAt": "2026-11-16T13:33:01.976Z",
+  "branch": "agent/phase-4-fonts-exports",
+  "baselineRef": "origin/main (743c258)",
+  "partA": {
+    "sameDayAB": {
+      "marketing": {
+        "main": [
+          {
+            "id": "marketing",
+            "url": "https://stripe.com",
+            "why": "gradients, transforms, heavy fonts",
+            "width": 1440,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 20256,
+            "score": 85.38,
+            "strictScore": 68.25,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 1627,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 1065.4,
+              "walk": 7.2,
+              "freezeTransforms": 22.5,
+              "nodes": 246.2,
+              "text": 10.4,
+              "assets": 2820.6,
+              "fonts": 2617.7,
+              "prepare": 1103.9,
+              "raster": 0,
+              "fetchBridge": 8367.1,
+              "svgInline": 0,
+              "total": 4003
+            },
+            "counts": {
+              "elementsWalked": 1880,
+              "nodesEmitted": 1627,
+              "textCharsMeasured": 567,
+              "transformedElements": 165,
+              "assetsFetched": 12,
+              "assetsFailed": 0,
+              "assetsTimedOut": 14,
+              "assetBytes": 1350583,
+              "jsonBytes": 3211255
+            },
+            "jsonMB": 3.062,
+            "slowestStage": {
+              "stage": "fetchBridge",
+              "ms": 8367.1
+            },
+            "hotspots": [
+              {
+                "cell": "r3c3",
+                "mismatchPct": 42.4,
+                "x": 540,
+                "y": 5805,
+                "width": 180,
+                "height": 1935,
+                "mismatchedPixels": 147607
+              },
+              {
+                "cell": "r3c1",
+                "mismatchPct": 41.2,
+                "x": 180,
+                "y": 5805,
+                "width": 180,
+                "height": 1935,
+                "mismatchedPixels": 143550
+              },
+              {
+                "cell": "r3c2",
+                "mismatchPct": 37.7,
+                "x": 360,
+                "y": 5805,
+                "width": 180,
+                "height": 1935,
+                "mismatchedPixels": 131376
+              }
+            ],
+            "files": {
+              "original": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-2/original.png",
+              "rendered": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-2/rendered.png",
+              "mask": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-2/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_skipped",
+                "message": "Skipped 14 images (14 zero-size).",
+                "severity": "info"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/3NcSrMqMgaKe75QNr8wZI8/46d520dfc48c5b9f1c59dcde9460b58c/connect-bento-card-background-image.jpg?w=2464&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "12 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2YFdgdFPeIiDpmQbhHPAx8/186752498bf713fea245f31bcec84f8a/sessions-2026-on-demand-bg.png?w=2464&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-736"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-965"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-819"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-950"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1102"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1025"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1040"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1010"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1151"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-935"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1165"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1179"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1193"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1358"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 6 opaque image(s) to JPEG and 3 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 2 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face sohne-var (1 1000 normal) could not be embedded; fallback: SF Pro Display, sans-serif",
+                "severity": "warning",
+                "nodeId": "node-152"
+              }
+            ]
+          },
+          {
+            "id": "marketing",
+            "url": "https://stripe.com",
+            "why": "gradients, transforms, heavy fonts",
+            "width": 390,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 12853,
+            "score": 81.5,
+            "strictScore": 69.72,
+            "widthDelta": 0,
+            "heightDelta": 1,
+            "nodeCount": 1542,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 1143.5,
+              "walk": 7.4,
+              "freezeTransforms": 20.1,
+              "nodes": 224.7,
+              "text": 10.2,
+              "assets": 2762.1,
+              "fonts": 2576.7,
+              "prepare": 1173.4,
+              "raster": 0,
+              "fetchBridge": 4523.2,
+              "svgInline": 0,
+              "total": 4007.9
+            },
+            "counts": {
+              "elementsWalked": 1825,
+              "nodesEmitted": 1542,
+              "textCharsMeasured": 774,
+              "transformedElements": 158,
+              "assetsFetched": 8,
+              "assetsFailed": 0,
+              "assetsTimedOut": 30,
+              "assetBytes": 647098,
+              "jsonBytes": 2181713
+            },
+            "jsonMB": 2.081,
+            "slowestStage": {
+              "stage": "fetchBridge",
+              "ms": 4523.2
+            },
+            "hotspots": [
+              {
+                "cell": "r1c5",
+                "mismatchPct": 48.6,
+                "x": 245,
+                "y": 2590,
+                "width": 49,
+                "height": 2590,
+                "mismatchedPixels": 61661
+              },
+              {
+                "cell": "r1c2",
+                "mismatchPct": 46.8,
+                "x": 98,
+                "y": 2590,
+                "width": 49,
+                "height": 2590,
+                "mismatchedPixels": 59362
+              },
+              {
+                "cell": "r1c3",
+                "mismatchPct": 45.1,
+                "x": 147,
+                "y": 2590,
+                "width": 49,
+                "height": 2590,
+                "mismatchedPixels": 57194
+              }
+            ],
+            "files": {
+              "original": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/marketing-390/run-2/original.png",
+              "rendered": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/marketing-390/run-2/rendered.png",
+              "mask": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/marketing-390/run-2/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_skipped",
+                "message": "Skipped 5 images (5 zero-size).",
+                "severity": "info"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "23 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-636"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-922"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-806"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-744"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-716"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-937"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-669"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-682"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-837"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-944"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-775"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-951"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-958"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-965"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-972"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-979"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1026"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1075"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1089"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1103"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1117"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6yE6G454SGCJnJgEYsS2MB/70b405a1dce904bc0c6f2698223fb966/the-happenings-bfcm-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1259"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/33xcv8eCmXzMzWXicVQ4cF/83d91fa419ff8d1b9466739b4ecdcb1d/the-happenings-tidemark-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1264"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/t03tXrgvnHUPGwxYUgSxN/bd8da003434c9e9fb72c719b9edb429b/the-happenings-cheeky-pint-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1269"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/Pd2JQ7FZ1pYMIMGDwvMdV/13e7e021ca23d042da8ac07be829f7ef/the-happenings-payment-processing-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1274"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4LaZVLqDqGf9091wqUAmFp/fbe9fc307e1336b69bcd9be4ec5c4752/the-happenings-crypto-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1279"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1k7ckFceNFlxqF47hWJUlM/eaa4d8b3f8e4b76ba3dd7df7da88e099/the-happenings-agentic-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1284"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7EVLwfXmG3pl1vhBssMrFB/b6d8612b1f567922c1355d864c279678/the-happenings-payment-retailers-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1289"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1315"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/yqIFyZRGU5zDwdUsWtUyM/25b9f23c748c4d54079a09016fde59d8/annual-letter-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1246"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 4 opaque image(s) to JPEG and 3 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 1 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face sohne-var (1 1000 normal) could not be embedded; fallback: SF Pro Display, sans-serif",
+                "severity": "warning",
+                "nodeId": "node-152"
+              }
+            ]
+          }
+        ],
+        "phase4": [
+          {
+            "id": "marketing",
+            "url": "https://stripe.com",
+            "why": "gradients, transforms, heavy fonts",
+            "width": 1440,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 31289,
+            "score": 87.16,
+            "strictScore": 67.66,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 1582,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 804.3,
+              "walk": 5.7,
+              "freezeTransforms": 22.7,
+              "nodes": 235.1,
+              "text": 11,
+              "assets": 3127.5,
+              "fonts": 2929.6,
+              "prepare": 805.2,
+              "raster": 0,
+              "fetchBridge": 13008.4,
+              "svgInline": 0,
+              "total": 4005.4
+            },
+            "counts": {
+              "elementsWalked": 1825,
+              "nodesEmitted": 1582,
+              "textCharsMeasured": 567,
+              "transformedElements": 160,
+              "assetsFetched": 15,
+              "assetsFailed": 0,
+              "assetsTimedOut": 11,
+              "assetBytes": 1086841,
+              "jsonBytes": 2836101
+            },
+            "jsonMB": 2.705,
+            "slowestStage": {
+              "stage": "fetchBridge",
+              "ms": 13008.4
+            },
+            "hotspots": [
+              {
+                "cell": "r3c3",
+                "mismatchPct": 35.8,
+                "x": 540,
+                "y": 5640,
+                "width": 180,
+                "height": 1880,
+                "mismatchedPixels": 121183
+              },
+              {
+                "cell": "r2c4",
+                "mismatchPct": 34.2,
+                "x": 720,
+                "y": 3760,
+                "width": 180,
+                "height": 1880,
+                "mismatchedPixels": 115691
+              },
+              {
+                "cell": "r2c3",
+                "mismatchPct": 33.9,
+                "x": 540,
+                "y": 3760,
+                "width": 180,
+                "height": 1880,
+                "mismatchedPixels": 114868
+              }
+            ],
+            "files": {
+              "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-1/original.png",
+              "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-1/rendered.png",
+              "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-1440/run-1/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_skipped",
+                "message": "Skipped 17 images (14 zero-size, 3 hidden).",
+                "severity": "info"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/5Dr3Oc550drIrxyzzXgFbq/f6e4fb0b8b4b40d73e94fdf7c9bc7028/payments-hoodie.jpg?w=160&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1UE1lPgwbfQRH586XfTWKM/f90bfc79f87b3e60a4189cc0f5a03228/showflix-streaming.jpg?w=160&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/6BTjJGdjfGVA8brPwj7p3M/fcf084ff85142366e118fe85ee78b632/payments-electric-kettle.jpg?w=80&fm=webp&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "10 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1062"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1000"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-925"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1125"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1139"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-970"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-910"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1111"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1153"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-779"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1318"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 10 opaque image(s) to JPEG and 3 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 4 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face sohne-var (300 normal) could not be embedded; fallback: sohne-var, \"SF Pro Display\", sans-serif",
+                "severity": "warning",
+                "nodeId": "node-152"
+              }
+            ]
+          },
+          {
+            "id": "marketing",
+            "url": "https://stripe.com",
+            "why": "gradients, transforms, heavy fonts",
+            "width": 390,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 15318,
+            "score": 82.18,
+            "strictScore": 69.04,
+            "widthDelta": 0,
+            "heightDelta": 1,
+            "nodeCount": 1543,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 1173.6,
+              "walk": 8.5,
+              "freezeTransforms": 22.4,
+              "nodes": 237.7,
+              "text": 9.7,
+              "assets": 2701.9,
+              "fonts": 2503.7,
+              "prepare": 1226.4,
+              "raster": 0,
+              "fetchBridge": 8616.5,
+              "svgInline": 0,
+              "total": 4005.1
+            },
+            "counts": {
+              "elementsWalked": 1880,
+              "nodesEmitted": 1543,
+              "textCharsMeasured": 774,
+              "transformedElements": 161,
+              "assetsFetched": 10,
+              "assetsFailed": 0,
+              "assetsTimedOut": 28,
+              "assetBytes": 1232364,
+              "jsonBytes": 2962338
+            },
+            "jsonMB": 2.825,
+            "slowestStage": {
+              "stage": "fetchBridge",
+              "ms": 8616.5
+            },
+            "hotspots": [
+              {
+                "cell": "r1c6",
+                "mismatchPct": 40.1,
+                "x": 294,
+                "y": 2590,
+                "width": 49,
+                "height": 2590,
+                "mismatchedPixels": 50932
+              },
+              {
+                "cell": "r1c5",
+                "mismatchPct": 38.6,
+                "x": 245,
+                "y": 2590,
+                "width": 49,
+                "height": 2590,
+                "mismatchedPixels": 49011
+              },
+              {
+                "cell": "r2c2",
+                "mismatchPct": 37.6,
+                "x": 98,
+                "y": 5180,
+                "width": 49,
+                "height": 2590,
+                "mismatchedPixels": 47716
+              }
+            ],
+            "files": {
+              "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-390/run-1/original.png",
+              "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-390/run-1/rendered.png",
+              "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/marketing-390/run-1/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_skipped",
+                "message": "Skipped 5 images (5 zero-size).",
+                "severity": "info"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1zneiFjZyS8cGQvki2cGqz/35294f1866720bec6d80fb2532270258/card-placeholder_2x.png?w=894&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/7dwxc06fkzWOmlwBs9GezW/667c1af2d03a023fc61ea4cec995204d/money-movement-fallback_2x.png?w=894&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/63zO5Z4CABvFl3pLLhnu3l/a9c12c883f820dc29d29fa0b9dcb0814/DatavizStatic3x.png?w=2304&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "23 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "A stylesheet could not be inspected for embedded font assets.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/24BNV3GGtvCprFLrYovyaa/b2eac20a1d5ec75e4bff3888b998d163/enterprise-accordion-hertz.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-745"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/43eqkFV1GG5GqcbNNeEzVp/8f4705b1b80a4c835c2960ed8055d649/ConnectMobileBackground.jpg?w=1104&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-669"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5AQ9A87KzwpPy4CD3uPz5C/4afd1a1e9d6e1d698c4c7c74a4868822/enterprise-accordion-lemonde.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-838"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1v5hJ2NWvKpQfVbMqOzCpE/c900b9ed4c288f7cf0a0dced5f4983f2/enterprise-accordion-instacart.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-807"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6fpvaTP1TZWXKWVMewABjV/4412b9ca2940d89d3834ac65c1fc329d/Runway.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-945"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1CBkJePR5Cwf2QNIVCia1I/c0a702cec7a3814c69f21f86b89ed718/lovable.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-923"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/52qeQQDMQNJ3CmnFPjHbTi/1a3a3acd4f027175a863fafcc29a4d9a/sessions-2026-on-demand-bg-mobile.png?w=736&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-683"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/37wKFanVluouT2iEZUbD0H/f75e77141e1330ad81ea18c6aea65f0c/enterprise-accordion-urbn.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-776"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7fM8bvEbivprOMM1zyow9N/3cad3cc826f96e4038b4ea88d81ebe3b/Supabase.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-952"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2QjRFO1cRvocACDtyA7g9e/44245671788d6e086ab7d82b37937450/Gamma.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-938"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4b8Ubw7N2kYwb7QZl3Ogri/422cc19f725aa68e647d90ce2833c8d0/linear.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-959"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/JK7aZoMzWA3uUbLb35kxx/dea1444a0aee29751c0c7098ffb33534/Eleven_Labs.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-966"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1NiQJZA0rKbwXZ7mD4BCrM/0abdaba77e564f858a33241a9aab0939/browserbase.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-973"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hreJwxuVJ5ucPtuA7pRKH/3c5630387bca898d01ae17fc7ae2890a/decagon.png?w=864&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-980"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/5dQAw5oJf3TOO1Jt6IKDRH/f391594c11f38d821259acdd3412a7a6/platform-graphic-background_2x.png?w=2460&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1027"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4oTkzvOAoM5Ruub2qYNVRC/cfb038e66b1d8bc034b6a178484862a8/KurtisMoyer.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1076"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/jl91B2l5iqFZjgqFezN1R/95f1a9bb5592d29b245ac9fb2795f760/testimonial-headshot-jobber.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1090"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/2aodX2UAzh9UTJJu5tmCNV/abe525bcc762939fb5c03436b6489af2/testimonial-headshot-substack.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1104"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6BDiRNAVvZNmAxlPtJKSD9/f821071a93166296d7b71794825b9eca/testimonial-headshot-lightspeed.png?w=96&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1118"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/yqIFyZRGU5zDwdUsWtUyM/25b9f23c748c4d54079a09016fde59d8/annual-letter-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1247"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/6yE6G454SGCJnJgEYsS2MB/70b405a1dce904bc0c6f2698223fb966/the-happenings-bfcm-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1260"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/33xcv8eCmXzMzWXicVQ4cF/83d91fa419ff8d1b9466739b4ecdcb1d/the-happenings-tidemark-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1265"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/t03tXrgvnHUPGwxYUgSxN/bd8da003434c9e9fb72c719b9edb429b/the-happenings-cheeky-pint-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1270"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/Pd2JQ7FZ1pYMIMGDwvMdV/13e7e021ca23d042da8ac07be829f7ef/the-happenings-payment-processing-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1275"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/4LaZVLqDqGf9091wqUAmFp/fbe9fc307e1336b69bcd9be4ec5c4752/the-happenings-crypto-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1280"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1k7ckFceNFlxqF47hWJUlM/eaa4d8b3f8e4b76ba3dd7df7da88e099/the-happenings-agentic-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1285"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/7EVLwfXmG3pl1vhBssMrFB/b6d8612b1f567922c1355d864c279678/the-happenings-payment-retailers-mobile.png?w=672&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1290"
+              },
+              {
+                "code": "asset_timeout",
+                "message": "Image asset could not be embedded: https://images.stripeassets.com/fzn2n1nzq965/1hmjWQj2Xwglop2rAW62zf/2899db472c5095e1a6b69bee0ead60c9/WorkInProgressIcon.png?w=64&q=90 (Timed out)",
+                "severity": "warning",
+                "nodeId": "node-1316"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 5 opaque image(s) to JPEG and 4 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 3 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face sohne-var (300 normal) could not be embedded; fallback: sohne-var, \"SF Pro Display\", sans-serif",
+                "severity": "warning",
+                "nodeId": "node-152"
+              }
+            ]
+          }
+        ]
+      },
+      "news": {
+        "main": [
+          {
+            "id": "news",
+            "url": "https://www.bbc.com/news",
+            "why": "long page, many images, lazy load",
+            "width": 1440,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 14780,
+            "score": 83.18,
+            "strictScore": 66.55,
+            "widthDelta": 0,
+            "heightDelta": 12,
+            "nodeCount": 970,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 815.3,
+              "walk": 3.7,
+              "freezeTransforms": 5.9,
+              "nodes": 106.4,
+              "text": 9.5,
+              "assets": 1612.3,
+              "fonts": 1511.4,
+              "prepare": 816.1,
+              "raster": 0,
+              "fetchBridge": 0,
+              "svgInline": 0,
+              "total": 2449.2
+            },
+            "counts": {
+              "elementsWalked": 1171,
+              "nodesEmitted": 970,
+              "textCharsMeasured": 946,
+              "transformedElements": 12,
+              "assetsFetched": 23,
+              "assetsFailed": 0,
+              "assetsTimedOut": 0,
+              "assetBytes": 3982728,
+              "jsonBytes": 6228298
+            },
+            "jsonMB": 5.94,
+            "slowestStage": {
+              "stage": "assets",
+              "ms": 1612.3
+            },
+            "hotspots": [
+              {
+                "cell": "r2c4",
+                "mismatchPct": 34,
+                "x": 720,
+                "y": 1672,
+                "width": 180,
+                "height": 836,
+                "mismatchedPixels": 51173
+              },
+              {
+                "cell": "r2c3",
+                "mismatchPct": 33.9,
+                "x": 540,
+                "y": 1672,
+                "width": 180,
+                "height": 836,
+                "mismatchedPixels": 51052
+              },
+              {
+                "cell": "r1c3",
+                "mismatchPct": 31,
+                "x": 540,
+                "y": 836,
+                "width": 180,
+                "height": 836,
+                "mismatchedPixels": 46627
+              }
+            ],
+            "files": {
+              "original": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/news-1440/run-2/original.png",
+              "rendered": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/news-1440/run-2/rendered.png",
+              "mask": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/news-1440/run-2/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1b00/live/90c0ff50-e11b-11f1-a7a2-7bb21fac8f0b.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/ba3f/live/22cfe9d0-e115-11f1-a7db-d90284d21c62.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/36ca/live/a5a42090-e06d-11f1-99e6-531f8829f5a3.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0fb0/live/ed275c50-e0dd-11f1-a701-fddedf244c16.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/6592/live/907a90a0-e090-11f1-a701-fddedf244c16.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/31fb/live/fff54ac0-e143-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8e3c/live/1664df80-e132-11f1-a204-d95dd4dbb76b.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/b499/live/ac2a73c0-e107-11f1-b3df-4961589d9b68.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "6 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 21 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 14 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face BBC Reith Sans (300 normal) could not be embedded; fallback: system-ui",
+                "severity": "warning",
+                "nodeId": "node-6"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face BBC Reith Serif (300 normal) could not be embedded; fallback: BBCReithSerif-fallback, serif",
+                "severity": "warning",
+                "nodeId": "node-35"
+              }
+            ]
+          },
+          {
+            "id": "news",
+            "url": "https://www.bbc.com/news",
+            "why": "long page, many images, lazy load",
+            "width": 390,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 13989,
+            "score": 92.01,
+            "strictScore": 75.28,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 877,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 809.1,
+              "walk": 3,
+              "freezeTransforms": 5.8,
+              "nodes": 94.9,
+              "text": 5.3,
+              "assets": 1006.2,
+              "fonts": 922.2,
+              "prepare": 810,
+              "raster": 0,
+              "fetchBridge": 0,
+              "svgInline": 0,
+              "total": 1840.6
+            },
+            "counts": {
+              "elementsWalked": 1160,
+              "nodesEmitted": 877,
+              "textCharsMeasured": 623,
+              "transformedElements": 12,
+              "assetsFetched": 23,
+              "assetsFailed": 0,
+              "assetsTimedOut": 0,
+              "assetBytes": 1159558,
+              "jsonBytes": 2419828
+            },
+            "jsonMB": 2.308,
+            "slowestStage": {
+              "stage": "assets",
+              "ms": 1006.2
+            },
+            "hotspots": [
+              {
+                "cell": "r3c4",
+                "mismatchPct": 15.5,
+                "x": 196,
+                "y": 3693,
+                "width": 49,
+                "height": 1231,
+                "mismatchedPixels": 9370
+              },
+              {
+                "cell": "r4c2",
+                "mismatchPct": 15.2,
+                "x": 98,
+                "y": 4924,
+                "width": 49,
+                "height": 1231,
+                "mismatchedPixels": 9166
+              },
+              {
+                "cell": "r1c1",
+                "mismatchPct": 15,
+                "x": 49,
+                "y": 1231,
+                "width": 49,
+                "height": 1231,
+                "mismatchedPixels": 9065
+              }
+            ],
+            "files": {
+              "original": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/news-390/run-1/original.png",
+              "rendered": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/news-390/run-1/rendered.png",
+              "mask": "/private/tmp/ck-main-wt/tools/fidelity/out/bench/2026-11-15/news-390/run-1/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/4b5f/live/f688f9b0-df6c-11f1-8112-6b9154c79b48.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/e5af/live/466fdc10-e0e3-11f1-93e1-3b657b665bcf.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/68be/live/3b72e800-df50-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/c05e/live/272ae280-e0f4-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/94d8/live/8fe15d90-df82-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1b00/live/90c0ff50-e11b-11f1-a7a2-7bb21fac8f0b.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/ba3f/live/22cfe9d0-e115-11f1-a7db-d90284d21c62.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/36ca/live/a5a42090-e06d-11f1-99e6-531f8829f5a3.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "16 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/12658512464754796672",
+                "severity": "warning",
+                "nodeId": "node-20"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 21 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 16 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face BBC Reith Sans (300 normal) could not be embedded; fallback: system-ui",
+                "severity": "warning",
+                "nodeId": "node-9"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face BBC Reith Serif (300 normal) could not be embedded; fallback: BBCReithSerif-fallback, serif",
+                "severity": "warning",
+                "nodeId": "node-43"
+              }
+            ]
+          }
+        ],
+        "phase4": [
+          {
+            "id": "news",
+            "url": "https://www.bbc.com/news",
+            "why": "long page, many images, lazy load",
+            "width": 1440,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 19052,
+            "score": 97.34,
+            "strictScore": 74.43,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 983,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 813.9,
+              "walk": 2.9,
+              "freezeTransforms": 5.6,
+              "nodes": 106.8,
+              "text": 7.3,
+              "assets": 1473.8,
+              "fonts": 1378.2,
+              "prepare": 815,
+              "raster": 0,
+              "fetchBridge": 0,
+              "svgInline": 0,
+              "total": 2314.2
+            },
+            "counts": {
+              "elementsWalked": 1191,
+              "nodesEmitted": 983,
+              "textCharsMeasured": 946,
+              "transformedElements": 12,
+              "assetsFetched": 23,
+              "assetsFailed": 0,
+              "assetsTimedOut": 0,
+              "assetBytes": 3982728,
+              "jsonBytes": 6233808
+            },
+            "jsonMB": 5.945,
+            "slowestStage": {
+              "stage": "assets",
+              "ms": 1473.8
+            },
+            "hotspots": [
+              {
+                "cell": "r0c3",
+                "mismatchPct": 29.9,
+                "x": 540,
+                "y": 0,
+                "width": 180,
+                "height": 838,
+                "mismatchedPixels": 45110
+              },
+              {
+                "cell": "r0c5",
+                "mismatchPct": 29.4,
+                "x": 900,
+                "y": 0,
+                "width": 180,
+                "height": 838,
+                "mismatchedPixels": 44292
+              },
+              {
+                "cell": "r0c4",
+                "mismatchPct": 28.4,
+                "x": 720,
+                "y": 0,
+                "width": 180,
+                "height": 838,
+                "mismatchedPixels": 42832
+              }
+            ],
+            "files": {
+              "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-1440/run-1/original.png",
+              "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-1440/run-1/rendered.png",
+              "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-1440/run-1/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1b00/live/90c0ff50-e11b-11f1-a7a2-7bb21fac8f0b.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/ba3f/live/22cfe9d0-e115-11f1-a7db-d90284d21c62.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/36ca/live/a5a42090-e06d-11f1-99e6-531f8829f5a3.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/0fb0/live/ed275c50-e0dd-11f1-a701-fddedf244c16.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/6592/live/907a90a0-e090-11f1-a701-fddedf244c16.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/31fb/live/fff54ac0-e143-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/8e3c/live/1664df80-e132-11f1-a204-d95dd4dbb76b.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/b499/live/ac2a73c0-e107-11f1-b3df-4961589d9b68.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "6 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_unavailable",
+                "message": "Cross-origin image bytes were not embedded: https://tpc.googlesyndication.com/simgad/3326052006735372490",
+                "severity": "warning",
+                "nodeId": "node-20"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 21 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 14 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face BBC Reith Sans (800 normal) could not be embedded; fallback: \"BBC Reith Sans\", BBCReithSans-fallback, sans-serif",
+                "severity": "warning",
+                "nodeId": "node-220"
+              },
+              {
+                "code": "raster_skipped_invisible",
+                "message": "Skipped 1 off-screen or invisible raster fallback target(s)",
+                "severity": "info"
+              }
+            ]
+          },
+          {
+            "id": "news",
+            "url": "https://www.bbc.com/news",
+            "why": "long page, many images, lazy load",
+            "width": 390,
+            "status": "ok",
+            "runs": 3,
+            "wallMs": 11462,
+            "score": 77.55,
+            "strictScore": 66.01,
+            "widthDelta": 0,
+            "heightDelta": 14,
+            "nodeCount": 863,
+            "stages": {
+              "scroll": 0,
+              "waitImages": 802.4,
+              "walk": 3.9,
+              "freezeTransforms": 6.3,
+              "nodes": 90.7,
+              "text": 7,
+              "assets": 1049.1,
+              "fonts": 964.4,
+              "prepare": 803.2,
+              "raster": 0,
+              "fetchBridge": 0,
+              "svgInline": 0,
+              "total": 1874.4
+            },
+            "counts": {
+              "elementsWalked": 1140,
+              "nodesEmitted": 863,
+              "textCharsMeasured": 612,
+              "transformedElements": 12,
+              "assetsFetched": 23,
+              "assetsFailed": 0,
+              "assetsTimedOut": 0,
+              "assetBytes": 1157026,
+              "jsonBytes": 2411847
+            },
+            "jsonMB": 2.3,
+            "slowestStage": {
+              "stage": "assets",
+              "ms": 1049.1
+            },
+            "hotspots": [
+              {
+                "cell": "r0c1",
+                "mismatchPct": 45.1,
+                "x": 49,
+                "y": 0,
+                "width": 49,
+                "height": 1225,
+                "mismatchedPixels": 27064
+              },
+              {
+                "cell": "r5c2",
+                "mismatchPct": 43.8,
+                "x": 98,
+                "y": 6125,
+                "width": 49,
+                "height": 1225,
+                "mismatchedPixels": 26312
+              },
+              {
+                "cell": "r5c1",
+                "mismatchPct": 43.6,
+                "x": 49,
+                "y": 6125,
+                "width": 49,
+                "height": 1225,
+                "mismatchedPixels": 26150
+              }
+            ],
+            "files": {
+              "original": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-390/run-3/original.png",
+              "rendered": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-390/run-3/rendered.png",
+              "mask": "/Users/user/orca/projects/capture-kit-v2/tools/fidelity/out/bench/2026-11-15/news-390/run-3/diff-mask.png"
+            },
+            "diagnostics": [
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/4b5f/live/f688f9b0-df6c-11f1-8112-6b9154c79b48.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/ace/standard/1536/cpsprodpb/e5af/live/466fdc10-e0e3-11f1-93e1-3b657b665bcf.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/68be/live/3b72e800-df50-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/c05e/live/272ae280-e0f4-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/94d8/live/8fe15d90-df82-11f1-b441-2b33b063138f.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/1b00/live/90c0ff50-e11b-11f1-a7a2-7bb21fac8f0b.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/de9b/live/b551c6d0-e010-11f1-a701-fddedf244c16.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_timeout",
+                "message": "Image readiness timed out: https://ichef.bbci.co.uk/news/1536/cpsprodpb/36ca/live/a5a42090-e06d-11f1-99e6-531f8829f5a3.jpg.webp",
+                "severity": "warning"
+              },
+              {
+                "code": "image_budget_exhausted",
+                "message": "16 images were not checked because the image decode concurrency budget was exhausted.",
+                "severity": "warning"
+              },
+              {
+                "code": "assets_transcoded",
+                "message": "Transcoded 21 opaque image(s) to JPEG and 1 transparent image(s) to PNG",
+                "severity": "info"
+              },
+              {
+                "code": "assets_downscaled",
+                "message": "Downscaled 16 oversized raster image(s)",
+                "severity": "info"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face BBC Reith Sans (800 normal) could not be embedded; fallback: \"BBC Reith Sans\", BBCReithSans-fallback, sans-serif",
+                "severity": "warning",
+                "nodeId": "node-203"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "suiteSummary": {
+      "destination": "html",
+      "nativeImportersVerified": false,
+      "gate": {
+        "minimum": null,
+        "tolerance": 32
+      },
+      "requestedCases": [
+        "original-desktop",
+        "growing-lazy-desktop",
+        "growing-lazy-mobile",
+        "wrapped-typography-desktop",
+        "wrapped-typography-mobile",
+        "nested-scroll-desktop",
+        "nested-scroll-mobile",
+        "svg-heavy-desktop",
+        "svg-heavy-mobile",
+        "responsive-desktop",
+        "responsive-mobile",
+        "images-desktop",
+        "images-mobile",
+        "text-metrics-desktop",
+        "text-metrics-mobile",
+        "backgrounds-desktop",
+        "backgrounds-mobile"
+      ],
+      "results": [
+        {
+          "name": "original-desktop",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 98.35,
+            "mismatchedPixels": 0,
+            "totalPixels": 800000,
+            "nonWhitePixels": 544671,
+            "nonWhiteScore": 100,
+            "width": 1000,
+            "height": 800,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 29,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1000,
+              "height": 800
+            },
+            "renderedSize": {
+              "width": 1000,
+              "height": 800
+            },
+            "files": {
+              "original": "/tmp/p4-suite/original-desktop/original.png",
+              "rendered": "/tmp/p4-suite/original-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/original-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/original-desktop/render.html",
+              "capture": "/tmp/p4-suite/original-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "growing-lazy-desktop",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 100,
+            "mismatchedPixels": 0,
+            "totalPixels": 3799040,
+            "nonWhitePixels": 2217279,
+            "nonWhiteScore": 100,
+            "width": 1280,
+            "height": 2968,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 22,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1280,
+              "height": 2968
+            },
+            "renderedSize": {
+              "width": 1280,
+              "height": 2968
+            },
+            "files": {
+              "original": "/tmp/p4-suite/growing-lazy-desktop/original.png",
+              "rendered": "/tmp/p4-suite/growing-lazy-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/growing-lazy-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/growing-lazy-desktop/render.html",
+              "capture": "/tmp/p4-suite/growing-lazy-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "growing-lazy-mobile",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 100,
+            "mismatchedPixels": 0,
+            "totalPixels": 1166880,
+            "nonWhitePixels": 752782,
+            "nonWhiteScore": 100,
+            "width": 390,
+            "height": 2992,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 22,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 2992
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 2992
+            },
+            "files": {
+              "original": "/tmp/p4-suite/growing-lazy-mobile/original.png",
+              "rendered": "/tmp/p4-suite/growing-lazy-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/growing-lazy-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/growing-lazy-mobile/render.html",
+              "capture": "/tmp/p4-suite/growing-lazy-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "wrapped-typography-desktop",
+          "status": "measured",
+          "report": {
+            "score": 99.98,
+            "strictScore": 99.95,
+            "mismatchedPixels": 184,
+            "totalPixels": 1024000,
+            "nonWhitePixels": 1024000,
+            "nonWhiteScore": 99.98,
+            "width": 1280,
+            "height": 800,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 49,
+            "hotspots": [
+              {
+                "cell": "r2c3",
+                "mismatchPct": 0.3,
+                "x": 480,
+                "y": 200,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 51
+              },
+              {
+                "cell": "r2c2",
+                "mismatchPct": 0.2,
+                "x": 320,
+                "y": 200,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 36
+              },
+              {
+                "cell": "r2c5",
+                "mismatchPct": 0.2,
+                "x": 800,
+                "y": 200,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 24
+              },
+              {
+                "cell": "r3c5",
+                "mismatchPct": 0.2,
+                "x": 800,
+                "y": 300,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 39
+              },
+              {
+                "cell": "r4c6",
+                "mismatchPct": 0.1,
+                "x": 960,
+                "y": 400,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 22
+              },
+              {
+                "cell": "r5c4",
+                "mismatchPct": 0.1,
+                "x": 640,
+                "y": 500,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 12
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1280,
+              "height": 800
+            },
+            "renderedSize": {
+              "width": 1280,
+              "height": 800
+            },
+            "files": {
+              "original": "/tmp/p4-suite/wrapped-typography-desktop/original.png",
+              "rendered": "/tmp/p4-suite/wrapped-typography-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/wrapped-typography-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/wrapped-typography-desktop/render.html",
+              "capture": "/tmp/p4-suite/wrapped-typography-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "wrapped-typography-mobile",
+          "status": "measured",
+          "report": {
+            "score": 99.76,
+            "strictScore": 99.66,
+            "mismatchedPixels": 1115,
+            "totalPixels": 471120,
+            "nonWhitePixels": 471120,
+            "nonWhiteScore": 99.76,
+            "width": 390,
+            "height": 1208,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 49,
+            "hotspots": [
+              {
+                "cell": "r2c1",
+                "mismatchPct": 2.5,
+                "x": 49,
+                "y": 302,
+                "width": 49,
+                "height": 151,
+                "mismatchedPixels": 184
+              },
+              {
+                "cell": "r2c5",
+                "mismatchPct": 2.1,
+                "x": 245,
+                "y": 302,
+                "width": 49,
+                "height": 151,
+                "mismatchedPixels": 155
+              },
+              {
+                "cell": "r2c2",
+                "mismatchPct": 1.6,
+                "x": 98,
+                "y": 302,
+                "width": 49,
+                "height": 151,
+                "mismatchedPixels": 122
+              },
+              {
+                "cell": "r5c3",
+                "mismatchPct": 1.4,
+                "x": 147,
+                "y": 755,
+                "width": 49,
+                "height": 151,
+                "mismatchedPixels": 102
+              },
+              {
+                "cell": "r2c3",
+                "mismatchPct": 1.2,
+                "x": 147,
+                "y": 302,
+                "width": 49,
+                "height": 151,
+                "mismatchedPixels": 86
+              },
+              {
+                "cell": "r2c6",
+                "mismatchPct": 1.2,
+                "x": 294,
+                "y": 302,
+                "width": 49,
+                "height": 151,
+                "mismatchedPixels": 88
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 1208
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 1208
+            },
+            "files": {
+              "original": "/tmp/p4-suite/wrapped-typography-mobile/original.png",
+              "rendered": "/tmp/p4-suite/wrapped-typography-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/wrapped-typography-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/wrapped-typography-mobile/render.html",
+              "capture": "/tmp/p4-suite/wrapped-typography-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "nested-scroll-desktop",
+          "status": "measured",
+          "report": {
+            "score": 98.89,
+            "strictScore": 90.87,
+            "mismatchedPixels": 11387,
+            "totalPixels": 1024000,
+            "nonWhitePixels": 834762,
+            "nonWhiteScore": 98.64,
+            "width": 1280,
+            "height": 800,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 53,
+            "hotspots": [
+              {
+                "cell": "r0c1",
+                "mismatchPct": 10.3,
+                "x": 160,
+                "y": 0,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 1655
+              },
+              {
+                "cell": "r6c1",
+                "mismatchPct": 7.5,
+                "x": 160,
+                "y": 600,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 1207
+              },
+              {
+                "cell": "r0c2",
+                "mismatchPct": 6.5,
+                "x": 320,
+                "y": 0,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 1039
+              },
+              {
+                "cell": "r2c1",
+                "mismatchPct": 5.7,
+                "x": 160,
+                "y": 200,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 913
+              },
+              {
+                "cell": "r4c1",
+                "mismatchPct": 4.8,
+                "x": 160,
+                "y": 400,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 774
+              },
+              {
+                "cell": "r0c3",
+                "mismatchPct": 4.6,
+                "x": 480,
+                "y": 0,
+                "width": 160,
+                "height": 100,
+                "mismatchedPixels": 732
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1280,
+              "height": 800
+            },
+            "renderedSize": {
+              "width": 1280,
+              "height": 800
+            },
+            "files": {
+              "original": "/tmp/p4-suite/nested-scroll-desktop/original.png",
+              "rendered": "/tmp/p4-suite/nested-scroll-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/nested-scroll-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/nested-scroll-desktop/render.html",
+              "capture": "/tmp/p4-suite/nested-scroll-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "nested-scroll-mobile",
+          "status": "measured",
+          "report": {
+            "score": 98.33,
+            "strictScore": 93.66,
+            "mismatchedPixels": 6600,
+            "totalPixels": 395460,
+            "nonWhitePixels": 262697,
+            "nonWhiteScore": 97.49,
+            "width": 390,
+            "height": 1014,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 53,
+            "hotspots": [
+              {
+                "cell": "r0c1",
+                "mismatchPct": 7.5,
+                "x": 49,
+                "y": 0,
+                "width": 49,
+                "height": 127,
+                "mismatchedPixels": 465
+              },
+              {
+                "cell": "r1c1",
+                "mismatchPct": 7.5,
+                "x": 49,
+                "y": 127,
+                "width": 49,
+                "height": 127,
+                "mismatchedPixels": 465
+              },
+              {
+                "cell": "r2c3",
+                "mismatchPct": 4.8,
+                "x": 147,
+                "y": 254,
+                "width": 49,
+                "height": 127,
+                "mismatchedPixels": 296
+              },
+              {
+                "cell": "r4c1",
+                "mismatchPct": 4.7,
+                "x": 49,
+                "y": 508,
+                "width": 49,
+                "height": 127,
+                "mismatchedPixels": 294
+              },
+              {
+                "cell": "r4c2",
+                "mismatchPct": 4.7,
+                "x": 98,
+                "y": 508,
+                "width": 49,
+                "height": 127,
+                "mismatchedPixels": 294
+              },
+              {
+                "cell": "r4c3",
+                "mismatchPct": 4.7,
+                "x": 147,
+                "y": 508,
+                "width": 49,
+                "height": 127,
+                "mismatchedPixels": 294
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 1014
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 1014
+            },
+            "files": {
+              "original": "/tmp/p4-suite/nested-scroll-mobile/original.png",
+              "rendered": "/tmp/p4-suite/nested-scroll-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/nested-scroll-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/nested-scroll-mobile/render.html",
+              "capture": "/tmp/p4-suite/nested-scroll-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "svg-heavy-desktop",
+          "status": "measured",
+          "report": {
+            "score": 88.89,
+            "strictScore": 88.23,
+            "mismatchedPixels": 122332,
+            "totalPixels": 1100800,
+            "nonWhitePixels": 939414,
+            "nonWhiteScore": 86.98,
+            "width": 1280,
+            "height": 860,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 16,
+            "hotspots": [
+              {
+                "cell": "r3c2",
+                "mismatchPct": 95,
+                "x": 320,
+                "y": 324,
+                "width": 160,
+                "height": 108,
+                "mismatchedPixels": 16424
+              },
+              {
+                "cell": "r3c3",
+                "mismatchPct": 88.5,
+                "x": 480,
+                "y": 324,
+                "width": 160,
+                "height": 108,
+                "mismatchedPixels": 15285
+              },
+              {
+                "cell": "r3c4",
+                "mismatchPct": 77.5,
+                "x": 640,
+                "y": 324,
+                "width": 160,
+                "height": 108,
+                "mismatchedPixels": 13392
+              },
+              {
+                "cell": "r3c1",
+                "mismatchPct": 62.2,
+                "x": 160,
+                "y": 324,
+                "width": 160,
+                "height": 108,
+                "mismatchedPixels": 10740
+              },
+              {
+                "cell": "r2c4",
+                "mismatchPct": 58.4,
+                "x": 640,
+                "y": 216,
+                "width": 160,
+                "height": 108,
+                "mismatchedPixels": 10096
+              },
+              {
+                "cell": "r1c5",
+                "mismatchPct": 37.9,
+                "x": 800,
+                "y": 108,
+                "width": 160,
+                "height": 108,
+                "mismatchedPixels": 6548
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1280,
+              "height": 860
+            },
+            "renderedSize": {
+              "width": 1280,
+              "height": 860
+            },
+            "files": {
+              "original": "/tmp/p4-suite/svg-heavy-desktop/original.png",
+              "rendered": "/tmp/p4-suite/svg-heavy-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/svg-heavy-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/svg-heavy-desktop/render.html",
+              "capture": "/tmp/p4-suite/svg-heavy-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "svg-heavy-mobile",
+          "status": "measured",
+          "report": {
+            "score": 88.87,
+            "strictScore": 88.36,
+            "mismatchedPixels": 54453,
+            "totalPixels": 489450,
+            "nonWhitePixels": 401089,
+            "nonWhiteScore": 86.42,
+            "width": 390,
+            "height": 1255,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 16,
+            "hotspots": [
+              {
+                "cell": "r2c6",
+                "mismatchPct": 52.2,
+                "x": 294,
+                "y": 314,
+                "width": 49,
+                "height": 157,
+                "mismatchedPixels": 4016
+              },
+              {
+                "cell": "r4c3",
+                "mismatchPct": 51.5,
+                "x": 147,
+                "y": 628,
+                "width": 49,
+                "height": 157,
+                "mismatchedPixels": 3962
+              },
+              {
+                "cell": "r2c5",
+                "mismatchPct": 51.3,
+                "x": 245,
+                "y": 314,
+                "width": 49,
+                "height": 157,
+                "mismatchedPixels": 3944
+              },
+              {
+                "cell": "r2c2",
+                "mismatchPct": 50.4,
+                "x": 98,
+                "y": 314,
+                "width": 49,
+                "height": 157,
+                "mismatchedPixels": 3876
+              },
+              {
+                "cell": "r4c4",
+                "mismatchPct": 49.3,
+                "x": 196,
+                "y": 628,
+                "width": 49,
+                "height": 157,
+                "mismatchedPixels": 3792
+              },
+              {
+                "cell": "r2c3",
+                "mismatchPct": 47.2,
+                "x": 147,
+                "y": 314,
+                "width": 49,
+                "height": 157,
+                "mismatchedPixels": 3630
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 1255
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 1255
+            },
+            "files": {
+              "original": "/tmp/p4-suite/svg-heavy-mobile/original.png",
+              "rendered": "/tmp/p4-suite/svg-heavy-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/svg-heavy-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/svg-heavy-mobile/render.html",
+              "capture": "/tmp/p4-suite/svg-heavy-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "responsive-desktop",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 100,
+            "mismatchedPixels": 0,
+            "totalPixels": 1024000,
+            "nonWhitePixels": 758264,
+            "nonWhiteScore": 100,
+            "width": 1280,
+            "height": 800,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 46,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1280,
+              "height": 800
+            },
+            "renderedSize": {
+              "width": 1280,
+              "height": 800
+            },
+            "files": {
+              "original": "/tmp/p4-suite/responsive-desktop/original.png",
+              "rendered": "/tmp/p4-suite/responsive-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/responsive-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/responsive-desktop/render.html",
+              "capture": "/tmp/p4-suite/responsive-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "responsive-mobile",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 100,
+            "mismatchedPixels": 0,
+            "totalPixels": 448890,
+            "nonWhitePixels": 269130,
+            "nonWhiteScore": 100,
+            "width": 390,
+            "height": 1151,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 40,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 1151
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 1151
+            },
+            "files": {
+              "original": "/tmp/p4-suite/responsive-mobile/original.png",
+              "rendered": "/tmp/p4-suite/responsive-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/responsive-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/responsive-mobile/render.html",
+              "capture": "/tmp/p4-suite/responsive-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "images-desktop",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 98.83,
+            "mismatchedPixels": 16,
+            "totalPixels": 1296000,
+            "nonWhitePixels": 1101175,
+            "nonWhiteScore": 100,
+            "width": 1440,
+            "height": 900,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 29,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1440,
+              "height": 900
+            },
+            "renderedSize": {
+              "width": 1440,
+              "height": 900
+            },
+            "files": {
+              "original": "/tmp/p4-suite/images-desktop/original.png",
+              "rendered": "/tmp/p4-suite/images-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/images-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/images-desktop/render.html",
+              "capture": "/tmp/p4-suite/images-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "images-mobile",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 100,
+            "mismatchedPixels": 0,
+            "totalPixels": 595140,
+            "nonWhitePixels": 350321,
+            "nonWhiteScore": 100,
+            "width": 390,
+            "height": 1526,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 29,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 1526
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 1526
+            },
+            "files": {
+              "original": "/tmp/p4-suite/images-mobile/original.png",
+              "rendered": "/tmp/p4-suite/images-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/images-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/images-mobile/render.html",
+              "capture": "/tmp/p4-suite/images-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "text-metrics-desktop",
+          "status": "measured",
+          "report": {
+            "score": 99.99,
+            "strictScore": 99.99,
+            "mismatchedPixels": 89,
+            "totalPixels": 1296000,
+            "nonWhitePixels": 1128466,
+            "nonWhiteScore": 99.99,
+            "width": 1440,
+            "height": 900,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 19,
+            "hotspots": [
+              {
+                "cell": "r2c5",
+                "mismatchPct": 0.4,
+                "x": 900,
+                "y": 226,
+                "width": 180,
+                "height": 113,
+                "mismatchedPixels": 89
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [
+              {
+                "code": "font_failed",
+                "message": "Font failed to load: MissingWebFont",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_failed",
+                "message": "Font asset could not be embedded: MissingWebFont (/nonexistent-font.woff2)",
+                "severity": "warning"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face MissingWebFont (400 normal) could not be embedded; fallback: MissingWebFont, Georgia, serif",
+                "severity": "warning",
+                "nodeId": "node-7"
+              }
+            ],
+            "sourceSize": {
+              "width": 1440,
+              "height": 900
+            },
+            "renderedSize": {
+              "width": 1440,
+              "height": 900
+            },
+            "files": {
+              "original": "/tmp/p4-suite/text-metrics-desktop/original.png",
+              "rendered": "/tmp/p4-suite/text-metrics-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/text-metrics-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/text-metrics-desktop/render.html",
+              "capture": "/tmp/p4-suite/text-metrics-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "text-metrics-mobile",
+          "status": "measured",
+          "report": {
+            "score": 99.97,
+            "strictScore": 99.96,
+            "mismatchedPixels": 89,
+            "totalPixels": 329160,
+            "nonWhitePixels": 206606,
+            "nonWhiteScore": 99.96,
+            "width": 390,
+            "height": 844,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 19,
+            "hotspots": [
+              {
+                "cell": "r5c6",
+                "mismatchPct": 1.6,
+                "x": 294,
+                "y": 530,
+                "width": 49,
+                "height": 106,
+                "mismatchedPixels": 85
+              },
+              {
+                "cell": "r5c7",
+                "mismatchPct": 0.1,
+                "x": 343,
+                "y": 530,
+                "width": 47,
+                "height": 106,
+                "mismatchedPixels": 4
+              }
+            ],
+            "destination": "html",
+            "diagnostics": [
+              {
+                "code": "font_failed",
+                "message": "Font failed to load: MissingWebFont",
+                "severity": "warning"
+              },
+              {
+                "code": "asset_failed",
+                "message": "Font asset could not be embedded: MissingWebFont (/nonexistent-font.woff2)",
+                "severity": "warning"
+              },
+              {
+                "code": "font_missing",
+                "message": "Font face MissingWebFont (400 normal) could not be embedded; fallback: MissingWebFont, Georgia, serif",
+                "severity": "warning",
+                "nodeId": "node-7"
+              }
+            ],
+            "sourceSize": {
+              "width": 390,
+              "height": 844
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 844
+            },
+            "files": {
+              "original": "/tmp/p4-suite/text-metrics-mobile/original.png",
+              "rendered": "/tmp/p4-suite/text-metrics-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/text-metrics-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/text-metrics-mobile/render.html",
+              "capture": "/tmp/p4-suite/text-metrics-mobile/capture.json"
+            }
+          }
+        },
+        {
+          "name": "backgrounds-desktop",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 99.86,
+            "mismatchedPixels": 0,
+            "totalPixels": 1296000,
+            "nonWhitePixels": 1296000,
+            "nonWhiteScore": 100,
+            "width": 1440,
+            "height": 900,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 28,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 1440,
+              "height": 900
+            },
+            "renderedSize": {
+              "width": 1440,
+              "height": 900
+            },
+            "files": {
+              "original": "/tmp/p4-suite/backgrounds-desktop/original.png",
+              "rendered": "/tmp/p4-suite/backgrounds-desktop/rendered.png",
+              "mask": "/tmp/p4-suite/backgrounds-desktop/diff-mask.png",
+              "html": "/tmp/p4-suite/backgrounds-desktop/render.html",
+              "capture": "/tmp/p4-suite/backgrounds-desktop/capture.json"
+            }
+          }
+        },
+        {
+          "name": "backgrounds-mobile",
+          "status": "measured",
+          "report": {
+            "score": 100,
+            "strictScore": 99.71,
+            "mismatchedPixels": 0,
+            "totalPixels": 620880,
+            "nonWhitePixels": 620880,
+            "nonWhiteScore": 100,
+            "width": 390,
+            "height": 1592,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "nodeCount": 28,
+            "hotspots": [],
+            "destination": "html",
+            "diagnostics": [],
+            "sourceSize": {
+              "width": 390,
+              "height": 1592
+            },
+            "renderedSize": {
+              "width": 390,
+              "height": 1592
+            },
+            "files": {
+              "original": "/tmp/p4-suite/backgrounds-mobile/original.png",
+              "rendered": "/tmp/p4-suite/backgrounds-mobile/rendered.png",
+              "mask": "/tmp/p4-suite/backgrounds-mobile/diff-mask.png",
+              "html": "/tmp/p4-suite/backgrounds-mobile/render.html",
+              "capture": "/tmp/p4-suite/backgrounds-mobile/capture.json"
+            }
+          }
+        }
+      ],
+      "failures": []
+    }
+  },
+  "partB": {
+    "nativeImportersVerified": {
+      "html": true,
+      "sketch": true,
+      "figma": false
+    },
+    "figmaNote": "Figma desktop app has no headless CLI importer; verified via headless native plan check only.",
+    "nativeSummary": {
+      "generatedAt": "2026-11-16T13:32:10.044Z",
+      "nativeImportersVerified": {
+        "html": true,
+        "sketch": true,
+        "figma": false
+      },
+      "figmaNote": "Figma desktop app has no headless CLI importer; verified via headless native plan check only.",
+      "cases": [
+        {
+          "name": "original-desktop",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 98.35,
+            "width": 1000,
+            "height": 800
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 96.09,
+            "strictScore": 61.24,
+            "mismatchedPixels": 31265,
+            "totalPixels": 800000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -3.91,
+            "png": "/tmp/p4-native-final2/original-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/original-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/original-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 29,
+            "unmappedNodes": [],
+            "textNodes": 13,
+            "fontSubstitutions": [
+              "-apple-system -> system-ui"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "growing-lazy-desktop",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 100,
+            "width": 1280,
+            "height": 2968
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 99.27,
+            "strictScore": 98.93,
+            "mismatchedPixels": 27904,
+            "totalPixels": 3799040,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -0.73,
+            "png": "/tmp/p4-native-final2/growing-lazy-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/growing-lazy-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/growing-lazy-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 22,
+            "unmappedNodes": [],
+            "textNodes": 11,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "growing-lazy-mobile",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 100,
+            "width": 390,
+            "height": 2992
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 97.59,
+            "strictScore": 96.53,
+            "mismatchedPixels": 28157,
+            "totalPixels": 1166880,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -2.41,
+            "png": "/tmp/p4-native-final2/growing-lazy-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/growing-lazy-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/growing-lazy-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 22,
+            "unmappedNodes": [],
+            "textNodes": 11,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "wrapped-typography-desktop",
+          "status": "ok",
+          "html": {
+            "score": 99.98,
+            "strictScore": 99.95,
+            "width": 1280,
+            "height": 800
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 95.63,
+            "strictScore": 93.15,
+            "mismatchedPixels": 44775,
+            "totalPixels": 1024000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -4.35,
+            "png": "/tmp/p4-native-final2/wrapped-typography-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/wrapped-typography-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/wrapped-typography-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 49,
+            "unmappedNodes": [],
+            "textNodes": 37,
+            "fontSubstitutions": [
+              "Arial -> Inter",
+              "Georgia -> Libre Baskerville",
+              "Courier -> Roboto Mono"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "wrapped-typography-mobile",
+          "status": "ok",
+          "html": {
+            "score": 99.76,
+            "strictScore": 99.66,
+            "width": 390,
+            "height": 1208
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 91.88,
+            "strictScore": 87.66,
+            "mismatchedPixels": 38273,
+            "totalPixels": 471120,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -7.88,
+            "png": "/tmp/p4-native-final2/wrapped-typography-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/wrapped-typography-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/wrapped-typography-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 49,
+            "unmappedNodes": [],
+            "textNodes": 37,
+            "fontSubstitutions": [
+              "Arial -> Inter",
+              "Georgia -> Libre Baskerville",
+              "Courier -> Roboto Mono"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "nested-scroll-desktop",
+          "status": "ok",
+          "html": {
+            "score": 98.89,
+            "strictScore": 90.87,
+            "width": 1280,
+            "height": 800
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 98.18,
+            "strictScore": 97.11,
+            "mismatchedPixels": 18593,
+            "totalPixels": 1024000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -0.71,
+            "png": "/tmp/p4-native-final2/nested-scroll-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/nested-scroll-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/nested-scroll-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 53,
+            "unmappedNodes": [],
+            "textNodes": 23,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "nested-scroll-mobile",
+          "status": "ok",
+          "html": {
+            "score": 98.33,
+            "strictScore": 93.66,
+            "width": 390,
+            "height": 1014
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 95.24,
+            "strictScore": 92.63,
+            "mismatchedPixels": 18808,
+            "totalPixels": 395460,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -3.09,
+            "png": "/tmp/p4-native-final2/nested-scroll-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/nested-scroll-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/nested-scroll-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 53,
+            "unmappedNodes": [],
+            "textNodes": 23,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "svg-heavy-desktop",
+          "status": "ok",
+          "html": {
+            "score": 88.89,
+            "strictScore": 88.23,
+            "width": 1280,
+            "height": 860
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 83.34,
+            "strictScore": 81.71,
+            "mismatchedPixels": 183346,
+            "totalPixels": 1100800,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -5.55,
+            "png": "/tmp/p4-native-final2/svg-heavy-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/svg-heavy-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/svg-heavy-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 16,
+            "unmappedNodes": [],
+            "textNodes": 5,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "svg-heavy-mobile",
+          "status": "ok",
+          "html": {
+            "score": 88.87,
+            "strictScore": 88.36,
+            "width": 390,
+            "height": 1255
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 79.48,
+            "strictScore": 77.01,
+            "mismatchedPixels": 100419,
+            "totalPixels": 489450,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -9.39,
+            "png": "/tmp/p4-native-final2/svg-heavy-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/svg-heavy-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/svg-heavy-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 16,
+            "unmappedNodes": [],
+            "textNodes": 5,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "responsive-desktop",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 100,
+            "width": 1280,
+            "height": 800
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 97.37,
+            "strictScore": 95.01,
+            "mismatchedPixels": 26887,
+            "totalPixels": 1024000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -2.63,
+            "png": "/tmp/p4-native-final2/responsive-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/responsive-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/responsive-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 46,
+            "unmappedNodes": [],
+            "textNodes": 22,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "responsive-mobile",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 100,
+            "width": 390,
+            "height": 1151
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 94.22,
+            "strictScore": 90.92,
+            "mismatchedPixels": 25941,
+            "totalPixels": 448890,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -5.78,
+            "png": "/tmp/p4-native-final2/responsive-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/responsive-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/responsive-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 40,
+            "unmappedNodes": [],
+            "textNodes": 20,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "images-desktop",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 98.83,
+            "width": 1440,
+            "height": 900
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 95.96,
+            "strictScore": 89.82,
+            "mismatchedPixels": 52345,
+            "totalPixels": 1296000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -4.04,
+            "png": "/tmp/p4-native-final2/images-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/images-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/images-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 29,
+            "unmappedNodes": [],
+            "textNodes": 10,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "images-mobile",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 100,
+            "width": 390,
+            "height": 1526
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 89.54,
+            "strictScore": 75.73,
+            "mismatchedPixels": 62254,
+            "totalPixels": 595140,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -10.46,
+            "png": "/tmp/p4-native-final2/images-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/images-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/images-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 29,
+            "unmappedNodes": [],
+            "textNodes": 10,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "text-metrics-desktop",
+          "status": "ok",
+          "html": {
+            "score": 99.99,
+            "strictScore": 99.99,
+            "width": 1440,
+            "height": 900
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 97.94,
+            "strictScore": 96.79,
+            "mismatchedPixels": 26644,
+            "totalPixels": 1296000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -2.05,
+            "png": "/tmp/p4-native-final2/text-metrics-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/text-metrics-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/text-metrics-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 19,
+            "unmappedNodes": [],
+            "textNodes": 13,
+            "fontSubstitutions": [
+              "Georgia -> Libre Baskerville",
+              "Arial -> Inter",
+              "MissingWebFont -> Georgia"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "text-metrics-mobile",
+          "status": "ok",
+          "html": {
+            "score": 99.97,
+            "strictScore": 99.96,
+            "width": 390,
+            "height": 844
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 91.72,
+            "strictScore": 87.67,
+            "mismatchedPixels": 27266,
+            "totalPixels": 329160,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -8.25,
+            "png": "/tmp/p4-native-final2/text-metrics-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/text-metrics-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/text-metrics-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 19,
+            "unmappedNodes": [],
+            "textNodes": 13,
+            "fontSubstitutions": [
+              "Georgia -> Libre Baskerville",
+              "Arial -> Inter",
+              "MissingWebFont -> Georgia"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "backgrounds-desktop",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 99.86,
+            "width": 1440,
+            "height": 900
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 89.48,
+            "strictScore": 79.82,
+            "mismatchedPixels": 136358,
+            "totalPixels": 1296000,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -10.52,
+            "png": "/tmp/p4-native-final2/backgrounds-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/backgrounds-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/backgrounds-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 28,
+            "unmappedNodes": [],
+            "textNodes": 8,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "backgrounds-mobile",
+          "status": "ok",
+          "html": {
+            "score": 100,
+            "strictScore": 99.71,
+            "width": 390,
+            "height": 1592
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 76.66,
+            "strictScore": 55.5,
+            "mismatchedPixels": 144922,
+            "totalPixels": 620880,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -23.34,
+            "png": "/tmp/p4-native-final2/backgrounds-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/backgrounds-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/backgrounds-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 28,
+            "unmappedNodes": [],
+            "textNodes": 8,
+            "fontSubstitutions": [
+              "Arial -> Inter"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "own-desktop",
+          "status": "ok",
+          "html": {
+            "score": 98.39,
+            "strictScore": 96.09,
+            "width": 1440,
+            "height": 14840
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 90.61,
+            "strictScore": 88.34,
+            "mismatchedPixels": 2007600,
+            "totalPixels": 21369600,
+            "widthDelta": 0,
+            "heightDelta": 0,
+            "deltaVsHtml": -7.78,
+            "png": "/tmp/p4-native-final2/own-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/own-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/own-desktop/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 218,
+            "unmappedNodes": [],
+            "textNodes": 81,
+            "fontSubstitutions": [
+              "Fraunces -> Georgia",
+              "Inter -> Helvetica Neue",
+              "IBM Plex Mono -> ui-monospace"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        },
+        {
+          "name": "own-mobile",
+          "status": "ok",
+          "html": {
+            "score": 97.73,
+            "strictScore": 93.13,
+            "width": 394,
+            "height": 9930
+          },
+          "sketch": {
+            "status": "ok",
+            "score": 80.96,
+            "strictScore": 76.3,
+            "mismatchedPixels": 745045,
+            "totalPixels": 3912420,
+            "widthDelta": 1,
+            "heightDelta": 0,
+            "deltaVsHtml": -16.77,
+            "png": "/tmp/p4-native-final2/own-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/own-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/own-mobile/capture.sketch"
+          },
+          "figma": {
+            "planValid": true,
+            "nodeCount": 215,
+            "unmappedNodes": [],
+            "textNodes": 81,
+            "fontSubstitutions": [
+              "Fraunces -> Georgia",
+              "Inter -> Helvetica Neue",
+              "IBM Plex Mono -> ui-monospace"
+            ],
+            "unsupportedImages": [],
+            "note": "Figma desktop app has no headless CLI importer; verified via headless native plan check only."
+          }
+        }
+      ]
+    }
+  }
+}

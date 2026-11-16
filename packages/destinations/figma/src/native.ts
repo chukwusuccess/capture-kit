@@ -161,6 +161,153 @@ export function planNativeCapture(capture: Capture): NativeCapturePlan {
   return { capture, roots, diagnostics };
 }
 
+export interface FigmaFontName {
+  family: string;
+  style: string;
+}
+
+export interface FigmaFontResolution {
+  font: FigmaFontName;
+  requestedFamily: string;
+  substitutedFrom?: string;
+  reason: 'exact' | 'nearest-weight' | 'fallback-stack' | 'metric-table' | 'default-fallback';
+}
+
+export const METRIC_COMPATIBLE_GOOGLE_FONTS: Record<string, string[]> = {
+  'helvetica': ['Inter', 'Arimo', 'Roboto'],
+  'helvetica neue': ['Inter', 'Arimo', 'Roboto'],
+  'arial': ['Inter', 'Arimo', 'Roboto'],
+  'sf pro': ['Inter', 'Roboto'],
+  'sf pro text': ['Inter', 'Roboto'],
+  'sf pro display': ['Inter', 'Roboto'],
+  '-apple-system': ['Inter', 'Roboto'],
+  'blinkmacsystemfont': ['Inter', 'Roboto'],
+  'system-ui': ['Inter', 'Roboto'],
+  'segoe ui': ['Inter', 'Roboto'],
+  'times': ['Tinos', 'Libre Baskerville', 'Noto Serif'],
+  'times new roman': ['Tinos', 'Libre Baskerville', 'Noto Serif'],
+  'georgia': ['Libre Baskerville', 'Tinos', 'Merriweather'],
+  'courier': ['Roboto Mono', 'JetBrains Mono', 'Cousine'],
+  'courier new': ['Roboto Mono', 'JetBrains Mono', 'Cousine'],
+  'menlo': ['JetBrains Mono', 'Roboto Mono'],
+  'monaco': ['JetBrains Mono', 'Roboto Mono'],
+  'consolas': ['JetBrains Mono', 'Roboto Mono'],
+};
+
+function styleWeightNumber(style: string): number {
+  const s = style.toLowerCase().replace(/[\s-]/g, '');
+  if (s.includes('black') || s.includes('heavy')) return 900;
+  if (s.includes('extrabold') || s.includes('ultrabold')) return 800;
+  if (s.includes('semibold') || s.includes('demibold')) return 600;
+  if (s.includes('bold')) return 700;
+  if (s.includes('medium')) return 500;
+  if (s.includes('extralight') || s.includes('ultralight')) return 200;
+  if (s.includes('light')) return 300;
+  if (s.includes('thin') || s.includes('hairline')) return 100;
+  return 400;
+}
+
+function pickFontStyle(candidates: FigmaFontName[], numericWeight: number, italic: boolean): { font: FigmaFontName; exact: boolean } {
+  const desiredName = numericWeight >= 850 ? 'black' : numericWeight >= 750 ? 'extrabold' : numericWeight >= 650 ? 'bold' : numericWeight >= 550 ? 'semibold' : numericWeight >= 450 ? 'medium' : numericWeight >= 350 ? 'regular' : numericWeight >= 250 ? 'light' : 'thin';
+  const normalized = (style: string) => style.toLowerCase().replace(/[\s-]/g, '').replace('normal', 'regular');
+  const desiredStyle = `${desiredName}${italic ? 'italic' : ''}`;
+  const exact = candidates.find((font) => normalized(font.style) === desiredStyle || (desiredName === 'regular' && italic && normalized(font.style) === 'italic'));
+  if (exact) return { font: exact, exact: true };
+  // Nearest weight within same family, preferring matching italic flag
+  const sorted = [...candidates].sort((a, b) => {
+    const aItalicMatch = /italic|oblique/i.test(a.style) === italic ? 0 : 1;
+    const bItalicMatch = /italic|oblique/i.test(b.style) === italic ? 0 : 1;
+    if (aItalicMatch !== bItalicMatch) return aItalicMatch - bItalicMatch;
+    return Math.abs(styleWeightNumber(a.style) - numericWeight) - Math.abs(styleWeightNumber(b.style) - numericWeight);
+  });
+  return { font: sorted[0], exact: false };
+}
+
+/**
+ * Resolve a Figma font in fixed priority order:
+ * 1) exact family + style, 2) same family nearest weight, 3) capture CSS fallbackStack, 4) metric-compatible Google font table.
+ */
+export function resolveFigmaFontChoice(
+  availableFonts: FigmaFontName[],
+  familyList: string,
+  weight: string | number,
+  italic: boolean,
+  captureFonts?: Capture['fonts']
+): FigmaFontResolution {
+  if (!availableFonts.length) throw new Error('No available Figma fonts can render editable text.');
+  const parseList = (list: string) => list.split(',').map((name) => name.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  const families = parseList(familyList);
+  const requestedFamily = families[0] || 'system-ui';
+  const numericWeight = typeof weight === 'number' ? weight : weight === 'bold' ? 700 : Number(weight) || 400;
+
+  const findFamily = (fam: string) => availableFonts.filter((f) => f.family.toLowerCase() === fam.toLowerCase());
+
+  // 1 & 2: Exact family (exact style or nearest weight)
+  const primaryCandidates = findFamily(requestedFamily);
+  if (primaryCandidates.length) {
+    const picked = pickFontStyle(primaryCandidates, numericWeight, italic);
+    return {
+      font: picked.font,
+      requestedFamily,
+      ...(picked.exact ? {} : { substitutedFrom: requestedFamily }),
+      reason: picked.exact ? 'exact' : 'nearest-weight',
+    };
+  }
+
+  // 3: Capture CSS fallbackStack (from capture.fonts entry + remaining families in text.fontFamily)
+  const matchingCaptureFont = captureFonts?.find((f) => f.family.toLowerCase() === requestedFamily.toLowerCase());
+  const fallbackCandidates = [
+    ...(matchingCaptureFont?.fallbackStack ? parseList(matchingCaptureFont.fallbackStack) : []),
+    ...families.slice(1),
+  ];
+  for (const fam of fallbackCandidates) {
+    const cands = findFamily(fam);
+    if (cands.length) {
+      const picked = pickFontStyle(cands, numericWeight, italic);
+      return {
+        font: picked.font,
+        requestedFamily,
+        substitutedFrom: requestedFamily,
+        reason: 'fallback-stack',
+      };
+    }
+  }
+
+  // 4: Metric-compatible Google font table
+  const searchNames = [requestedFamily, ...fallbackCandidates];
+  for (const name of searchNames) {
+    const mappedList = METRIC_COMPATIBLE_GOOGLE_FONTS[name.toLowerCase()] ?? [];
+    for (const mapped of mappedList) {
+      const cands = findFamily(mapped);
+      if (cands.length) {
+        const picked = pickFontStyle(cands, numericWeight, italic);
+        return {
+          font: picked.font,
+          requestedFamily,
+          substitutedFrom: requestedFamily,
+          reason: 'metric-table',
+        };
+      }
+    }
+  }
+
+  const fallback = availableFonts.find((f) => f.family === 'Inter' && f.style === 'Regular')
+    ?? availableFonts.find((f) => f.family === 'Inter')
+    ?? availableFonts[0];
+  return {
+    font: fallback,
+    requestedFamily,
+    substitutedFrom: requestedFamily,
+    reason: 'default-fallback',
+  };
+}
+
+export function formatFontSubstitutionSummary(substitutions: Map<string, string>): string | null {
+  if (substitutions.size === 0) return null;
+  const pairs = [...substitutions.entries()].map(([from, to]) => `${from} → ${to}`);
+  return `${substitutions.size} font${substitutions.size === 1 ? '' : 's'} substituted: ${pairs.join(', ')}`;
+}
+
 export function parseNativeColor(value: string): { r: number; g: number; b: number; a: number } | undefined {
   const color = value.trim().toLowerCase();
   if (color === 'transparent') return { r: 0, g: 0, b: 0, a: 0 };
