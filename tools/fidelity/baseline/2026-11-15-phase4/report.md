@@ -29,22 +29,22 @@ Branch: `agent/phase-4-fonts-exports` vs `origin/main (743c258)`
 
 | Case | HTML | Sketch (1x PNG diff) | Figma Plan |
 |---|---:|---:|---|
-| original-desktop | 100% | 95.94% (-4.06 pts) | ok (29 nodes, 1 subs) |
-| growing-lazy-desktop | 100% | 99.17% (-0.83 pts) | ok (22 nodes, 1 subs) |
-| growing-lazy-mobile | 100% | 97.28% (-2.72 pts) | ok (22 nodes, 1 subs) |
-| wrapped-typography-desktop | 99.98% | 93.19% (-6.79 pts) | ok (49 nodes, 3 subs) |
-| wrapped-typography-mobile | 99.76% | 88.06% (-11.7 pts) | ok (49 nodes, 3 subs) |
-| nested-scroll-desktop | 98.89% | 97.67% (-1.22 pts) | ok (53 nodes, 1 subs) |
-| nested-scroll-mobile | 98.33% | 94.22% (-4.11 pts) | ok (53 nodes, 1 subs) |
+| original-desktop | 100% | 96.09% (-3.91 pts) | ok (29 nodes, 1 subs) |
+| growing-lazy-desktop | 100% | 99.27% (-0.73 pts) | ok (22 nodes, 1 subs) |
+| growing-lazy-mobile | 100% | 97.59% (-2.41 pts) | ok (22 nodes, 1 subs) |
+| wrapped-typography-desktop | 99.98% | 95.63% (-4.35 pts) | ok (49 nodes, 3 subs) |
+| wrapped-typography-mobile | 99.76% | 91.88% (-7.88 pts) | ok (49 nodes, 3 subs) |
+| nested-scroll-desktop | 98.89% | 98.18% (-0.71 pts) | ok (53 nodes, 1 subs) |
+| nested-scroll-mobile | 98.33% | 95.24% (-3.09 pts) | ok (53 nodes, 1 subs) |
 | svg-heavy-desktop | 88.89% | 83.34% (-5.55 pts) | ok (16 nodes, 1 subs) |
-| svg-heavy-mobile | 88.87% | 79.47% (-9.4 pts) | ok (16 nodes, 1 subs) |
-| responsive-desktop | 100% | 96.43% (-3.57 pts) | ok (46 nodes, 1 subs) |
-| responsive-mobile | 100% | 93.66% (-6.34 pts) | ok (40 nodes, 1 subs) |
-| images-desktop | 100% | 94.8% (-5.2 pts) | ok (29 nodes, 1 subs) |
-| images-mobile | 100% | 86.72% (-13.28 pts) | ok (29 nodes, 1 subs) |
-| text-metrics-desktop | 99.99% | 97.77% (-2.22 pts) | ok (19 nodes, 3 subs) |
-| text-metrics-mobile | 99.97% | 91.07% (-8.9 pts) | ok (19 nodes, 3 subs) |
-| backgrounds-desktop | 100% | 89.35% (-10.65 pts) | ok (28 nodes, 1 subs) |
-| backgrounds-mobile | 100% | 76.4% (-23.6 pts) | ok (28 nodes, 1 subs) |
-| own-desktop | 98.66% | 96.84% (-1.82 pts) | ok (554 nodes, 2 subs) |
-| own-mobile | 98.3% | 96.9% (-1.4 pts) | ok (516 nodes, 2 subs) |
+| svg-heavy-mobile | 88.87% | 79.48% (-9.39 pts) | ok (16 nodes, 1 subs) |
+| responsive-desktop | 100% | 97.37% (-2.63 pts) | ok (46 nodes, 1 subs) |
+| responsive-mobile | 100% | 94.22% (-5.78 pts) | ok (40 nodes, 1 subs) |
+| images-desktop | 100% | 95.96% (-4.04 pts) | ok (29 nodes, 1 subs) |
+| images-mobile | 100% | 89.54% (-10.46 pts) | ok (29 nodes, 1 subs) |
+| text-metrics-desktop | 99.99% | 97.94% (-2.05 pts) | ok (19 nodes, 3 subs) |
+| text-metrics-mobile | 99.97% | 91.72% (-8.25 pts) | ok (19 nodes, 3 subs) |
+| backgrounds-desktop | 100% | 89.48% (-10.52 pts) | ok (28 nodes, 1 subs) |
+| backgrounds-mobile | 100% | 76.66% (-23.34 pts) | ok (28 nodes, 1 subs) |
+| own-desktop | 98.39% | 90.61% (-7.78 pts) | ok (218 nodes, 3 subs) |
+| own-mobile | 97.73% | 80.96% (-16.77 pts) | ok (215 nodes, 3 subs) |

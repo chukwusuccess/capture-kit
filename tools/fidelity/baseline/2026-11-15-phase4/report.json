@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T23:36:58.757Z",
+  "generatedAt": "2026-11-16T13:33:01.976Z",
   "branch": "agent/phase-4-fonts-exports",
   "baselineRef": "origin/main (743c258)",
   "partA": {
@@ -2827,7 +2827,7 @@
     },
     "figmaNote": "Figma desktop app has no headless CLI importer; verified via headless native plan check only.",
     "nativeSummary": {
-      "generatedAt": "2026-11-15T23:36:12.665Z",
+      "generatedAt": "2026-11-16T13:32:10.044Z",
       "nativeImportersVerified": {
         "html": true,
         "sketch": true,
@@ -2846,16 +2846,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 95.94,
-            "strictScore": 61.09,
-            "mismatchedPixels": 32513,
+            "score": 96.09,
+            "strictScore": 61.24,
+            "mismatchedPixels": 31265,
             "totalPixels": 800000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -4.06,
-            "png": "/tmp/p4-native-final/original-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/original-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/original-desktop/capture.sketch"
+            "deltaVsHtml": -3.91,
+            "png": "/tmp/p4-native-final2/original-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/original-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/original-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -2880,16 +2880,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 99.17,
-            "strictScore": 98.86,
-            "mismatchedPixels": 31430,
+            "score": 99.27,
+            "strictScore": 98.93,
+            "mismatchedPixels": 27904,
             "totalPixels": 3799040,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -0.83,
-            "png": "/tmp/p4-native-final/growing-lazy-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/growing-lazy-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/growing-lazy-desktop/capture.sketch"
+            "deltaVsHtml": -0.73,
+            "png": "/tmp/p4-native-final2/growing-lazy-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/growing-lazy-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/growing-lazy-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -2914,16 +2914,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 97.28,
-            "strictScore": 96.3,
-            "mismatchedPixels": 31764,
+            "score": 97.59,
+            "strictScore": 96.53,
+            "mismatchedPixels": 28157,
             "totalPixels": 1166880,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -2.72,
-            "png": "/tmp/p4-native-final/growing-lazy-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/growing-lazy-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/growing-lazy-mobile/capture.sketch"
+            "deltaVsHtml": -2.41,
+            "png": "/tmp/p4-native-final2/growing-lazy-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/growing-lazy-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/growing-lazy-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -2948,16 +2948,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 93.19,
-            "strictScore": 91.12,
-            "mismatchedPixels": 69764,
+            "score": 95.63,
+            "strictScore": 93.15,
+            "mismatchedPixels": 44775,
             "totalPixels": 1024000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -6.79,
-            "png": "/tmp/p4-native-final/wrapped-typography-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/wrapped-typography-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/wrapped-typography-desktop/capture.sketch"
+            "deltaVsHtml": -4.35,
+            "png": "/tmp/p4-native-final2/wrapped-typography-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/wrapped-typography-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/wrapped-typography-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -2984,16 +2984,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 88.06,
-            "strictScore": 84.62,
-            "mismatchedPixels": 56252,
+            "score": 91.88,
+            "strictScore": 87.66,
+            "mismatchedPixels": 38273,
             "totalPixels": 471120,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -11.7,
-            "png": "/tmp/p4-native-final/wrapped-typography-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/wrapped-typography-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/wrapped-typography-mobile/capture.sketch"
+            "deltaVsHtml": -7.88,
+            "png": "/tmp/p4-native-final2/wrapped-typography-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/wrapped-typography-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/wrapped-typography-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3020,16 +3020,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 97.67,
-            "strictScore": 96.74,
-            "mismatchedPixels": 23907,
+            "score": 98.18,
+            "strictScore": 97.11,
+            "mismatchedPixels": 18593,
             "totalPixels": 1024000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -1.22,
-            "png": "/tmp/p4-native-final/nested-scroll-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/nested-scroll-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/nested-scroll-desktop/capture.sketch"
+            "deltaVsHtml": -0.71,
+            "png": "/tmp/p4-native-final2/nested-scroll-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/nested-scroll-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/nested-scroll-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3054,16 +3054,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 94.22,
-            "strictScore": 91.88,
-            "mismatchedPixels": 22874,
+            "score": 95.24,
+            "strictScore": 92.63,
+            "mismatchedPixels": 18808,
             "totalPixels": 395460,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -4.11,
-            "png": "/tmp/p4-native-final/nested-scroll-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/nested-scroll-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/nested-scroll-mobile/capture.sketch"
+            "deltaVsHtml": -3.09,
+            "png": "/tmp/p4-native-final2/nested-scroll-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/nested-scroll-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/nested-scroll-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3095,9 +3095,9 @@
             "widthDelta": 0,
             "heightDelta": 0,
             "deltaVsHtml": -5.55,
-            "png": "/tmp/p4-native-final/svg-heavy-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/svg-heavy-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/svg-heavy-desktop/capture.sketch"
+            "png": "/tmp/p4-native-final2/svg-heavy-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/svg-heavy-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/svg-heavy-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3122,16 +3122,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 79.47,
-            "strictScore": 77,
-            "mismatchedPixels": 100496,
+            "score": 79.48,
+            "strictScore": 77.01,
+            "mismatchedPixels": 100419,
             "totalPixels": 489450,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -9.4,
-            "png": "/tmp/p4-native-final/svg-heavy-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/svg-heavy-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/svg-heavy-mobile/capture.sketch"
+            "deltaVsHtml": -9.39,
+            "png": "/tmp/p4-native-final2/svg-heavy-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/svg-heavy-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/svg-heavy-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3156,16 +3156,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 96.43,
-            "strictScore": 94.24,
-            "mismatchedPixels": 36577,
+            "score": 97.37,
+            "strictScore": 95.01,
+            "mismatchedPixels": 26887,
             "totalPixels": 1024000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -3.57,
-            "png": "/tmp/p4-native-final/responsive-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/responsive-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/responsive-desktop/capture.sketch"
+            "deltaVsHtml": -2.63,
+            "png": "/tmp/p4-native-final2/responsive-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/responsive-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/responsive-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3190,16 +3190,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 93.66,
-            "strictScore": 90.42,
-            "mismatchedPixels": 28461,
+            "score": 94.22,
+            "strictScore": 90.92,
+            "mismatchedPixels": 25941,
             "totalPixels": 448890,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -6.34,
-            "png": "/tmp/p4-native-final/responsive-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/responsive-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/responsive-mobile/capture.sketch"
+            "deltaVsHtml": -5.78,
+            "png": "/tmp/p4-native-final2/responsive-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/responsive-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/responsive-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3224,16 +3224,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 94.8,
-            "strictScore": 88.69,
-            "mismatchedPixels": 67346,
+            "score": 95.96,
+            "strictScore": 89.82,
+            "mismatchedPixels": 52345,
             "totalPixels": 1296000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -5.2,
-            "png": "/tmp/p4-native-final/images-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/images-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/images-desktop/capture.sketch"
+            "deltaVsHtml": -4.04,
+            "png": "/tmp/p4-native-final2/images-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/images-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/images-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3258,16 +3258,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 86.72,
-            "strictScore": 73.46,
-            "mismatchedPixels": 79027,
+            "score": 89.54,
+            "strictScore": 75.73,
+            "mismatchedPixels": 62254,
             "totalPixels": 595140,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -13.28,
-            "png": "/tmp/p4-native-final/images-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/images-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/images-mobile/capture.sketch"
+            "deltaVsHtml": -10.46,
+            "png": "/tmp/p4-native-final2/images-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/images-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/images-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3292,16 +3292,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 97.77,
-            "strictScore": 96.68,
-            "mismatchedPixels": 28909,
+            "score": 97.94,
+            "strictScore": 96.79,
+            "mismatchedPixels": 26644,
             "totalPixels": 1296000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -2.22,
-            "png": "/tmp/p4-native-final/text-metrics-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/text-metrics-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/text-metrics-desktop/capture.sketch"
+            "deltaVsHtml": -2.05,
+            "png": "/tmp/p4-native-final2/text-metrics-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/text-metrics-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/text-metrics-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3328,16 +3328,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 91.07,
-            "strictScore": 87.26,
-            "mismatchedPixels": 29408,
+            "score": 91.72,
+            "strictScore": 87.67,
+            "mismatchedPixels": 27266,
             "totalPixels": 329160,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -8.9,
-            "png": "/tmp/p4-native-final/text-metrics-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/text-metrics-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/text-metrics-mobile/capture.sketch"
+            "deltaVsHtml": -8.25,
+            "png": "/tmp/p4-native-final2/text-metrics-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/text-metrics-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/text-metrics-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3364,16 +3364,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 89.35,
-            "strictScore": 79.75,
-            "mismatchedPixels": 137987,
+            "score": 89.48,
+            "strictScore": 79.82,
+            "mismatchedPixels": 136358,
             "totalPixels": 1296000,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -10.65,
-            "png": "/tmp/p4-native-final/backgrounds-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/backgrounds-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/backgrounds-desktop/capture.sketch"
+            "deltaVsHtml": -10.52,
+            "png": "/tmp/p4-native-final2/backgrounds-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/backgrounds-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/backgrounds-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3398,16 +3398,16 @@
           },
           "sketch": {
             "status": "ok",
-            "score": 76.4,
-            "strictScore": 55.36,
-            "mismatchedPixels": 146508,
+            "score": 76.66,
+            "strictScore": 55.5,
+            "mismatchedPixels": 144922,
             "totalPixels": 620880,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -23.6,
-            "png": "/tmp/p4-native-final/backgrounds-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/backgrounds-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/backgrounds-mobile/capture.sketch"
+            "deltaVsHtml": -23.34,
+            "png": "/tmp/p4-native-final2/backgrounds-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/backgrounds-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/backgrounds-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
@@ -3425,31 +3425,32 @@
           "name": "own-desktop",
           "status": "ok",
           "html": {
-            "score": 98.66,
-            "strictScore": 92.26,
+            "score": 98.39,
+            "strictScore": 96.09,
             "width": 1440,
-            "height": 14288
+            "height": 14840
           },
           "sketch": {
             "status": "ok",
-            "score": 96.84,
-            "strictScore": 88.98,
-            "mismatchedPixels": 651108,
-            "totalPixels": 20574720,
+            "score": 90.61,
+            "strictScore": 88.34,
+            "mismatchedPixels": 2007600,
+            "totalPixels": 21369600,
             "widthDelta": 0,
             "heightDelta": 0,
-            "deltaVsHtml": -1.82,
-            "png": "/tmp/p4-native-final/own-desktop/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/own-desktop/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/own-desktop/capture.sketch"
+            "deltaVsHtml": -7.78,
+            "png": "/tmp/p4-native-final2/own-desktop/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/own-desktop/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/own-desktop/capture.sketch"
           },
           "figma": {
             "planValid": true,
-            "nodeCount": 554,
+            "nodeCount": 218,
             "unmappedNodes": [],
-            "textNodes": 279,
+            "textNodes": 81,
             "fontSubstitutions": [
-              "Satoshi -> Creato Display",
+              "Fraunces -> Georgia",
+              "Inter -> Helvetica Neue",
               "IBM Plex Mono -> ui-monospace"
             ],
             "unsupportedImages": [],
@@ -3460,31 +3461,32 @@
           "name": "own-mobile",
           "status": "ok",
           "html": {
-            "score": 98.3,
-            "strictScore": 93.18,
-            "width": 390,
-            "height": 9116
+            "score": 97.73,
+            "strictScore": 93.13,
+            "width": 394,
+            "height": 9930
           },
           "sketch": {
             "status": "ok",
-            "score": 96.9,
-            "strictScore": 91.91,
-            "mismatchedPixels": 110187,
-            "totalPixels": 3555240,
-            "widthDelta": 0,
+            "score": 80.96,
+            "strictScore": 76.3,
+            "mismatchedPixels": 745045,
+            "totalPixels": 3912420,
+            "widthDelta": 1,
             "heightDelta": 0,
-            "deltaVsHtml": -1.4,
-            "png": "/tmp/p4-native-final/own-mobile/sketch-export/Artboard.png",
-            "mask": "/tmp/p4-native-final/own-mobile/sketch-diff-mask.png",
-            "sketchFile": "/tmp/p4-native-final/own-mobile/capture.sketch"
+            "deltaVsHtml": -16.77,
+            "png": "/tmp/p4-native-final2/own-mobile/sketch-export/Artboard.png",
+            "mask": "/tmp/p4-native-final2/own-mobile/sketch-diff-mask.png",
+            "sketchFile": "/tmp/p4-native-final2/own-mobile/capture.sketch"
           },
           "figma": {
             "planValid": true,
-            "nodeCount": 516,
+            "nodeCount": 215,
             "unmappedNodes": [],
-            "textNodes": 263,
+            "textNodes": 81,
             "fontSubstitutions": [
-              "Satoshi -> Creato Display",
+              "Fraunces -> Georgia",
+              "Inter -> Helvetica Neue",
               "IBM Plex Mono -> ui-monospace"
             ],
             "unsupportedImages": [],
