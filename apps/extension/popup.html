@@ -900,20 +900,15 @@
         <h2 id="export-h"><span class="step" aria-hidden="true">03</span>Handoff format</h2>
       </div>
       <div class="formats" role="radiogroup" aria-labelledby="export-h">
-        <label><input type="radio" name="format" value="figma" checked /><span>Figma SVG</span></label>
-        <label><input type="radio" name="format" value="figma-native" aria-describedby="native-help" /><span>Figma native</span></label>
+        <label><input type="radio" name="format" value="figma" checked /><span>Figma</span></label>
+        <label><input type="radio" name="format" value="sketch" /><span>Sketch</span></label>
         <label><input type="radio" name="format" value="react" /><span>React</span></label>
         <label><input type="radio" name="format" value="md" /><span>Markdown</span></label>
-        <label><input type="radio" name="format" value="sketch" /><span>Sketch</span></label>
         <label><input type="radio" name="format" value="svg" /><span>SVG</span></label>
         <label><input type="radio" name="format" value="html" /><span>HTML</span></label>
         <label><input type="radio" name="format" value="json" /><span>JSON</span></label>
       </div>
-      <p class="native-help" id="native-help" hidden>
-        <strong>Import with the Capture Kit Figma plugin</strong>
-        Capture downloads a .capture.json file. Open the plugin in Figma and choose that file.
-        Supported layers become editable; import warnings explain unsupported features.
-      </p>
+      <p class="native-help" id="native-help" hidden></p>
       <div class="options" role="group" aria-label="Capture options">
       <label class="opt">
         <input type="checkbox" class="cb" id="opt-scroll-stitch" />
