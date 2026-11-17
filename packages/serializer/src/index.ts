@@ -53,6 +53,8 @@ export interface SerializeOptions {
   onTiming?: (stage: string, ms: number) => void;
   /** Populate capture.timings even when onTiming is not provided. */
   collectTimings?: boolean;
+  /** Fast interactive clipboard mode: skips font WOFF2 embedding and raster screenshot fallback. */
+  fastMode?: boolean;
 }
 
 interface TimingContext {
@@ -3564,17 +3566,19 @@ async function serializeSubtree(
   const embedDeadline = Math.min(fontDeadline ?? Infinity, readinessDeadline, Date.now() + assetTimeoutMs);
   const [, extractedFonts] = await Promise.all([
     Promise.all(activeAssetPromises),
-    extractWebFonts(
-      doc,
-      baseURI,
-      assets,
-      () => `asset-${nextAssetId++}`,
-      report,
-      embedDeadline,
-      usedFontFamilies,
-      usedFontFaces,
-      assetConcurrency
-    ),
+    opts?.fastMode
+      ? Promise.resolve([] as Font[])
+      : extractWebFonts(
+          doc,
+          baseURI,
+          assets,
+          () => `asset-${nextAssetId++}`,
+          report,
+          embedDeadline,
+          usedFontFamilies,
+          usedFontFaces,
+          assetConcurrency
+        ),
   ]);
   if (transcodeStats.toJpeg > 0 || transcodeStats.toPng > 0) {
     diagnostics.push({
@@ -3640,7 +3644,7 @@ async function serializeSubtree(
     });
   }
   let rasterMs = 0;
-  if (pendingRectCaptures.length > 0 && sendRuntimeMessage) {
+  if (!opts?.fastMode && pendingRectCaptures.length > 0 && sendRuntimeMessage) {
     const rasterStart = nowMs();
     try {
       const rem = Math.min(assetTimeoutMs * pendingRectCaptures.length, Math.max(1500, readinessDeadline - Date.now()));
@@ -3740,10 +3744,19 @@ export async function serializeDocument(
 ): Promise<Capture> {
   const defaultView = doc.defaultView ?? window;
   const totalStart = nowMs();
-  const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
-  const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
+  const effectiveOpts: SerializeOptions | undefined = opts?.fastMode
+    ? {
+        readinessBudgetMs: 500,
+        assetTimeoutMs: 500,
+        fontTimeoutMs: 50,
+        imageOptions: { timeoutMs: 250, totalTimeoutMs: 400 },
+        ...opts,
+      }
+    : opts;
+  const wantTimings = Boolean(effectiveOpts?.onTiming || effectiveOpts?.collectTimings);
+  const readinessDeadline = Date.now() + boundedNumber(effectiveOpts?.readinessBudgetMs, 4000);
 
-  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(doc, doc, opts, !!opts?.scrollStitch, readinessDeadline);
+  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(doc, doc, effectiveOpts, !!effectiveOpts?.scrollStitch, readinessDeadline);
 
   const docEl = doc.documentElement;
   const body = doc.body;
@@ -3784,9 +3797,9 @@ export async function serializeDocument(
       width: frameWidth,
       height: frameHeight,
     },
-    opts,
+    effectiveOpts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: effectiveOpts?.onTiming } : undefined,
     fontDeadline,
     readinessDeadline
   );
@@ -3797,11 +3810,20 @@ export async function serializeElement(
   opts?: SerializeOptions
 ): Promise<Capture> {
   const totalStart = nowMs();
-  const wantTimings = Boolean(opts?.onTiming || opts?.collectTimings);
-  const readinessDeadline = Date.now() + boundedNumber(opts?.readinessBudgetMs, 4000);
+  const effectiveOpts: SerializeOptions | undefined = opts?.fastMode
+    ? {
+        readinessBudgetMs: 500,
+        assetTimeoutMs: 500,
+        fontTimeoutMs: 50,
+        imageOptions: { timeoutMs: 250, totalTimeoutMs: 400 },
+        ...opts,
+      }
+    : opts;
+  const wantTimings = Boolean(effectiveOpts?.onTiming || effectiveOpts?.collectTimings);
+  const readinessDeadline = Date.now() + boundedNumber(effectiveOpts?.readinessBudgetMs, 4000);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
   const defaultView = doc?.defaultView ?? (typeof window !== 'undefined' ? window : (null as unknown as Window & typeof globalThis));
-  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(el, doc, opts, false, readinessDeadline);
+  const { diagnostics, scrollMs, waitImagesMs, prepareMs, fontDeadline } = await prepareCapture(el, doc, effectiveOpts, false, readinessDeadline);
   const scrollX = defaultView.scrollX ?? 0;
   const scrollY = defaultView.scrollY ?? 0;
 
@@ -3820,9 +3842,9 @@ export async function serializeElement(
       width,
       height,
     },
-    opts,
+    effectiveOpts,
     diagnostics,
-    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: opts?.onTiming } : undefined,
+    wantTimings ? { totalStart, scrollMs, waitImagesMs, prepareMs, wantTimings, onTiming: effectiveOpts?.onTiming } : undefined,
     fontDeadline,
     readinessDeadline
   );
