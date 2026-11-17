@@ -1,5 +1,5 @@
 import { CaptureSchema, type Capture } from '@capture-kit/model';
-import { copyToFigmaClipboard } from '@capture-kit/destination-figma';
+import { copyToFigmaClipboard, modelToFigma } from '@capture-kit/destination-figma';
 import { modelToSketch } from '@capture-kit/destination-sketch';
 import { modelToSvg } from '@capture-kit/destination-svg';
 import { modelToHtml } from '@capture-kit/destination-html';
@@ -239,17 +239,17 @@ function updateCaptureButton(): void {
   const frames = pages * sizes;
 
   captureTitle.textContent =
-    sizes > 1 ? `Capture ${plural(pages, 'page')} × ${sizes} sizes` : `Capture ${plural(pages, 'page')}`;
+    sizes > 1 ? `Copy ${plural(pages, 'page')} × ${sizes} sizes` : `Copy ${plural(pages, 'page')}`;
   let sub = '';
   if (!discovered && siteUrls.length === 0) sub = 'Finding pages…';
   else if (pages === 0) sub = 'Tick at least one page';
   else if (sizes === 0) sub = 'Pick at least one size';
   else if (sizes > MAX_SIZES) sub = `Up to ${MAX_SIZES} sizes per run`;
-  else if (getFormat() === 'figma-native') sub = `${plural(frames, 'capture')} downloaded for the Figma plugin`;
-  else if (getFormat() === 'figma') sub = `${plural(frames, 'frame')}, copied for Figma`;
-  else if (getFormat() === 'react') sub = `${plural(frames, 'component')}, copied as React TSX`;
-  else if (getFormat() === 'md') sub = `${plural(frames, 'spec')}, copied as Markdown for AI`;
-  else sub = `${plural(frames, 'file')} downloaded as ${getFormat().toUpperCase()}`;
+  else if (getFormat() === 'figma') sub = `${plural(frames, 'frame')}, copied to clipboard for Figma (Cmd+V)`;
+  else if (getFormat() === 'sketch') sub = `${plural(frames, 'frame')}, copied to clipboard for Sketch (Cmd+V)`;
+  else if (getFormat() === 'react') sub = `${plural(frames, 'component')}, copied to clipboard as React TSX`;
+  else if (getFormat() === 'md') sub = `${plural(frames, 'spec')}, copied to clipboard as Markdown`;
+  else sub = `${plural(frames, 'frame')}, copied to clipboard as ${getFormat().toUpperCase()}`;
 
   captureSub.textContent = sub;
   captureBtn.disabled = runBusy || frames === 0 || pages > MAX_PAGES || sizes > MAX_SIZES;
@@ -288,7 +288,8 @@ async function loadSettings(): Promise<void> {
   if (typeof data.scrollStitch === 'boolean' && optScrollStitch) optScrollStitch.checked = data.scrollStitch;
   if (typeof data.designSystem === 'boolean' && optDesignSystem) optDesignSystem.checked = data.designSystem;
   if (typeof data.dualTheme === 'boolean' && optDualTheme) optDualTheme.checked = data.dualTheme;
-  const radio = formatRadios.find((r) => r.value === data.format);
+  const savedFormat = data.format === 'figma-native' ? 'figma' : data.format;
+  const radio = formatRadios.find((r) => r.value === savedFormat);
   if (radio) radio.checked = true;
   if (Array.isArray(data.sizes) && data.sizes.length > 0) {
     for (const b of sizeButtons) b.setAttribute('aria-pressed', String(data.sizes.includes(b.dataset.size)));
@@ -531,84 +532,32 @@ async function exportCaptures(
   includeDesignSystem = optDesignSystem?.checked ?? false
 ): Promise<string> {
   if (captures.length === 0) throw new Error('No saved captures are available to export');
-  if (format === 'figma' || format === 'sketch') {
+  if (format === 'figma' || format === 'figma-native' || format === 'sketch') {
     await copyToFigmaClipboard(captures, { includeDesignSystem });
     const appName = format === 'sketch' ? 'Sketch' : 'Figma';
-    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — paste into ${appName} (Cmd+V)`;
+    return `Copied ${plural(captures.length, 'frame')}${includeDesignSystem ? ' + Design System' : ''} — press Cmd+V in ${appName}`;
   }
-  let host = 'site';
-  try {
-    host = new URL(captures[0].url).hostname.replace(/[^a-z0-9.-]/gi, '-');
-  } catch {
-    // The capture file name falls back to a generic site label.
+  if (format === 'react') {
+    await copyTextSafe(captures.map((c) => modelToReact(c)).join('\n\n'));
+    return `Copied ${plural(captures.length, 'React component')} to clipboard (Cmd+V)`;
   }
-  if (format === 'figma-native') {
-    const baseName = captures.length === 1 ? fileName(captures[0], false) : `${host}-captures`;
-    const payload: Capture | Capture[] = captures.length === 1 ? captures[0] : captures;
-    triggerDownload(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `${baseName}.capture.json`);
-    return `Downloaded ${baseName}.capture.json for the Capture Kit Figma plugin`;
+  if (format === 'md') {
+    await copyTextSafe(captures.map((c) => modelToMarkdown(c)).join('\n\n---\n\n'));
+    return `Copied ${plural(captures.length, 'Markdown spec')} to clipboard (Cmd+V)`;
   }
-  if (format === 'react' && captures.length === 1) {
-    await copyTextSafe(modelToReact(captures[0]));
-    return 'Copied React component';
+  if (format === 'svg') {
+    const svg = captures.length === 1 && !includeDesignSystem
+      ? modelToSvg(captures[0])
+      : modelToFigma(captures, { includeDesignSystem }).svg;
+    await copyTextSafe(svg);
+    return `Copied ${plural(captures.length, 'SVG frame')} to clipboard (Cmd+V)`;
   }
-  if (format === 'md' && captures.length === 1) {
-    await copyTextSafe(modelToMarkdown(captures[0]));
-    return 'Copied Markdown component spec';
+  if (format === 'html') {
+    await copyTextSafe(captures.map((c) => c.replica ?? modelToHtml(c)).join('\n\n'));
+    return `Copied ${plural(captures.length, 'HTML document')} to clipboard (Cmd+V)`;
   }
-  const withWidth = new Set(captures.map((capture) => capture.frame.width)).size > 1;
-
-  if (captures.length > 1) {
-    const zip = new JSZip();
-    const fileLinks: Array<{ name: string; file: string }> = [];
-    for (const capture of captures) {
-      const name = fileName(capture, withWidth);
-      if (format === 'sketch') {
-        const buffer = await (await modelToSketch(capture)).arrayBuffer();
-        zip.file(`${name}.sketch`, buffer);
-        fileLinks.push({ name, file: `${name}.sketch` });
-      } else if (format === 'svg') {
-        zip.file(`${name}.svg`, modelToSvg(capture));
-        fileLinks.push({ name, file: `${name}.svg` });
-      } else if (format === 'html') {
-        const html = capture.replica ?? modelToHtml(capture);
-        zip.file(`${name}.html`, html);
-        fileLinks.push({ name, file: `${name}.html` });
-      } else if (format === 'react') {
-        zip.file(`${name}.tsx`, modelToReact(capture));
-        fileLinks.push({ name, file: `${name}.tsx` });
-      } else if (format === 'md') {
-        zip.file(`${name}.md`, modelToMarkdown(capture));
-        fileLinks.push({ name, file: `${name}.md` });
-      } else {
-        zip.file(`${name}.json`, JSON.stringify(capture, null, 2));
-        fileLinks.push({ name, file: `${name}.json` });
-      }
-    }
-    const indexHtml = [
-      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Captured Pages</title>',
-      '<style>body{font-family:system-ui,sans-serif;padding:24px;max-width:800px;margin:auto;}ul{line-height:2;}a{color:#0d99ff;text-decoration:none;}a:hover{text-decoration:underline;}</style>',
-      '</head><body>',
-      `<h1>${host} captures (${captures.length} files)</h1>`,
-      '<ul>',
-      ...fileLinks.map((link) => `  <li><a href="${link.file}">${link.name}</a></li>`),
-      '</ul></body></html>',
-    ].join('\n');
-    zip.file('index.html', indexHtml);
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    triggerDownload(zipBlob, `${host}-captures.zip`);
-    return `Downloaded ${captures.length} files bundled in ${host}-captures.zip`;
-  }
-
-  const capture = captures[0];
-  const name = fileName(capture, withWidth);
-  if (format === 'sketch') triggerDownload(await modelToSketch(capture), `${name}.sketch`);
-  else if (format === 'svg') triggerDownload(new Blob([modelToSvg(capture)], { type: 'image/svg+xml' }), `${name}.svg`);
-  else if (format === 'html') triggerDownload(new Blob([capture.replica ?? modelToHtml(capture)], { type: 'text/html' }), `${name}.html`);
-  else if (format === 'react') triggerDownload(new Blob([modelToReact(capture)], { type: 'text/typescript' }), `${name}.tsx`);
-  else if (format === 'md') triggerDownload(new Blob([modelToMarkdown(capture)], { type: 'text/markdown' }), `${name}.md`);
-  else triggerDownload(new Blob([JSON.stringify(capture, null, 2)], { type: 'application/json' }), `${name}.json`);
-  return `Downloaded ${name}.${format === 'react' ? 'tsx' : format}`;
+  await copyTextSafe(JSON.stringify(captures.length === 1 ? captures[0] : captures, null, 2));
+  return `Copied ${plural(captures.length, 'JSON capture')} to clipboard (Cmd+V)`;
 }
 
 async function readSessionCaptures(session: CaptureSession): Promise<Capture[]> {
@@ -982,9 +931,65 @@ cancelBtn?.addEventListener('click', async () => {
   }
 });
 
+async function captureCurrentTabDirect(widths: number[]): Promise<boolean> {
+  if (!currentTabId || !chrome.scripting?.executeScript) return false;
+  runBusy = true;
+  updateCaptureButton();
+  setStatus(`Capturing ${plural(widths.length, 'viewport')}…`, 'busy');
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      files: ['content.js'],
+    });
+    const scrollStitch = optScrollStitch?.checked ?? false;
+    const [res] = await chrome.scripting.executeScript<unknown[]>({
+      target: { tabId: currentTabId },
+      args: [widths, scrollStitch],
+      func: async (...args: unknown[]) => {
+        const ws = Array.isArray(args[0]) ? (args[0] as number[]) : [1280];
+        const stitch = Boolean(args[1]);
+        const w = window as unknown as {
+          __captureKitSerializeWidths?: (widths: number[], opts?: unknown) => Promise<unknown[]>;
+          __captureKitSerialize?: (opts?: unknown) => Promise<unknown>;
+        };
+        if (typeof w.__captureKitSerializeWidths === 'function') {
+          return await w.__captureKitSerializeWidths(ws, { fastMode: true, scrollStitch: stitch });
+        }
+        if (typeof w.__captureKitSerialize === 'function') {
+          return [await w.__captureKitSerialize({ fastMode: true, scrollStitch: stitch })];
+        }
+        throw new Error('Serializer not loaded on this tab');
+      },
+    });
+    const rawList = Array.isArray(res?.result) ? res.result : [];
+    if (rawList.length === 0) return false;
+    const captures = rawList.map((r) => CaptureSchema.parse(r));
+    latestCaptures = captures;
+    const format = getFormat();
+    const includeDesignSystem = optDesignSystem?.checked ?? false;
+    const output = await exportCaptures(captures, format, includeDesignSystem);
+    if (figmaBtn) figmaBtn.hidden = false;
+    setStatus(output, 'ok');
+    setSessionFeedback(output);
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(message, 'error');
+    setSessionFeedback(message);
+    return true;
+  } finally {
+    runBusy = false;
+    updateCaptureButton();
+  }
+}
+
 captureBtn?.addEventListener('click', () => {
   const urls = pickedUrls();
   const widths = pickedWidths().map(Number);
+  if (urls.length === 1 && currentUrl && samePage(urls[0], currentUrl)) {
+    void captureCurrentTabDirect(widths);
+    return;
+  }
   void startSession('capture-run', {
     urls,
     widths,
