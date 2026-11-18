@@ -1154,6 +1154,10 @@ function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string
 
   for (let idx = 0; idx < layers.length; idx++) {
     const layer = layers[idx];
+    const layerSize = sizes.length > 0 ? sizes[idx % sizes.length] : '';
+    if (layerSize && /(?:^|\s)0(?:\.0+)?(?:px|%|em|rem|vw|vh)?(?:\s|$)/i.test(layerSize)) {
+      continue;
+    }
     const gm = layer.match(/^(repeating-)?(linear|radial|conic)-gradient\(([\s\S]*)\)$/i);
     if (!gm) continue;
     const repeating = Boolean(gm[1]);
@@ -2517,7 +2521,8 @@ async function extractWebFonts(
           }
 
           try {
-            const resolved = new URL(fontUrl, baseURI);
+            const sheetBase = typeof (sheet as CSSStyleSheet).href === 'string' && (sheet as CSSStyleSheet).href ? (sheet as CSSStyleSheet).href! : baseURI;
+            const resolved = new URL(fontUrl, sheetBase);
             const isSameOrigin = resolved.origin === defaultView.location?.origin;
             const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
             const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;

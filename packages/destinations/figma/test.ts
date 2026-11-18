@@ -799,6 +799,45 @@ function runFigmaUpgradeTests() {
     'Multi-line <tspan> with measured r.y must use exact dy delta (28.5) instead of fallback lineHeight (24)'
   );
 
+  // Zero-size gradient backgrounds (e.g. CSS hover-underline `0px 1px`) must never paint a solid box
+  const zeroGradCap = emptyCapture({
+    url: 'https://test.figma-destination.local',
+    version: '0.2.3',
+    frame: { width: 400, height: 100, baseURI: 'https://test.figma-destination.local/' },
+    nodes: [
+      {
+        id: 'link-hover-underline',
+        type: 'rect',
+        box: { x: 10, y: 10, w: 200, h: 32 },
+        style: {
+          fills: [
+            {
+              type: 'gradient',
+              gradientType: 'linear',
+              angle: 180,
+              stops: [
+                { color: 'rgb(0, 0, 0)', position: 0 },
+                { color: 'rgb(0, 0, 0)', position: 1 },
+              ],
+              backgroundSize: '0px 1px',
+              backgroundPosition: '0px 100%',
+              backgroundRepeat: 'no-repeat',
+            },
+          ],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+    ],
+  });
+  const zeroGradSvg = modelToFigma(zeroGradCap).svg;
+  assert.ok(
+    !zeroGradSvg.includes('url(#grad-link-hover-underline)') && !zeroGradSvg.includes('fill="rgb(0, 0, 0)"'),
+    'Expected 0px 1px gradient underline to not paint a black fill or gradient'
+  );
+
   console.log('packages/destinations/figma upgrade tests passed');
 }
 

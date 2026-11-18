@@ -559,7 +559,13 @@ function renderNodeToFigmaSvg(
     return `    <ellipse id="${escapeXml(node.id)}" cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${Math.round(box.w * 0.65)}" ry="${Math.round(box.h * 0.65)}" fill="url(#glow-${escapeXml(node.id)})"${opacityAttr}${transformAttr} />`;
   }
 
-  const gradFills = style.fills.filter((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+  const gradFills = style.fills.filter(
+    (f) =>
+      f.type === 'gradient' &&
+      f.stops &&
+      f.stops.length > 0 &&
+      !(f.backgroundSize && /(?:^|\s)0(?:\.0+)?(?:px|%|em|rem|vw|vh)?(?:\s|$)/i.test(f.backgroundSize))
+  );
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const imageFill = style.fills.find((f) => f.type === 'image' && f.assetRef);
 
