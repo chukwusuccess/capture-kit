@@ -1026,10 +1026,20 @@ async function captureCurrentTabDirect(widths: number[]): Promise<boolean> {
           await w.__captureKitCountdown?.(delay);
         }
         if (typeof w.__captureKitSerializeWidths === 'function') {
-          return await w.__captureKitSerializeWidths(ws, { fastMode: true, scrollStitch: stitch });
+          return await w.__captureKitSerializeWidths(ws, {
+            fastMode: !stitch,
+            scrollStitch: stitch,
+            readinessBudgetMs: stitch ? 12000 : 4500,
+            scrollOptions: stitch ? { delayMs: 260, maxDurationMs: 15000 } : undefined,
+          });
         }
         if (typeof w.__captureKitSerialize === 'function') {
-          return [await w.__captureKitSerialize({ fastMode: true, scrollStitch: stitch })];
+          return [await w.__captureKitSerialize({
+            fastMode: !stitch,
+            scrollStitch: stitch,
+            readinessBudgetMs: stitch ? 12000 : 4500,
+            scrollOptions: stitch ? { delayMs: 260, maxDurationMs: 15000 } : undefined,
+          })];
         }
         throw new Error('Serializer not loaded on this tab');
       },

@@ -309,8 +309,8 @@ async function scrollPage(
   const originalX = win.scrollX ?? 0;
   const originalY = win.scrollY ?? 0;
   const viewportHeight = win.innerHeight || 800;
-  const step = boundedNumber(opts?.step, Math.max(300, Math.round(viewportHeight * 0.8)), 1);
-  const delayMs = boundedNumber(opts?.delayMs, 150);
+  const step = boundedNumber(opts?.step, Math.max(300, Math.round(viewportHeight * 0.75)), 1);
+  const delayMs = boundedNumber(opts?.delayMs, 260);
   const maxPasses = Math.floor(boundedNumber(opts?.maxPasses, 100));
   const maxHeight = boundedNumber(opts?.maxHeight, 100000, viewportHeight);
   const stablePasses = Math.floor(boundedNumber(opts?.stablePasses, 2, 1));

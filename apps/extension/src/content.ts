@@ -66,14 +66,14 @@ async function quickRevealIframe(win: Window | null | undefined, doc: Document):
   if (!win) return;
   const maxH = Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
   if (maxH <= 900) return;
-  const steps = [0.25, 0.5, 0.75, 1];
-  for (const frac of steps) {
-    win.scrollTo(0, Math.round(maxH * frac));
-    await new Promise<void>((r) => setTimeout(r, 150));
+  const stepCount = Math.min(12, Math.max(4, Math.ceil(maxH / 700)));
+  for (let i = 1; i <= stepCount; i++) {
+    win.scrollTo(0, Math.round((maxH * i) / stepCount));
+    await new Promise<void>((r) => setTimeout(r, 220));
   }
-  await new Promise<void>((r) => setTimeout(r, 200));
+  await new Promise<void>((r) => setTimeout(r, 350));
   win.scrollTo(0, 0);
-  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 120))));
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 250))));
 }
 
 async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOptions): Promise<unknown> {
@@ -122,7 +122,8 @@ async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOpt
       docToSerialize = idoc;
     }
 
-    const cap = await serializeDocument(docToSerialize, { ...opts, fastMode: true, baseURI: location.href });
+    const useFast = opts?.scrollStitch ? false : (opts?.fastMode ?? true);
+    const cap = await serializeDocument(docToSerialize, { ...opts, fastMode: useFast, baseURI: location.href });
     cap.url = location.href;
     cap.frame.width = targetWidth;
     cap.frame.baseURI = location.href;
@@ -136,9 +137,10 @@ customWindow.__captureKitSerializeWidths = async (widths: number[], opts?: Seria
   const uniqueWidths = [...new Set(widths.filter((w) => Number.isFinite(w) && w >= 240))];
   const currentW = window.innerWidth || document.documentElement.clientWidth || 1280;
   const results: unknown[] = [];
+  const useFast = opts?.scrollStitch ? false : (opts?.fastMode ?? true);
   for (const w of uniqueWidths) {
     if (Math.abs(w - currentW) <= 4) {
-      const cap = await serializeDocument(document, { ...opts, fastMode: true });
+      const cap = await serializeDocument(document, { ...opts, fastMode: useFast });
       cap.frame.width = w;
       results.push(cap);
     } else {
