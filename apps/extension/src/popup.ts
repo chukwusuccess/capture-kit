@@ -1001,17 +1001,53 @@ captureBtn?.addEventListener('click', () => {
   });
 });
 
-pickBtn?.addEventListener('click', () => {
+async function startInstantPick(): Promise<void> {
+  if (!currentTabId || !chrome.scripting?.executeScript) {
+    await startSession('pick-run', {
+      tabId: currentTabId,
+      format: getFormat(),
+      includeDesignSystem: optDesignSystem?.checked ?? false,
+      scrollStitch: optScrollStitch?.checked ?? false,
+      dualTheme: optDualTheme?.checked ?? false,
+    });
+    return;
+  }
   if (pickBtn) pickBtn.disabled = true;
-  void startSession('pick-run', {
-    tabId: currentTabId,
-    format: getFormat(),
-    includeDesignSystem: optDesignSystem?.checked ?? false,
-    scrollStitch: optScrollStitch?.checked ?? false,
-    dualTheme: optDualTheme?.checked ?? false,
-  }).finally(() => {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      files: ['content.js'],
+    });
+    const format = getFormat();
+    const includeDesignSystem = optDesignSystem?.checked ?? false;
+    await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      args: [format, includeDesignSystem],
+      func: (...args: unknown[]) => {
+        const fmt = typeof args[0] === 'string' ? args[0] : 'figma';
+        const includeDs = Boolean(args[1]);
+        const w = window as unknown as {
+          __captureKitPickAndCopy?: (opts?: { format?: string; includeDesignSystem?: boolean }) => Promise<unknown>;
+        };
+        if (typeof w.__captureKitPickAndCopy !== 'function') {
+          throw new Error('Element picker not loaded on this tab');
+        }
+        void w.__captureKitPickAndCopy({ format: fmt, includeDesignSystem: includeDs }).catch(() => undefined);
+      },
+    });
+    setStatus('Hover & click an element on the page — it will copy automatically', 'busy');
+    window.close();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(message, 'error');
+    setSessionFeedback(message);
+  } finally {
     if (pickBtn) pickBtn.disabled = runBusy;
-  });
+  }
+}
+
+pickBtn?.addEventListener('click', () => {
+  void startInstantPick();
 });
 
 figmaBtn?.addEventListener('click', async () => {
