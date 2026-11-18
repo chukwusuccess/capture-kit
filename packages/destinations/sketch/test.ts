@@ -243,6 +243,71 @@ async function run(): Promise<void> {
   const multiFillLayer = rootGroup.layers.find((l: any) => l.do_objectID === 'multi-fill');
   assert.equal(multiFillLayer.style.fills[0].gradient.gradientType, 2, 'Conic gradient maps to Sketch angular gradient and stacks bottom-to-top');
 
+  // Beast Accuracy Upgrades: gradient text fills, 2D transform rotation, and spread ring shadow border fallback
+  const cos30 = Math.cos((30 * Math.PI) / 180);
+  const sin30 = Math.sin((30 * Math.PI) / 180);
+  const beastNodes: Node[] = [
+    {
+      id: 'grad-rotated-text',
+      type: 'text',
+      box: { x: 20, y: 20, w: 240, h: 40 },
+      style: {
+        fills: [
+          {
+            type: 'gradient',
+            gradientType: 'linear',
+            angle: 90,
+            stops: [
+              { color: 'rgb(99, 102, 241)', position: 0 },
+              { color: 'rgb(56, 189, 248)', position: 1 },
+            ],
+          },
+        ],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+        shadows: [],
+        backgroundClip: 'text',
+        transform: `matrix(${cos30}, ${sin30}, ${-sin30}, ${cos30}, 0, 0)`,
+      },
+      text: {
+        content: 'Gradient Heading',
+        fontFamily: 'Inter, sans-serif',
+        fontSize: 28,
+        fontWeight: 700,
+        lineHeight: 34,
+        letterSpacing: 0,
+        align: 'left',
+        color: 'rgba(0, 0, 0, 0)',
+      },
+    },
+    {
+      id: 'ring-only-card',
+      type: 'rect',
+      box: { x: 20, y: 80, w: 200, h: 100 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgb(30, 41, 59)' }],
+        strokes: [],
+        opacity: 1,
+        radius: { topLeft: 8, topRight: 8, bottomRight: 8, bottomLeft: 8 },
+        shadows: [{ x: 0, y: 0, blur: 0, spread: 1, color: 'rgba(255, 255, 255, 0.2)', inset: true }],
+      },
+    },
+  ];
+  const { layers: beastLayers } = await exportLayers(beastNodes);
+  const gradTextLayer: any = beastLayers.find((l: any) => l.do_objectID === 'grad-rotated-text');
+  assert.ok(gradTextLayer, 'Gradient text layer must be exported');
+  assert.equal(gradTextLayer.rotation, -30, '2D matrix rotation (30deg clockwise CSS) must map to -30 in Sketch');
+  assert.equal(gradTextLayer.style.fills?.length, 1, 'Text layer with gradient fill must include fills on style');
+  assert.equal(gradTextLayer.style.fills[0].fillType, 1, 'Text gradient fill must have fillType 1 (gradient)');
+  assert.equal(gradTextLayer.style.fills[0].gradient.stops.length, 2, 'Text gradient fill must preserve gradient stops');
+
+  const ringCardLayer: any = beastLayers.find((l: any) => l.do_objectID === 'ring-only-card');
+  assert.ok(ringCardLayer, 'Ring card layer must be exported');
+  assert.equal(ringCardLayer.style.borders.length, 1, 'Zero-offset zero-blur spread ring shadow must convert to Sketch border when no CSS border exists');
+  assert.equal(ringCardLayer.style.borders[0].thickness, 1);
+  assert.equal(ringCardLayer.style.borders[0].position, 1);
+
   console.log('Sketch vector archive behavior tests passed');
 }
 

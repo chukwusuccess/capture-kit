@@ -330,6 +330,31 @@ function edgeLineLayers(node: Node, offsetX: number, offsetY: number): Array<Rec
   return out;
 }
 
+function extractRotationDegrees(transform?: string): number {
+  if (!transform || transform === 'none') return 0;
+  const m2 = transform.match(/^matrix\(([^)]+)\)$/);
+  const m3 = transform.match(/^matrix3d\(([^)]+)\)$/);
+  if (m2?.[1]) {
+    const v = m2[1].split(',').map((s) => Number.parseFloat(s.trim()));
+    if (v.length === 6 && !v.some((n) => Number.isNaN(n))) {
+      const deg = -Math.round(((Math.atan2(v[1], v[0]) * 180) / Math.PI) * 100) / 100;
+      return deg === 0 ? 0 : deg;
+    }
+  } else if (m3?.[1]) {
+    const v = m3[1].split(',').map((s) => Number.parseFloat(s.trim()));
+    if (v.length === 16 && !v.some((n) => Number.isNaN(n))) {
+      const deg = -Math.round(((Math.atan2(v[1], v[0]) * 180) / Math.PI) * 100) / 100;
+      return deg === 0 ? 0 : deg;
+    }
+  }
+  const rot = transform.match(/rotate\(\s*(-?[\d.]+)\s*deg\s*\)/i);
+  if (rot?.[1]) {
+    const deg = -Math.round(Number.parseFloat(rot[1]) * 100) / 100;
+    return deg === 0 ? 0 : deg;
+  }
+  return 0;
+}
+
 function convertVectorLayer(
   node: Node,
   assets: Capture['assets'],
@@ -390,6 +415,7 @@ function convertVectorLayer(
   const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
   return {
     ...base, _class: 'group', do_objectID: node.id,
+    rotation: extractRotationDegrees(node.style.transform),
     name: node.name || `Vector ${node.id}`, frame,
     hasClickThrough: false, groupLayout: { _class: 'MSImmutableFreeformGroupLayout' },
     style: {
@@ -513,7 +539,30 @@ function convertNodeToSketchLayer(
   };
 
   const { borders, borderOptions } = convertStrokes(node.style.strokes ?? []);
+  if (borders.length === 0 && node.style.shadows && node.style.shadows.length > 0) {
+    const ringShadow = node.style.shadows.find(
+      (s) =>
+        Math.abs(s.x) <= 1 &&
+        Math.abs(s.y) <= 1 &&
+        s.blur <= 1 &&
+        (s.spread ?? 0) > 0 &&
+        s.color &&
+        s.color !== 'transparent' &&
+        s.color !== 'rgba(0, 0, 0, 0)'
+    );
+    if (ringShadow) {
+      borders.push({
+        _class: 'border',
+        isEnabled: true,
+        fillType: 0,
+        color: parseCssColor(ringShadow.color),
+        position: ringShadow.inset ? 1 : 2,
+        thickness: ringShadow.spread ?? 1,
+      });
+    }
+  }
   const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
+  const rotation = extractRotationDegrees(node.style.transform);
 
   const blurMatch = node.style.backdropFilter?.match(/blur\(([\d.]+)px\)/);
   const blur = blurMatch ? { _class: 'blur', isEnabled: true, radius: parseFloat(blurMatch[1]), type: 1 } : undefined;
@@ -542,6 +591,10 @@ function convertNodeToSketchLayer(
       textProps.runs.length > 0 &&
       applyTextTransformSketch(textProps.runs.map((r) => r.text).join(''), textProps.textTransform) === content
     );
+    const hasGradientFill = Boolean(
+      node.style.fills?.some((f) => f.type === 'gradient' && f.stops && f.stops.length > 0)
+    );
+    const textFills = hasGradientFill ? convertFills(node.style.fills, assets, node.style) : undefined;
 
     return {
       _class: 'text',
@@ -557,7 +610,7 @@ function convertNodeToSketchLayer(
       nameIsFixed: false,
       resizingConstraint: 63,
       resizingType: 0,
-      rotation: 0,
+      rotation,
       shouldBreakMaskChain: false,
       hasClippingMask: false,
       clippingMaskMode: 0,
@@ -569,6 +622,7 @@ function convertNodeToSketchLayer(
         miterLimit: 10,
         startMarkerType: 0,
         windingRule: 1,
+        ...(textFills && textFills.length > 0 ? { fills: textFills } : {}),
         borders,
         ...(borderOptions ? { borderOptions } : {}),
         shadows: outerShadows,
@@ -776,7 +830,7 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
         nameIsFixed: false,
         resizingConstraint: 63,
         resizingType: 0,
-        rotation: 0,
+        rotation,
         shouldBreakMaskChain: false,
         hasClippingMask: false,
         clippingMaskMode: 0,
@@ -819,7 +873,7 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
       nameIsFixed: false,
       resizingConstraint: 63,
       resizingType: 0,
-      rotation: 0,
+      rotation,
       shouldBreakMaskChain: false,
       hasClippingMask: false,
       clippingMaskMode: 0,
@@ -879,7 +933,7 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
     nameIsFixed: false,
     resizingConstraint: 63,
     resizingType: 0,
-    rotation: 0,
+    rotation,
     shouldBreakMaskChain: false,
     hasClippingMask: false,
     clippingMaskMode: 0,
@@ -964,6 +1018,7 @@ function buildSketchLayerTree(
         ...node,
         id: `${node.id}-bg`,
         box: { x: node.box.x, y: node.box.y, w: node.box.w, h: node.box.h },
+        style: { ...node.style, transform: undefined },
       };
       const bgLayer = convertNodeToSketchLayer(bgRectNode, assets, node.box.x, node.box.y);
       if (node.style.clip) {
@@ -1002,7 +1057,7 @@ function buildSketchLayerTree(
       nameIsFixed: false,
       resizingConstraint: 63,
       resizingType: 0,
-      rotation: 0,
+      rotation: extractRotationDegrees(node.style.transform),
       shouldBreakMaskChain: false,
       hasClippingMask: false,
       clippingMaskMode: 0,
