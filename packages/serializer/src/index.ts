@@ -340,6 +340,8 @@ async function scrollPage(
       stable = currentY >= bottom && height === previousHeight ? stable + 1 : 0;
       if (stable >= stablePasses) {
         await delay(Math.min(200, Math.max(0, deadline - Date.now())));
+        win.scrollTo(originalX, originalY);
+        await delay(Math.min(300, Math.max(0, deadline - Date.now())));
         return;
       }
       previousHeight = height;

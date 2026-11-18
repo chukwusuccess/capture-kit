@@ -21,6 +21,45 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, '&apos;');
 }
 
+function decodeBase64Svg(base64: string): string {
+  const clean = base64.replace(/^data:[^,]+,/, '');
+  const bin = atob(clean);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function inlineSvgAsset(
+  svgRaw: string,
+  box: { x: number; y: number; w: number; h: number },
+  id: string,
+  extraAttrs: string,
+  parOverride?: string
+): string | null {
+  const cleaned = svgRaw
+    .replace(/<\?xml[\s\S]*?\?>/gi, '')
+    .replace(/<!DOCTYPE[\s\S]*?>/gi, '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .trim();
+  const m = cleaned.match(/<svg\b([^>]*)>([\s\S]*?)<\/svg>/i);
+  if (!m) return null;
+  const openAttrs = m[1];
+  const inner = m[2].trim();
+  const vbMatch = openAttrs.match(/\bviewBox\s*=\s*["']([^"']+)["']/i);
+  const wMatch = openAttrs.match(/\bwidth\s*=\s*["']([\d.]+)/i);
+  const hMatch = openAttrs.match(/\bheight\s*=\s*["']([\d.]+)/i);
+  const vb = vbMatch
+    ? vbMatch[1]
+    : wMatch && hMatch
+    ? `0 0 ${wMatch[1]} ${hMatch[1]}`
+    : box.w > 0 && box.h > 0
+    ? `0 0 ${box.w} ${box.h}`
+    : '';
+  const vbAttr = vb ? ` viewBox="${escapeXml(vb)}"` : '';
+  const parAttr = parOverride ? ` preserveAspectRatio="${parOverride}"` : '';
+  return `    <svg id="${escapeXml(id)}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"${vbAttr}${parAttr}${extraAttrs}>\n${inner}\n    </svg>`;
+}
+
 function parseStopAlpha(color: string): number {
   const c = color.trim().toLowerCase();
   if (c === 'transparent') return 0;
@@ -544,6 +583,16 @@ function renderNodeToFigmaSvg(
     const par = meetSlice === 'none' ? 'none' : `${align.x}${align.y} ${meetSlice}`;
     if (node.assetRef && assets[node.assetRef]) {
       const asset = assets[node.assetRef];
+      if (asset.mimeType === 'image/svg+xml' && asset.base64) {
+        const inlined = inlineSvgAsset(
+          decodeBase64Svg(asset.base64),
+          box,
+          node.id,
+          `${opacityAttr}${transformAttr}${filterAttr}${leafClipAttr}`,
+          par
+        );
+        if (inlined) return inlined;
+      }
       const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
       return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
         box.w
@@ -596,11 +645,21 @@ function renderNodeToFigmaSvg(
   }
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
-    const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
     const { par: bgPar, tile } = backgroundPreserveAspectRatio(style);
     const align = backgroundPositionAlign(style.backgroundPosition);
     const meetSlice = bgPar.includes('meet') ? 'meet' : bgPar.includes('none') ? 'none' : 'slice';
     const par = tile !== 'none' ? `xMidYMid ${meetSlice}` : `${align.x}${align.y} ${meetSlice}`;
+    if (asset.mimeType === 'image/svg+xml' && asset.base64) {
+      const inlined = inlineSvgAsset(
+        decodeBase64Svg(asset.base64),
+        box,
+        node.id,
+        `${opacityAttr}${transformAttr}${filterAttr}${leafClipAttr}`,
+        par
+      );
+      if (inlined) return inlined;
+    }
+    const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
     return `    <image id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${
       box.w
     }" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`;
@@ -682,6 +741,7 @@ function buildFigmaLayers(capture: Capture): string {
     const selfLayer = renderNodeToFigmaSvg(node, capture.assets, true, 0, undefined, isGlow);
     const childrenOverflow = children.some(
       (c) =>
+        Boolean(c.style.transform) ||
         c.box.x < node.box.x - 1 ||
         c.box.y < node.box.y - 1 ||
         c.box.x + c.box.w > node.box.x + node.box.w + 2 ||
