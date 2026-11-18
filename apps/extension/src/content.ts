@@ -66,13 +66,14 @@ async function quickRevealIframe(win: Window | null | undefined, doc: Document):
   if (!win) return;
   const maxH = Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
   if (maxH <= 900) return;
-  const steps = [0.33, 0.66, 1];
+  const steps = [0.25, 0.5, 0.75, 1];
   for (const frac of steps) {
     win.scrollTo(0, Math.round(maxH * frac));
-    await new Promise<void>((r) => setTimeout(r, 45));
+    await new Promise<void>((r) => setTimeout(r, 150));
   }
+  await new Promise<void>((r) => setTimeout(r, 200));
   win.scrollTo(0, 0);
-  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 120))));
 }
 
 async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOptions): Promise<unknown> {
