@@ -167,6 +167,7 @@ export const FrameSchema = z.object({
 export const VectorPathSchema = z.object({
   d: z.string(),
   fill: z.string().optional(),
+  fillGradient: FillSchema.optional(),
   stroke: z.string().optional(),
   strokeWidth: z.number().optional(),
 });

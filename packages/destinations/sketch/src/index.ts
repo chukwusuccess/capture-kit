@@ -171,6 +171,30 @@ function resolvePatternFillType(fill: Fill, nodeStyle?: Node['style']): number {
   return 1;
 }
 
+const SKETCH_BLEND_MODES: Record<string, number> = {
+  normal: 0,
+  multiply: 1,
+  darken: 2,
+  'color-burn': 3,
+  lighten: 4,
+  screen: 5,
+  'color-dodge': 6,
+  overlay: 7,
+  'soft-light': 8,
+  'hard-light': 9,
+  difference: 10,
+  exclusion: 11,
+  hue: 12,
+  saturation: 13,
+  color: 14,
+  luminosity: 15,
+};
+
+function resolveSketchBlendMode(mixBlendMode?: string): number {
+  if (!mixBlendMode) return 0;
+  return SKETCH_BLEND_MODES[mixBlendMode.trim().toLowerCase()] ?? 0;
+}
+
 function convertFills(
   fills: Fill[],
   assets: Capture['assets'],
@@ -180,6 +204,7 @@ function convertFills(
   const visualFills = fills.filter((f) => f.type !== 'solid').slice().reverse();
   const orderedFills = [...solidFills, ...visualFills];
   const fillList: Array<Record<string, unknown>> = [];
+  const blendMode = resolveSketchBlendMode(nodeStyle?.mixBlendMode);
 
   for (const fill of orderedFills) {
     if (fill.type === 'image' && fill.assetRef && assets[fill.assetRef]) {
@@ -200,7 +225,7 @@ function convertFills(
         noiseIndex: 0,
         contextSettings: {
           _class: 'graphicsContextSettings',
-          blendMode: 0,
+          blendMode,
           opacity: fill.opacity ?? 1,
         },
       });
@@ -219,7 +244,7 @@ function convertFills(
         },
         contextSettings: {
           _class: 'graphicsContextSettings',
-          blendMode: 0,
+          blendMode,
           opacity: fill.opacity ?? 1,
         },
       });
@@ -264,7 +289,7 @@ function convertFills(
         },
         contextSettings: {
           _class: 'graphicsContextSettings',
-          blendMode: 0,
+          blendMode,
           opacity: fill.opacity ?? 1,
         },
       });
@@ -384,7 +409,11 @@ function convertVectorLayer(
     try {
       const contours = parseVectorPath(path.d);
       const fill = path.fill ?? '#000000';
-      const fills: Fill[] = fill === 'none' ? [] : [{ type: 'solid', color: fill }];
+      const fills: Fill[] = path.fillGradient?.stops?.length
+        ? [path.fillGradient]
+        : fill === 'none'
+        ? []
+        : [{ type: 'solid', color: fill }];
       const strokeWidth = (path.strokeWidth ?? 1) * scale;
       const strokes: Stroke[] = path.stroke && path.stroke !== 'none' && strokeWidth > 0
         ? [{ color: path.stroke, width: strokeWidth, style: 'solid' }] : [];
@@ -420,7 +449,7 @@ function convertVectorLayer(
     hasClickThrough: false, groupLayout: { _class: 'MSImmutableFreeformGroupLayout' },
     style: {
       ...emptyStyle, shadows: outerShadows, innerShadows,
-      contextSettings: { _class: 'graphicsContextSettings', blendMode: 0, opacity: node.style.opacity ?? 1 },
+      contextSettings: { _class: 'graphicsContextSettings', blendMode: resolveSketchBlendMode(node.style.mixBlendMode), opacity: node.style.opacity ?? 1 },
     },
     layers,
   };
@@ -563,6 +592,11 @@ function convertNodeToSketchLayer(
   }
   const { outerShadows, innerShadows } = convertShadows(node.style.shadows ?? []);
   const rotation = extractRotationDegrees(node.style.transform);
+  const layerContextSettings = {
+    _class: 'graphicsContextSettings',
+    blendMode: resolveSketchBlendMode(node.style.mixBlendMode),
+    opacity: node.style.opacity ?? 1,
+  };
 
   const blurMatch = node.style.backdropFilter?.match(/blur\(([\d.]+)px\)/);
   const blur = blurMatch ? { _class: 'blur', isEnabled: true, radius: parseFloat(blurMatch[1]), type: 1 } : undefined;
@@ -622,6 +656,7 @@ function convertNodeToSketchLayer(
         miterLimit: 10,
         startMarkerType: 0,
         windingRule: 1,
+        contextSettings: layerContextSettings,
         ...(textFills && textFills.length > 0 ? { fills: textFills } : {}),
         borders,
         ...(borderOptions ? { borderOptions } : {}),
@@ -842,6 +877,7 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
           miterLimit: 10,
           startMarkerType: 0,
           windingRule: 1,
+          contextSettings: layerContextSettings,
           fills: [],
           borders,
           ...(borderOptions ? { borderOptions } : {}),
@@ -885,6 +921,7 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
         miterLimit: 10,
         startMarkerType: 0,
         windingRule: 1,
+        contextSettings: layerContextSettings,
         fills: [
           {
             _class: 'fill',
@@ -945,6 +982,7 @@ function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
       miterLimit: 10,
       startMarkerType: 0,
       windingRule: 1,
+      contextSettings: layerContextSettings,
       fills: fillList,
       borders,
       ...(borderOptions ? { borderOptions } : {}),
@@ -1018,7 +1056,7 @@ function buildSketchLayerTree(
         ...node,
         id: `${node.id}-bg`,
         box: { x: node.box.x, y: node.box.y, w: node.box.w, h: node.box.h },
-        style: { ...node.style, transform: undefined },
+        style: { ...node.style, transform: undefined, mixBlendMode: undefined },
       };
       const bgLayer = convertNodeToSketchLayer(bgRectNode, assets, node.box.x, node.box.y);
       if (node.style.clip) {
@@ -1069,6 +1107,11 @@ function buildSketchLayerTree(
         miterLimit: 10,
         startMarkerType: 0,
         windingRule: 1,
+        contextSettings: {
+          _class: 'graphicsContextSettings',
+          blendMode: resolveSketchBlendMode(node.style.mixBlendMode),
+          opacity: node.style.opacity ?? 1,
+        },
       },
       hasClickThrough: false,
       groupLayout,

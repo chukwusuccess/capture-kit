@@ -697,6 +697,108 @@ function runFigmaUpgradeTests() {
     'Rich <tspan> runs must emit font-family, font-size, font-style="italic", and text-decoration="underline"'
   );
 
+  // Round 2 upgrades: <pattern> gradient grid tiling, VectorPath.fillGradient, and exact r.y dy offsets
+  const round2Capture: Capture = {
+    ...beastCapture,
+    nodes: [
+      {
+        id: 'grid-pattern-box',
+        type: 'rect',
+        box: { x: 0, y: 0, w: 400, h: 300 },
+        style: {
+          fills: [
+            {
+              type: 'gradient',
+              gradientType: 'linear',
+              angle: 90,
+              backgroundSize: '24px 24px',
+              backgroundRepeat: 'repeat',
+              stops: [
+                { color: 'rgba(255, 255, 255, 0.1)', position: 0 },
+                { color: 'rgba(255, 255, 255, 0)', position: 0.05 },
+              ],
+            },
+          ],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'logo-grad-vec',
+        type: 'vector',
+        box: { x: 20, y: 20, w: 48, h: 48 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        vectorViewBox: { width: 24, height: 24 },
+        vectorPaths: [
+          {
+            d: 'M 0 0 L 24 0 L 24 24 Z',
+            fillGradient: {
+              type: 'gradient',
+              gradientType: 'linear',
+              angle: 135,
+              stops: [
+                { color: 'rgb(99, 102, 241)', position: 0 },
+                { color: 'rgb(236, 72, 153)', position: 1 },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: 'multiline-dy-text',
+        type: 'text',
+        box: { x: 40, y: 100, w: 300, h: 80 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: 'First line Second line',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 16,
+          fontWeight: 400,
+          lineHeight: 24,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgb(255, 255, 255)',
+          runs: [
+            { text: 'First line', x: 40, y: 100 },
+            { text: 'Second line', x: 40, y: 128.5 },
+          ],
+        },
+      },
+    ],
+  };
+
+  const round2Svg = modelToFigma(round2Capture).svg;
+  assert.ok(
+    round2Svg.includes('<linearGradient id="grad-grid-pattern-box"') &&
+      round2Svg.includes('<pattern id="pat-grid-pattern-box-0" width="24" height="24" patternUnits="userSpaceOnUse">') &&
+      round2Svg.includes('<rect x="0" y="0" width="24" height="24" fill="url(#grad-grid-pattern-box)" />') &&
+      round2Svg.includes('fill="url(#pat-grid-pattern-box-0)"'),
+    'Repeating gradient with backgroundSize 24px 24px must emit <pattern> and reference url(#pat-...)'
+  );
+  assert.ok(
+    round2Svg.includes('<linearGradient id="vgrad-logo-grad-vec-0"') &&
+      round2Svg.includes('<path d="M 0 0 L 24 0 L 24 24 Z" fill="url(#vgrad-logo-grad-vec-0)" />'),
+    'VectorPath.fillGradient must emit vgrad-<id>-<idx> in <defs> and reference it on <path>'
+  );
+  assert.ok(
+    round2Svg.includes('<tspan x="40" dy="28.5">Second line</tspan>'),
+    'Multi-line <tspan> with measured r.y must use exact dy delta (28.5) instead of fallback lineHeight (24)'
+  );
+
   console.log('packages/destinations/figma upgrade tests passed');
 }
 

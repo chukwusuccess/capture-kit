@@ -308,6 +308,55 @@ async function run(): Promise<void> {
   assert.equal(ringCardLayer.style.borders[0].thickness, 1);
   assert.equal(ringCardLayer.style.borders[0].position, 1);
 
+  // Round 2 upgrades: VectorPath.fillGradient and mixBlendMode mapping
+  const round2Nodes: Node[] = [
+    {
+      id: 'vec-gradient-logo',
+      type: 'vector',
+      box: { x: 10, y: 10, w: 64, h: 64 },
+      style: { ...style, opacity: 1, mixBlendMode: 'multiply' },
+      vectorViewBox: { width: 24, height: 24 },
+      vectorPaths: [
+        {
+          d: 'M0 0 L24 0 L24 24 Z',
+          fillGradient: {
+            type: 'gradient',
+            gradientType: 'linear',
+            angle: 90,
+            stops: [
+              { color: 'rgb(99, 102, 241)', position: 0 },
+              { color: 'rgb(56, 189, 248)', position: 1 },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: 'screen-glow-rect',
+      type: 'rect',
+      box: { x: 100, y: 10, w: 120, h: 80 },
+      style: {
+        fills: [{ type: 'solid', color: 'rgba(56, 189, 248, 0.5)' }],
+        strokes: [],
+        opacity: 0.9,
+        radius: { topLeft: 8, topRight: 8, bottomRight: 8, bottomLeft: 8 },
+        shadows: [],
+        mixBlendMode: 'screen',
+      },
+    },
+  ];
+  const { layers: round2Layers } = await exportLayers(round2Nodes);
+  const vecGradLayer: any = round2Layers.find((l: any) => l.do_objectID === 'vec-gradient-logo');
+  assert.ok(vecGradLayer, 'Vector gradient layer must be exported');
+  assert.equal(vecGradLayer.style.contextSettings.blendMode, 1, 'mixBlendMode: multiply must map to Sketch blendMode 1');
+  assert.equal(vecGradLayer.layers[0].style.fills[0].fillType, 1, 'VectorPath.fillGradient must produce Sketch gradient fill');
+  assert.equal(vecGradLayer.layers[0].style.fills[0].gradient.stops.length, 2, 'VectorPath.fillGradient must preserve stops');
+
+  const screenRectLayer: any = round2Layers.find((l: any) => l.do_objectID === 'screen-glow-rect');
+  assert.ok(screenRectLayer, 'Screen blend rect layer must be exported');
+  assert.equal(screenRectLayer.style.contextSettings.blendMode, 5, 'mixBlendMode: screen must map to Sketch blendMode 5');
+  assert.equal(screenRectLayer.style.fills[0].contextSettings.blendMode, 5, 'Fill graphicsContextSettings must inherit Sketch blendMode 5');
+
   console.log('Sketch vector archive behavior tests passed');
 }
 
