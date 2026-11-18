@@ -1,12 +1,15 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { arrayBufferToBase64, doesFontFaceCover, reconcileMissingFonts, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
+import { arrayBufferToBase64, doesFontFaceCover, parseBoxShadow, reconcileMissingFonts, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
   visibility: string;
   backgroundColor: string;
   backgroundImage: string;
+  backgroundClip?: string;
+  webkitBackgroundClip?: string;
+  webkitTextFillColor?: string;
   opacity: string;
   borderTopWidth: string;
   borderTopStyle: string;
@@ -1354,11 +1357,142 @@ async function runSpriteAndProPickerTests() {
   console.log('✓ SVG sprite resolution & Pro element picker tests passed');
 }
 
+async function runAccuracyBeastTests() {
+  // 1. parseBoxShadow multi-layer shadows + inset hairline borders (no 'px' unit color bug)
+  {
+    const shadowCss =
+      '0px 10px 25px -5px rgba(15, 23, 42, 0.35), inset 0px 1px 0px 0px rgba(255, 255, 255, 0.15)';
+    const parsed = parseBoxShadow(shadowCss);
+    assert.strictEqual(parsed.length, 2, 'Expected 2 parsed box-shadow layers');
+    assert.deepStrictEqual(parsed[0], {
+      x: 0,
+      y: 10,
+      blur: 25,
+      spread: -5,
+      color: 'rgba(15, 23, 42, 0.35)',
+    });
+    assert.deepStrictEqual(parsed[1], {
+      x: 0,
+      y: 1,
+      blur: 0,
+      spread: 0,
+      color: 'rgba(255, 255, 255, 0.15)',
+      inset: true,
+    });
+  }
+
+  // 2. -webkit-background-clip: text gradient text node + inline mixed-style text positioning
+  {
+    const { doc, body } = createMockDocument();
+
+    const h1 = new MockElement('h1', { left: 40, top: 60, width: 500, height: 48 });
+    h1.styleOverrides = {
+      fontSize: '36px',
+      lineHeight: '44px',
+      fontWeight: '700',
+      boxShadow:
+        '0px 10px 25px -5px rgba(15, 23, 42, 0.35), inset 0px 1px 0px 0px rgba(255, 255, 255, 0.15)',
+    };
+
+    const leadText = new MockNode(3 /* TEXT_NODE */, 'Build ');
+    const gradSpan = new MockElement('span', { left: 140, top: 60, width: 180, height: 48 });
+    gradSpan.styleOverrides = {
+      display: 'inline',
+      backgroundImage: 'linear-gradient(90deg, rgba(236, 72, 153, 1) 0%, rgba(139, 92, 246, 1) 100%)',
+      webkitBackgroundClip: 'text',
+      webkitTextFillColor: 'transparent',
+      color: 'rgba(0, 0, 0, 0)',
+      fontSize: '36px',
+      lineHeight: '44px',
+      fontWeight: '700',
+    };
+    gradSpan.appendChild(new MockNode(3 /* TEXT_NODE */, '10x faster'));
+    const tailText = new MockNode(3 /* TEXT_NODE */, ' with AI');
+
+    h1.appendChild(leadText);
+    h1.appendChild(gradSpan);
+    h1.appendChild(tailText);
+    body.appendChild(h1);
+
+    const rectForNode = new Map<unknown, { left: number; top: number; width: number; height: number }>([
+      [leadText, { left: 40, top: 62, width: 96, height: 44 }],
+      [tailText, { left: 324, top: 62, width: 132, height: 44 }],
+    ]);
+    (doc as unknown as Record<string, unknown>).createRange = () => {
+      let currentNode: unknown = null;
+      return {
+        selectNodeContents: (n: unknown) => {
+          currentNode = n;
+        },
+        setStart: (n: unknown) => {
+          currentNode = n;
+        },
+        setEnd: (n: unknown) => {
+          currentNode = n;
+        },
+        getClientRects: () => {
+          const r = rectForNode.get(currentNode) ?? { left: 140, top: 62, width: 180, height: 44 };
+          return [
+            {
+              ...r,
+              right: r.left + r.width,
+              bottom: r.top + r.height,
+              x: r.left,
+              y: r.top,
+              toJSON: () => {},
+            },
+          ];
+        },
+        getBoundingClientRect: () => {
+          const r = rectForNode.get(currentNode) ?? { left: 140, top: 62, width: 180, height: 44 };
+          return {
+            ...r,
+            right: r.left + r.width,
+            bottom: r.top + r.height,
+            x: r.left,
+            y: r.top,
+            toJSON: () => {},
+          };
+        },
+      };
+    };
+
+    const capture = CaptureSchema.parse(await serializeDocument(doc as unknown as Document));
+
+    const h1Node = capture.nodes.find((n) => n.box.x === 40 && n.box.y === 60 && n.type === 'frame');
+    assert.ok(h1Node, 'H1 frame node not found');
+    assert.strictEqual(h1Node.style.shadows.length, 2);
+    assert.strictEqual(h1Node.style.shadows[0].color, 'rgba(15, 23, 42, 0.35)');
+    assert.strictEqual(h1Node.style.shadows[1].color, 'rgba(255, 255, 255, 0.15)');
+    assert.strictEqual(h1Node.style.shadows[1].inset, true);
+
+    const buildTextNode = capture.nodes.find((n) => n.type === 'text' && n.text?.content === 'Build');
+    const tailTextNode = capture.nodes.find((n) => n.type === 'text' && n.text?.content === 'with AI');
+    assert.ok(buildTextNode && tailTextNode, 'Inline sibling text nodes not found');
+    assert.strictEqual(buildTextNode.box.x, 40, 'Lead inline text node x mismatch');
+    assert.strictEqual(tailTextNode.box.x, 324, 'Tail inline text node x must use Range clientRect, not contentBox.x');
+
+    const gradContainer = capture.nodes.find((n) => n.box.x === 140 && n.box.y === 60 && n.type === 'rect');
+    assert.ok(gradContainer, 'Gradient span container node not found');
+    assert.strictEqual(gradContainer.style.fills.length, 0, 'Container fill must be stripped when background-clip: text');
+
+    const gradTextNode = capture.nodes.find((n) => n.type === 'text' && n.text?.content === '10x faster');
+    assert.ok(gradTextNode, 'Gradient text node not found');
+    assert.strictEqual(gradTextNode.style.backgroundClip, 'text');
+    assert.strictEqual(gradTextNode.style.fills.length, 1, 'Gradient fill must be preserved on text node');
+    assert.strictEqual(gradTextNode.style.fills[0].type, 'gradient');
+    assert.strictEqual(gradTextNode.text?.color, 'rgba(236, 72, 153, 1)', 'Text fallback color should use first gradient stop instead of transparent');
+  }
+
+  console.log('✓ Box-shadow multi-layer, gradient text & inline mixed-style text tests passed');
+}
+
 runSerializerAccuracyTests()
   .then(runReadinessTests)
   .then(runFontMatchingTests)
   .then(runFastModeImageEmbeddingTests)
   .then(runSpriteAndProPickerTests)
+  .then(runAccuracyBeastTests)
   .catch((err) => {
     console.error('packages/serializer test failure:', err);
     process.exit(1);
