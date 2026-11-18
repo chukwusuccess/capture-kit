@@ -741,14 +741,12 @@ function sessionActionButton(session: CaptureSession, action: string, label: str
 
 function renderSessions(records: CaptureSession[]): void {
   knownSessions = records;
-  if (sessionsPanel) sessionsPanel.hidden = records.length === 0;
   sessionsList?.replaceChildren();
   if (sessionsEmpty) sessionsEmpty.hidden = records.length > 0;
   const active = records.find(isSessionActive);
   activeSessionId = active?.id;
   runBusy = Boolean(active);
-  const progressSession = active ?? records.find((session) => session.id === progressSessionId)
-    ?? records.find((session) => session.id === requestedSessionId) ?? records[0];
+  const progressSession = active;
   progressSessionId = progressSession?.id;
   if (progressSession) {
     const completed = progressSession.jobs.filter((job) => job.status === 'completed').length;
@@ -757,17 +755,9 @@ function renderSessions(records: CaptureSession[]): void {
     if (progressWrap) progressWrap.hidden = false;
     if (progressFill) progressFill.style.width = `${percent}%`;
     if (progressPct) progressPct.textContent = `${completed}/${total} (${percent}%)`;
-    if (cancelBtn) cancelBtn.hidden = !active;
-    if (active) {
-      const currentJob = active.jobs.find((job) => job.status === 'running');
-      setStatus(currentJob ? `Capturing ${pagePath(currentJob.url)} at ${currentJob.width}px - ${completed} of ${total} jobs saved` : `Capture run active: ${completed} of ${total} jobs saved`, 'busy');
-    } else {
-      const status = progressSession.status === 'completed' ? 'complete'
-        : progressSession.status === 'interrupted' ? 'interrupted'
-          : progressSession.status === 'cancelled' ? 'cancelled'
-            : progressSession.status === 'failed' ? 'failed' : progressSession.status;
-      setStatus(`Most recent capture run ${status}: ${completed} of ${total} jobs saved`, progressSession.status === 'failed' ? 'error' : 'idle');
-    }
+    if (cancelBtn) cancelBtn.hidden = false;
+    const currentJob = progressSession.jobs.find((job) => job.status === 'running');
+    setStatus(currentJob ? `Capturing ${pagePath(currentJob.url)} at ${currentJob.width}px - ${completed} of ${total} jobs saved` : `Capture run active: ${completed} of ${total} jobs saved`, 'busy');
   } else {
     if (progressWrap) progressWrap.hidden = true;
     if (cancelBtn) cancelBtn.hidden = true;

@@ -54,16 +54,15 @@
       }
       html {
         width: 420px;
-        max-width: 100%;
+        min-height: 600px;
         background: var(--canvas);
       }
       body {
         display: flex;
         flex-direction: column;
         width: 420px;
-        max-width: 100%;
+        min-height: 600px;
         height: 600px;
-        max-height: 100dvh;
         margin: 0;
         overflow: hidden;
         background: var(--canvas);
@@ -124,8 +123,7 @@
         color: var(--muted);
       }
       .workbench {
-        flex: 1;
-        min-height: 0;
+        flex: 1 0 auto;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
