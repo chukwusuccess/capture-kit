@@ -52,6 +52,72 @@ function mapFontWeightToTailwind(weight: string | number): string {
   return 'font-normal';
 }
 
+const ALIGN_ITEMS_CLASSES: Record<string, string> = {
+  center: 'items-center',
+  start: 'items-start',
+  end: 'items-end',
+  stretch: 'items-stretch',
+  baseline: 'items-baseline',
+};
+
+const JUSTIFY_CONTENT_CLASSES: Record<string, string> = {
+  center: 'justify-center',
+  between: 'justify-between',
+  around: 'justify-around',
+  evenly: 'justify-evenly',
+  end: 'justify-end',
+  start: 'justify-start',
+};
+
+const SEMANTIC_TAG_PREFIXES: ReadonlyArray<readonly [string, string]> = [
+  ['Header', 'header'],
+  ['Nav', 'nav'],
+  ['Main', 'main'],
+  ['Footer', 'footer'],
+  ['Section', 'section'],
+  ['Article', 'article'],
+  ['Button', 'button'],
+  ['Link', 'a'],
+];
+
+/** Build Tailwind flex/grid layout and overflow classes for a captured node. */
+export function buildTailwindLayoutClasses(node: Node): string {
+  const cls: string[] = [];
+  const layout = node.style.layout;
+
+  if (layout && layout.mode !== 'none') {
+    if (layout.mode === 'horizontal') cls.push('flex flex-row');
+    else if (layout.mode === 'vertical') cls.push('flex flex-col');
+    else if (layout.mode === 'grid') cls.push('grid');
+
+    if (layout.wrap) cls.push('flex-wrap');
+    if (layout.alignItems && ALIGN_ITEMS_CLASSES[layout.alignItems]) {
+      cls.push(ALIGN_ITEMS_CLASSES[layout.alignItems]);
+    }
+    if (layout.justifyContent && JUSTIFY_CONTENT_CLASSES[layout.justifyContent]) {
+      cls.push(JUSTIFY_CONTENT_CLASSES[layout.justifyContent]);
+    }
+    if (layout.gap && layout.gap > 0) {
+      cls.push(`gap-[${Math.round(layout.gap)}px]`);
+    }
+  }
+
+  if (node.style.clip) {
+    cls.push('overflow-hidden');
+  }
+
+  return cls.join(' ');
+}
+
+/** Infer a semantic HTML tag for container nodes from their semantic name prefix. */
+function inferContainerTag(node: Node): string {
+  if (!node.name) return 'div';
+  for (const [prefix, tag] of SEMANTIC_TAG_PREFIXES) {
+    if (node.name.startsWith(prefix)) return tag;
+  }
+  return 'div';
+}
+
 function buildNodeClasses(
   node: Node,
   isRoot: boolean,
@@ -66,12 +132,17 @@ function buildNodeClasses(
   const h = Math.round(node.box.h * 100) / 100;
 
   if (isRoot) {
-    cls.push(rx, `w-[${w}px]`, `h-[${h}px]`, 'overflow-hidden');
+    cls.push(rx, `w-[${w}px]`, `h-[${h}px]`);
+    if (!node.style.clip) {
+      cls.push('overflow-hidden');
+    }
   } else {
     cls.push(rx, `left-[${relX}px]`, `top-[${relY}px]`, `w-[${w}px]`, `h-[${h}px]`);
   }
-  if (node.style.clip) {
-    cls.push('overflow-hidden');
+
+  const layoutClasses = buildTailwindLayoutClasses(node);
+  if (layoutClasses) {
+    cls.push(...layoutClasses.split(' '));
   }
 
 
@@ -248,19 +319,7 @@ export function modelToReact(
       return `${indent}<img src="${src}" alt="${node.id}" className="${classes} ${fitCls}"${styleAttr} />`;
     }
 
-    const containerTag = node.name?.startsWith('Button')
-      ? 'button'
-      : node.name?.startsWith('Link')
-      ? 'a'
-      : node.name?.startsWith('Nav')
-      ? 'nav'
-      : node.name?.startsWith('Header')
-      ? 'header'
-      : node.name?.startsWith('Footer')
-      ? 'footer'
-      : node.name?.startsWith('Section')
-      ? 'section'
-      : 'div';
+    const containerTag = inferContainerTag(node);
 
     if (children.length === 0) {
       return `${indent}<${containerTag} className="${classes}"${styleAttr} />`;
