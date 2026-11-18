@@ -241,7 +241,10 @@ function clipShapeForNode(node: Node): string | null {
     }
     return null;
   }
-  if (node.style.clip) {
+  const r = node.style.radius;
+  const hasRadius = Boolean(r && (r.topLeft > 0 || r.topRight > 0 || r.bottomRight > 0 || r.bottomLeft > 0));
+  const hasImage = node.type === 'image' || node.style.fills.some((f) => f.type === 'image');
+  if (node.style.clip || (hasImage && hasRadius)) {
     const maxR = Math.min(w / 2, h / 2);
     const { tl, tr, br, bl } = cornerInsets(node.style.radius, maxR);
     if (tl === tr && tr === br && br === bl) {
@@ -353,12 +356,18 @@ function renderNodeToFigmaSvg(
   const leafClipAttr = !isGroupSelf && clipShapeForNode(node) ? ` clip-path="url(#clip-${escapeXml(node.id)})"` : '';
   let strokeAttrs = '';
   const allSidedStroke = style.strokes?.find((s) => (!s.side || s.side === 'all') && s.width > 0);
+  const topHighlight = style.shadows?.find(
+    (s) => Boolean(s.inset) && s.x === 0 && s.y > 0 && s.y <= 2 && s.blur <= 2 && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+  );
+  const spreadRing = style.shadows?.find(
+    (s) => !s.inset && s.x === 0 && s.y === 0 && s.blur <= 1 && s.spread && s.spread > 0 && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+  );
   if (allSidedStroke) {
     const dash = allSidedStroke.style === 'dashed' ? ` stroke-dasharray="${allSidedStroke.width * 3},${allSidedStroke.width * 2}"` : allSidedStroke.style === 'dotted' ? ` stroke-dasharray="${allSidedStroke.width},${allSidedStroke.width * 1.5}"` : '';
     strokeAttrs = ` stroke="${escapeXml(allSidedStroke.color)}" stroke-width="${allSidedStroke.width}"${dash}`;
   } else if (style.shadows && style.shadows.length > 0) {
     const ring = style.shadows.find(
-      (s) => Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1 && s.blur <= 2 && ((s.spread && s.spread > 0) || s.inset) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+      (s) => s !== topHighlight && Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1 && s.blur <= 2 && ((s.spread && s.spread > 0) || (s.inset && s.y === 0)) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
     );
     if (ring) {
       strokeAttrs = ` stroke="${escapeXml(ring.color)}" stroke-width="${ring.spread && ring.spread > 0 ? ring.spread : 1}"`;
@@ -369,6 +378,24 @@ function renderNodeToFigmaSvg(
   const outlineOverlay = outlineOffset > 0 && allSidedStroke
     ? `\n    <rect id="${escapeXml(node.id)}-outline" x="${box.x - outlineOffset}" y="${box.y - outlineOffset}" width="${box.w + outlineOffset * 2}" height="${box.h + outlineOffset * 2}" fill="none"${rx}${strokeAttrs}${opacityAttr}${transformAttr}${filterAttr} />`
     : '';
+  const ringOverlay =
+    allSidedStroke && spreadRing && spreadRing.spread
+      ? (() => {
+          const sp = spreadRing.spread;
+          const ringRx = rxVal > 0 ? ` rx="${rxVal + sp}" ry="${rxVal + sp}"` : '';
+          return `\n    <rect id="${escapeXml(node.id)}-ring" x="${box.x - sp}" y="${box.y - sp}" width="${box.w + sp * 2}" height="${box.h + sp * 2}" fill="none"${ringRx} stroke="${escapeXml(spreadRing.color)}" stroke-width="${sp}"${opacityAttr}${transformAttr} />`;
+        })()
+      : '';
+  const topHighlightOverlay =
+    topHighlight && box.w > 0
+      ? (() => {
+          const maxR = Math.min(box.w / 2, box.h / 2);
+          const { tl, tr } = cornerInsets(style.radius, maxR);
+          const round2 = (n: number): number => Math.round(n * 100) / 100;
+          const w = topHighlight.y;
+          return `\n    <line id="${escapeXml(node.id)}-inset-top" x1="${round2(box.x + tl)}" y1="${round2(box.y + w / 2)}" x2="${round2(box.x + box.w - tr)}" y2="${round2(box.y + w / 2)}" stroke="${escapeXml(topHighlight.color)}" stroke-width="${w}"${opacityAttr}${transformAttr} />`;
+        })()
+      : '';
   const lineSuffix = edgeLines ? `\n${edgeLines}` : '';
 
   if (type === 'text') {
@@ -413,10 +440,14 @@ function renderNodeToFigmaSvg(
         ? effectiveRuns
           .map((r, idx) => {
             const rWeight = r.fontWeight ? ` font-weight="${r.fontWeight}"` : '';
+            const rSize = r.fontSize ? ` font-size="${r.fontSize}"` : '';
+            const rFamily = r.fontFamily ? ` font-family="${escapeXml(cleanSvgFontFamily(r.fontFamily))}"` : '';
+            const rItalic = r.italic ? ' font-style="italic"' : '';
+            const rDeco = r.underline ? ' text-decoration="underline"' : '';
             const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
             const runX = anchor === 'start' && r.x !== undefined ? r.x : idx === 0 && inlineLeadWidth > 0 ? firstRunX : textX;
             const posAttrs = idx > 0 ? ` x="${runX}" dy="${lh}"` : inlineLeadWidth > 0 || (anchor === 'start' && r.x !== undefined) ? ` x="${runX}"` : '';
-            return `<tspan${posAttrs}${rWeight}${rColor}>${escapeXml(applyTextTransform(r.text, text.textTransform))}</tspan>`;
+            return `<tspan${posAttrs}${rFamily}${rSize}${rWeight}${rItalic}${rDeco}${rColor}>${escapeXml(applyTextTransform(r.text, text.textTransform))}</tspan>`;
           })
           .join('')
         : content;
@@ -504,7 +535,7 @@ function renderNodeToFigmaSvg(
       const sAttr = gIdx === 0 ? strokeAttrs : '';
       layers.push(`    <rect${idAttr} x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#${gradId})"${rx}${sAttr}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
     }
-    return layers.join('\n');
+    return `${layers.join('\n')}${outlineOverlay}${ringOverlay}${topHighlightOverlay}${lineSuffix}`;
   }
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
     const asset = assets[imageFill.assetRef];
@@ -519,13 +550,13 @@ function renderNodeToFigmaSvg(
   }
 
   const fill = firstSolid?.color ? escapeXml(firstSolid.color) : 'none';
-  if (isGroupSelf && fill === 'none' && !strokeAttrs && !edgeLines && !outlineOverlay) return '';
+  if (isGroupSelf && fill === 'none' && !strokeAttrs && !edgeLines && !outlineOverlay && !ringOverlay && !topHighlightOverlay) return '';
   const baseStrokeAttrs = outlineOverlay ? '' : strokeAttrs;
   const shapeAttrs = `${baseStrokeAttrs}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr}${blendStyle}`;
   const baseShape = asymPathD
     ? `    <path id="${escapeXml(node.id)}" d="${asymPathD}" fill="${fill}"${shapeAttrs} />`
     : `    <rect id="${escapeXml(node.id)}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fill}"${rx}${shapeAttrs} />`;
-  return `${baseShape}${outlineOverlay}${lineSuffix}`;
+  return `${baseShape}${outlineOverlay}${ringOverlay}${topHighlightOverlay}${lineSuffix}`;
 }
 
 function buildFigmaLayers(capture: Capture): string {
@@ -688,6 +719,16 @@ function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style
       const nums = (arg.replace(col, '').match(/-?[\d.]+/g) || []).map(Number);
       const dx = nums[0] ?? 0; const dy = nums[1] ?? 4; const std = nums[2] ?? 4;
       prims.push('      <feDropShadow dx="' + dx + '" dy="' + dy + '" stdDeviation="' + std + '" flood-color="' + col + '" />');
+    }
+  }
+  for (const s of shadows ?? []) {
+    if (!s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)') {
+      const { rgb, alpha } = parseGlowColor(s.color);
+      if (alpha > 0) {
+        prims.push(
+          `      <feDropShadow dx="${s.x}" dy="${s.y}" stdDeviation="${Math.max(0.5, s.blur / 2)}" flood-color="${escapeXml(rgb)}" flood-opacity="${alpha}" />`
+        );
+      }
     }
   }
   return prims;

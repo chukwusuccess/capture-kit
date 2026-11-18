@@ -6,41 +6,44 @@
     <title>capture-kit</title>
     <style>
       :root {
-        --surface: #ffffff;
-        --canvas: #f4f5f6;
-        --hover: #eceef0;
-        --line: #dfe3e7;
-        --ink: #20252b;
-        --ink-2: #505b66;
-        --muted: #63707d;
-        --select: #0867c8;
-        --select-ink: #075aaf;
-        --select-soft: #edf5ff;
-        --brand: #e8491c;
-        --brand-ink: #ffffff;
-        --danger: #b42e23;
-        --ok: #177445;
-        --control: #f4f5f6;
+        --canvas: #111214;
+        --surface: #1b1d21;
+        --hover: #23262c;
+        --line: #363941;
+        --ink: #f5f5f3;
+        --ink-2: #a4a6ae;
+        --muted: #a4a6ae;
+        --select: #c5f277;
+        --select-ink: #f5f5f3;
+        --select-soft: #25311b;
+        --accent: #c5f277;
+        --cta-bg: #c5f277;
+        --cta-ink: #142008;
+        --danger: #ff9d92;
+        --ok: #c5f277;
+        --control: #15171a;
         --ease: cubic-bezier(0.23, 1, 0.32, 1);
-        color-scheme: light;
+        color-scheme: dark;
       }
-      @media (prefers-color-scheme: dark) {
+      @media (prefers-color-scheme: light) {
         :root {
-          --surface: #22262b;
-          --canvas: #1b1f23;
-          --hover: #30363d;
-          --line: #3a424b;
-          --ink: #f1f3f5;
-          --ink-2: #c4ccd5;
-          --muted: #a4afbb;
-          --select: #66b1ff;
-          --select-ink: #94c9ff;
-          --select-soft: #293d54;
-          --brand: #f05a2b;
-          --danger: #ff9d92;
-          --ok: #7dd8a5;
-          --control: #1b1f23;
-          color-scheme: dark;
+          --canvas: #f7f8f5;
+          --surface: #ffffff;
+          --hover: #eff2eb;
+          --line: #c4cdbd;
+          --ink: #20271d;
+          --ink-2: #5e685a;
+          --muted: #5e685a;
+          --select: #507728;
+          --select-ink: #20271d;
+          --select-soft: #edf4e5;
+          --accent: #507728;
+          --cta-bg: #c5f277;
+          --cta-ink: #142008;
+          --danger: #b42e23;
+          --ok: #507728;
+          --control: #f0f3ec;
+          color-scheme: light;
         }
       }
       * {
@@ -52,19 +55,20 @@
       html {
         width: 420px;
         max-width: 100%;
-        background: var(--surface);
+        background: var(--canvas);
       }
       body {
         display: flex;
         flex-direction: column;
-        width: 100%;
+        width: 420px;
+        max-width: 100%;
         height: 600px;
         max-height: 100dvh;
         margin: 0;
         overflow: hidden;
-        background: var(--surface);
+        background: var(--canvas);
         color: var(--ink);
-        font: 400 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        font: 400 13px/1.4 -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
       button,
@@ -86,11 +90,15 @@
       header {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         flex: none;
-        gap: 12px;
-        min-height: 68px;
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--line);
+        padding: 18px 20px 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
       }
       .logo {
         display: grid;
@@ -98,122 +106,117 @@
         flex: none;
         width: 32px;
         height: 32px;
-        color: var(--brand-ink);
-        background: var(--brand);
-        border-radius: 8px;
-      }
-      .who {
-        flex: 1;
-        min-width: 0;
+        color: var(--ink);
       }
       h1 {
-        margin: 0 0 2px;
-        font-size: 15px;
-        font-weight: 650;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
         letter-spacing: -0.3px;
-        line-height: 1.3;
+        line-height: 1.2;
+        color: var(--ink);
+      }
+      .version {
+        flex: none;
+        font-size: 12px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+      .workbench {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+      }
+      /* Capture Source / Page Selector Card */
+      .source-card {
+        margin: 0 20px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        flex: none;
+      }
+      .source-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 60px;
+        padding: 10px 14px;
+      }
+      .source-left {
+        min-width: 0;
+        flex: 1;
       }
       .site {
         margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-size: 17px;
+        font-weight: 650;
+        letter-spacing: -0.2px;
+        line-height: 1.25;
+        color: var(--ink);
+      }
+      .current-path {
+        margin: 2px 0 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: 12px;
+        line-height: 1.3;
         color: var(--muted);
       }
-      .icon-btn {
+      .source-right {
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        align-items: flex-end;
         justify-content: center;
         flex: none;
-        gap: 6px;
-        min-height: 36px;
-        padding: 8px;
-        color: var(--ink-2);
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        cursor: pointer;
+        gap: 2px;
       }
-      .icon-btn span {
-        font-size: 12px;
-        font-weight: 500;
-      }
-      .icon-btn:hover:not(:disabled),
-      .text-btn:hover:not(:disabled),
-      .session-action:hover:not(:disabled) {
-        color: var(--ink);
-        background: var(--hover);
-      }
-      .icon-btn:disabled,
-      .text-btn:disabled,
-      .size:disabled,
-      .session-action:disabled {
-        opacity: 0.5;
-      }
-      .workbench {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        scrollbar-gutter: stable;
-        scrollbar-width: thin;
-      }
-      section.part {
-        padding: 12px 16px 16px;
-        border-bottom: 1px solid var(--line);
-      }
-      .part-head {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 4px;
-        min-height: 32px;
-        margin-bottom: 8px;
-      }
-      h2 {
-        flex: 1;
-        margin: 0;
-        font-size: 13px;
-        font-weight: 650;
-        line-height: 1.4;
-      }
-      .step {
-        margin-right: 8px;
-        color: var(--muted);
+      .source-tag {
         font-size: 11px;
-        font-weight: 500;
-        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+        color: var(--muted);
       }
-      .text-btn {
-        min-height: 32px;
-        padding: 4px 8px;
+      .pages-toggle {
+        padding: 2px 6px;
+        margin-right: -6px;
         font-size: 12px;
-        color: var(--ink-2);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
         background: none;
         border: 0;
-        border-radius: 4px;
+        border-radius: 5px;
         cursor: pointer;
       }
-      .tally {
-        max-width: 62%;
-        font-size: 11px;
-        font-variant-numeric: tabular-nums;
-        color: var(--muted);
-        text-align: right;
-        overflow-wrap: anywhere;
+      .pages-toggle:hover {
+        background: var(--hover);
       }
-      .section-note {
-        margin: 0 0 12px;
-        color: var(--muted);
-        font-size: 12px;
+      .pages-drawer {
+        padding: 10px 14px 12px;
+        border-top: 1px solid var(--line);
+      }
+      .drawer-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
       }
       .search {
+        flex: 1;
         display: flex;
         align-items: center;
         gap: 8px;
-        min-height: 36px;
-        padding: 0 12px;
+        min-height: 32px;
+        padding: 0 10px;
         color: var(--muted);
         background: var(--control);
         border: 1px solid var(--line);
@@ -221,13 +224,14 @@
       }
       .search:focus-within {
         outline: 2px solid var(--select);
-        outline-offset: 2px;
+        outline-offset: 1px;
       }
       .search input {
         flex: 1;
         min-width: 0;
-        min-height: 34px;
-        padding: 4px 0;
+        min-height: 30px;
+        padding: 2px 0;
+        font-size: 12px;
         background: none;
         border: 0;
         outline: none;
@@ -236,13 +240,35 @@
         color: var(--muted);
         opacity: 1;
       }
+      .text-btn {
+        min-height: 28px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        background: none;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .text-btn:hover:not(:disabled),
+      .session-action:hover:not(:disabled) {
+        color: var(--ink);
+        background: var(--hover);
+      }
+      .text-btn:disabled,
+      .size:disabled,
+      .scope-btn:disabled,
+      .session-action:disabled {
+        opacity: 0.5;
+      }
       .groups {
-        min-height: 108px;
-        max-height: 180px;
-        margin-top: 8px;
+        min-height: 84px;
+        max-height: 150px;
         padding: 4px;
         overflow-y: auto;
         overscroll-behavior: contain;
+        background: var(--control);
         border: 1px solid var(--line);
         border-radius: 6px;
         scrollbar-width: thin;
@@ -255,8 +281,8 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        min-height: 36px;
-        padding: 4px 8px;
+        min-height: 30px;
+        padding: 3px 6px;
         border-radius: 4px;
       }
       .grp-head:hover,
@@ -267,17 +293,12 @@
         background: var(--select-soft);
         box-shadow: inset 2px 0 var(--select);
       }
-      .grp-head:focus-within,
-      .pg:focus-within {
-        outline: 2px solid var(--select);
-        outline-offset: -2px;
-      }
       .grp-toggle {
         display: grid;
         place-items: center;
         flex: none;
-        width: 28px;
-        height: 28px;
+        width: 24px;
+        height: 24px;
         padding: 0;
         color: var(--ink-2);
         background: none;
@@ -311,6 +332,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-size: 12px;
         font-weight: 600;
       }
       .grp-count {
@@ -325,7 +347,7 @@
         list-style: none;
       }
       .grp-list .pg {
-        padding-left: 44px;
+        padding-left: 36px;
       }
       .pg-path {
         flex: 1;
@@ -333,6 +355,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-size: 12px;
         color: var(--ink-2);
       }
       .pg-path .dim {
@@ -343,24 +366,24 @@
       }
       .here {
         flex: none;
-        padding: 2px 4px;
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--select-ink);
+        padding: 1px 5px;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--accent);
         background: var(--select-soft);
         border-radius: 3px;
       }
       .cb {
         flex: none;
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         margin: 0;
         accent-color: var(--select);
         cursor: pointer;
       }
       .note {
         margin: 0;
-        padding: 24px 12px;
+        padding: 16px 12px;
         text-align: center;
         color: var(--muted);
         font-size: 12px;
@@ -376,69 +399,69 @@
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
-      .sizes {
+
+      /* Capture Scope */
+      .scope-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 4px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 12px 20px 0;
+        flex: none;
       }
-      .size {
+      .scope-btn {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        min-height: 80px;
-        min-width: 0;
-        padding: 8px 0;
+        height: 40px;
+        padding: 0 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
       }
-      .size:hover:not(:disabled) {
+      .scope-btn:hover:not(:disabled) {
+        color: var(--ink);
         background: var(--hover);
       }
-      .size[aria-pressed="true"] {
-        background: var(--select-soft);
-        border-color: var(--select);
-        box-shadow: inset 0 0 0 1px var(--select);
-      }
-      .device {
-        display: grid;
-        place-items: end center;
-        height: 24px;
-      }
-      .device i {
-        display: block;
-        border: 1.5px solid var(--muted);
-        border-radius: 2px;
-      }
-      .size[aria-pressed="true"] .device i {
-        border-color: var(--select);
-        background: var(--select-soft);
-      }
-      .device .tab-now {
-        border-style: dashed;
-      }
-      .size b {
-        font-size: 12px;
+      .scope-btn[aria-pressed="true"] {
         font-weight: 600;
-        color: var(--ink-2);
+        color: var(--ink);
+        background: var(--select-soft);
+        border-color: var(--select);
       }
-      .size small {
-        font-size: 11px;
-        line-height: 1.2;
+
+      /* Section Blocks */
+      .block {
+        margin: 14px 20px 0;
+        flex: none;
+      }
+      .block-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .block-head h2 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.3;
+        color: var(--muted);
+      }
+      .tally {
+        font-size: 12px;
         font-variant-numeric: tabular-nums;
         color: var(--muted);
       }
-      .size[aria-pressed="true"] b,
-      .size[aria-pressed="true"] small {
-        color: var(--select-ink);
-      }
+
+      /* Copy as (3x2 grid) */
       .formats {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
       }
       .formats label {
         position: relative;
@@ -456,15 +479,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 44px;
-        height: 100%;
-        padding: 6px 4px;
+        height: 36px;
+        padding: 0 8px;
         font-size: 13px;
-        line-height: 1.25;
-        text-align: center;
-        color: var(--ink-2);
+        font-weight: 500;
+        color: var(--muted);
+        background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 8px;
       }
       .formats label:hover span {
         color: var(--ink);
@@ -472,90 +494,182 @@
       }
       .formats input:checked + span {
         font-weight: 600;
-        color: var(--select-ink);
+        color: var(--ink);
         background: var(--select-soft);
         border-color: var(--select);
-        box-shadow: inset 0 0 0 1px var(--select);
       }
       .formats input:focus-visible + span {
         outline: 2px solid var(--select);
         outline-offset: 2px;
       }
-      .formats input:disabled + span {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
       .native-help {
-        margin: 12px 0 0;
-        padding: 12px;
+        margin: 8px 0 0;
+        padding: 8px 10px;
         color: var(--ink-2);
-        background: var(--canvas);
+        background: var(--surface);
         border-left: 2px solid var(--select);
-        font-size: 12px;
-        overflow-wrap: anywhere;
+        font-size: 11px;
       }
-      .native-help strong {
-        display: block;
-        margin-bottom: 4px;
+
+      /* Viewports (5-column row) */
+      .sizes {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 7px;
+      }
+      .size {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        height: 48px;
+        min-width: 0;
+        padding: 4px 2px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .size:hover:not(:disabled) {
+        background: var(--hover);
+      }
+      .size[aria-pressed="true"] {
+        background: var(--select-soft);
+        border-color: var(--select);
+      }
+      .size-check {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 10px;
+        height: 10px;
+        color: var(--accent);
+        opacity: 0;
+      }
+      .size[aria-pressed="true"] .size-check {
+        opacity: 1;
+      }
+      .size b {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--muted);
+      }
+      .size small {
+        font-size: 11px;
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+      .size[aria-pressed="true"] b {
         color: var(--ink);
       }
+      .size[aria-pressed="true"] small {
+        color: var(--ink-2);
+      }
+
+      /* Capture options (2x2 grid) */
       .options {
         display: grid;
-        gap: 4px;
-        margin-top: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
       }
       .opt {
+        position: relative;
         display: flex;
         align-items: center;
-        gap: 8px;
-        min-height: 36px;
-        color: var(--ink-2);
+        justify-content: space-between;
+        height: 36px;
+        padding: 0 12px;
+        color: var(--muted);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
         cursor: pointer;
         user-select: none;
       }
+      .opt:hover {
+        color: var(--ink);
+        background: var(--hover);
+      }
       .opt .cb {
-        align-self: flex-start;
-        margin-top: 10px;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        opacity: 0;
+      }
+      .opt.is-on,
+      .opt:has(.cb:checked) {
+        color: var(--ink);
+        background: var(--select-soft);
+        border-color: var(--select);
+      }
+      .opt:focus-within {
+        outline: 2px solid var(--select);
+        outline-offset: 2px;
+      }
+      .opt-label {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .opt.is-on .opt-label,
+      .opt:has(.cb:checked) .opt-label {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .opt-state {
+        font-size: 12px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+      .opt.is-on .opt-state,
+      .opt:has(.cb:checked) .opt-state {
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      /* Saved captures / sessions panel */
+      .sessions-panel {
+        margin: 12px 20px 4px;
+        padding: 10px 12px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
       }
       .session-empty {
         margin: 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
       }
       .session-row {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 8px;
-        padding: 12px 0;
+        padding: 6px 0;
+      }
+      .session-row + .session-row {
         border-top: 1px solid var(--line);
       }
       .session-info {
-        flex: 1 1 180px;
+        flex: 1 1 160px;
         min-width: 0;
         overflow-wrap: anywhere;
         color: var(--ink-2);
-        font-size: 12px;
+        font-size: 11px;
       }
       .session-info strong {
         display: block;
         color: var(--ink);
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
       }
       .session-info p {
-        margin: 4px 0;
-      }
-      .session-info label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 32px;
-      }
-      .session-info input[type="checkbox"] {
-        flex: none;
-        width: 16px;
-        height: 16px;
-        accent-color: var(--select);
+        margin: 2px 0 0;
       }
       .session-actions {
         display: flex;
@@ -564,130 +678,134 @@
         gap: 4px;
       }
       .session-action {
-        min-height: 32px;
-        padding: 4px 8px;
-        color: var(--ink-2);
-        background: var(--surface);
+        min-height: 26px;
+        padding: 2px 8px;
+        color: var(--ink);
+        background: var(--control);
         border: 1px solid var(--line);
-        border-radius: 4px;
-        font-size: 12px;
+        border-radius: 5px;
+        font-size: 11px;
         cursor: pointer;
       }
       .session-action[data-action="delete"] {
         color: var(--danger);
       }
       #session-feedback {
-        margin: 8px 0 0;
+        margin: 6px 0 0;
         color: var(--ink-2);
-        font-size: 12px;
+        font-size: 11px;
         overflow-wrap: anywhere;
       }
       #session-feedback:empty {
         display: none;
       }
       #capture-diagnostics {
-        margin-top: 12px;
+        margin-top: 8px;
         color: var(--ink-2);
-        font-size: 12px;
+        font-size: 11px;
       }
       #capture-diagnostics summary {
-        padding: 8px 0;
+        padding: 4px 0;
         color: var(--ink);
         font-weight: 600;
         cursor: pointer;
       }
       #diagnostics-list {
         margin: 4px 0 0;
-        padding-left: 20px;
+        padding-left: 18px;
         overflow-wrap: anywhere;
       }
-      #diagnostics-list li + li {
-        margin-top: 8px;
-      }
+
+      /* Footer CTA */
       .run {
-        position: sticky;
-        bottom: 0;
-        z-index: 1;
         flex: none;
-        max-height: 50%;
-        padding: 12px 16px;
-        overflow-y: auto;
-        background: var(--surface);
-        border-top: 1px solid var(--line);
+        margin: auto 20px 10px;
       }
       .cta {
+        position: relative;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
         gap: 2px;
         width: 100%;
-        min-height: 52px;
-        padding: 8px 12px;
-        color: var(--surface);
-        background: var(--select);
+        height: 52px;
+        padding: 9px 16px;
+        color: var(--cta-ink);
+        background: var(--cta-bg);
         border: 1px solid transparent;
-        border-radius: 6px;
+        border-radius: 10px;
         cursor: pointer;
+        text-align: left;
         transition: transform 0.12s var(--ease);
       }
       .cta:hover:not(:disabled) {
-        box-shadow: inset 0 0 0 2px currentColor;
+        filter: brightness(1.03);
       }
       .cta:active:not(:disabled) {
         transform: scale(0.99);
       }
       .cta:disabled {
         color: var(--muted);
-        background: var(--canvas);
+        background: var(--surface);
         border-color: var(--line);
         cursor: not-allowed;
       }
       .cta-title {
-        font-size: 14px;
-        font-weight: 650;
-        text-align: center;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+      .cta-shortcut {
+        position: absolute;
+        top: 10px;
+        right: 16px;
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 1.2;
+        opacity: 0.85;
       }
       .cta-sub {
         font-size: 11px;
-        text-align: center;
+        font-weight: 500;
+        line-height: 1.2;
+        opacity: 0.9;
       }
       .status {
         display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        min-height: 20px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 14px;
         margin-top: 8px;
-        font-size: 12px;
+        font-size: 11px;
+        line-height: 1.25;
         color: var(--muted);
+        text-align: center;
       }
       .status-text {
-        flex: 1;
         min-width: 0;
-        overflow-wrap: anywhere;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .dot {
-        flex: none;
-        width: 6px;
-        height: 6px;
-        margin-top: 6px;
-        background: var(--muted);
-        border-radius: 50%;
-      }
-      .status.ok .dot {
-        background: var(--ok);
+      .status.ok {
+        color: var(--ok);
       }
       .status.error {
         color: var(--danger);
       }
-      .status.error .dot {
-        background: var(--danger);
+      .status .text-btn {
+        min-height: 20px;
+        padding: 1px 6px;
+        font-size: 11px;
+        color: var(--accent);
       }
       .progress-wrap {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        margin-top: 8px;
+        margin-top: 6px;
       }
       .progress-bar {
         width: 100%;
@@ -706,112 +824,16 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 12px;
+        font-size: 11px;
         font-variant-numeric: tabular-nums;
         color: var(--muted);
       }
       .text-btn.danger {
         color: var(--danger);
       }
-      .status.busy .dot {
-        width: 12px;
-        height: 12px;
-        margin-top: 3px;
-        background: none;
-        border: 2px solid var(--line);
-        border-top-color: var(--select);
-        animation: spin 0.8s linear infinite;
-      }
-      .status .text-btn {
-        flex: none;
-        min-height: 28px;
-        margin-top: -4px;
-        color: var(--select-ink);
-      }
       @keyframes spin {
         to {
           transform: rotate(360deg);
-        }
-      }
-      @media (max-width: 340px) {
-        header {
-          gap: 8px;
-          padding: 8px 12px;
-        }
-        .logo {
-          width: 28px;
-          height: 28px;
-        }
-        h1 {
-          overflow-wrap: anywhere;
-        }
-        .icon-btn {
-          flex: 0 1 auto;
-          min-width: 0;
-          max-width: 42%;
-          gap: 4px;
-          padding: 6px 4px;
-        }
-        .icon-btn span {
-          min-width: 0;
-          overflow-wrap: anywhere;
-          text-align: center;
-        }
-        .run {
-          padding: 8px 12px;
-        }
-      }
-      @media (max-width: 180px), (max-height: 180px) {
-        .sizes,
-        .formats {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        header {
-          min-height: 0;
-          padding: 4px 8px;
-        }
-        .site {
-          display: none;
-        }
-        .logo {
-          width: 24px;
-          height: 24px;
-        }
-        .icon-btn {
-          min-height: 32px;
-          padding: 4px;
-        }
-        .icon-btn span {
-          display: none;
-        }
-        .run {
-          padding: 4px 8px;
-        }
-        .cta {
-          flex-direction: row;
-          flex-wrap: wrap;
-          min-height: 44px;
-          padding: 4px 6px;
-        }
-      }
-      @media (max-height: 400px) {
-        body {
-          height: auto;
-          min-height: 100dvh;
-          max-height: none;
-          overflow: visible;
-        }
-        .workbench {
-          flex: none;
-          min-height: auto;
-          overflow: visible;
-          overscroll-behavior: auto;
-          scrollbar-gutter: auto;
-        }
-        .run {
-          position: static;
-          max-height: none;
-          overflow: visible;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -826,132 +848,175 @@
   </head>
   <body>
     <header>
-      <span class="logo" aria-hidden="true">
-        <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
-          <path d="M2.5 6.5v-3a1 1 0 0 1 1-1h3M13.5 2.5h3a1 1 0 0 1 1 1v3M17.5 13.5v3a1 1 0 0 1-1 1h-3M6.5 17.5h-3a1 1 0 0 1-1-1v-3"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <circle cx="10" cy="10" r="3.4" stroke="currentColor" stroke-width="2" />
-        </svg>
-      </span>
-      <div class="who">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path
+              d="M15 6H7a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3v-8"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <rect x="16" y="4" width="12" height="12" rx="2.5" fill="var(--accent)" />
+          </svg>
+        </span>
         <h1>capture-kit</h1>
-        <p class="site" id="site-line">Reading this tab...</p>
       </div>
-      <button type="button" class="icon-btn" id="pick-btn" title="Pick one element on this page" aria-label="Pick element on this page">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M3 1.5h-.5a1 1 0 0 0-1 1V3M13 1.5h.5a1 1 0 0 1 1 1V3M1.5 13v.5a1 1 0 0 0 1 1H3M6 1.5h4M1.5 6v4M14.5 6v1"
-            stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-          <path d="m8 8 6.5 2.3-2.8 1.1-1.1 2.8L8 8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
-        </svg>
-        <span>Pick element</span>
-      </button>
+      <span class="version">0.2.3</span>
     </header>
 
     <main class="workbench" aria-label="Capture setup">
-    <section class="part" aria-labelledby="pages-h">
-      <div class="part-head">
-        <h2 id="pages-h"><span class="step" aria-hidden="true">01</span>Select pages</h2>
-        <button type="button" class="text-btn" id="sel-all">All</button>
-        <button type="button" class="text-btn" id="sel-none">None</button>
-      </div>
-      <label class="search">
-        <svg width="12" height="12" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-          <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4" />
-          <path d="m8.5 8.5 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-        </svg>
-        <input type="search" id="page-search" placeholder="Find a page by path" aria-label="Filter pages by path" autocomplete="off" />
-      </label>
-      <div class="groups" id="page-groups" role="group" aria-label="Pages to capture">
-        <p class="note"><span class="spin" aria-hidden="true"></span>Finding pages on this site...</p>
-      </div>
-    </section>
+      <section class="source-card" aria-label="Capture source">
+        <div class="source-main">
+          <div class="source-left">
+            <p class="site" id="site-line">astro.build</p>
+            <p class="current-path" id="current-path-line">/ Home</p>
+          </div>
+          <div class="source-right">
+            <span class="source-tag">Current tab</span>
+            <button
+              type="button"
+              class="pages-toggle"
+              id="pages-toggle-btn"
+              aria-expanded="false"
+              aria-controls="pages-drawer"
+            >
+              <span id="pages-count-label">1 of 1 ▾</span>
+            </button>
+          </div>
+        </div>
+        <div class="pages-drawer" id="pages-drawer" hidden>
+          <div class="drawer-toolbar">
+            <label class="search">
+              <svg width="12" height="12" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4" />
+                <path d="m8.5 8.5 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+              </svg>
+              <input
+                type="search"
+                id="page-search"
+                placeholder="Find a page by path"
+                aria-label="Filter pages by path"
+                autocomplete="off"
+              />
+            </label>
+            <button type="button" class="text-btn" id="sel-all">All</button>
+            <button type="button" class="text-btn" id="sel-none">None</button>
+          </div>
+          <div class="groups" id="page-groups" role="group" aria-label="Pages to capture">
+            <p class="note"><span class="spin" aria-hidden="true"></span>Finding pages on this site...</p>
+          </div>
+        </div>
+      </section>
 
-    <section class="part" aria-labelledby="sizes-h">
-      <div class="part-head">
-        <h2 id="sizes-h"><span class="step" aria-hidden="true">02</span>Viewport widths</h2>
-        <span class="tally" id="sizes-tally"></span>
+      <div class="scope-grid" role="group" aria-label="Capture scope">
+        <button type="button" class="scope-btn" id="scope-full-btn" aria-pressed="true">Full page</button>
+        <button type="button" class="scope-btn" id="pick-btn" aria-pressed="false">Pick element</button>
       </div>
-      <div class="sizes" role="group" aria-labelledby="sizes-h">
-        <button type="button" class="size" data-size="current" aria-pressed="true">
-          <span class="device" aria-hidden="true"><i class="tab-now" style="width: 30px; height: 19px"></i></span>
-          <b>This tab</b><small id="current-w">--</small>
-        </button>
-        <button type="button" class="size" data-size="1920" aria-pressed="false">
-          <span class="device" aria-hidden="true"><i style="width: 36px; height: 22px"></i></span>
-          <b>Desktop</b><small>1920</small>
-        </button>
-        <button type="button" class="size" data-size="1440" aria-pressed="false">
-          <span class="device" aria-hidden="true"><i style="width: 30px; height: 19px"></i></span>
-          <b>Laptop</b><small>1440</small>
-        </button>
-        <button type="button" class="size" data-size="768" aria-pressed="false">
-          <span class="device" aria-hidden="true"><i style="width: 17px; height: 23px"></i></span>
-          <b>Tablet</b><small>768</small>
-        </button>
-        <button type="button" class="size" data-size="390" aria-pressed="false">
-          <span class="device" aria-hidden="true"><i style="width: 11px; height: 23px"></i></span>
-          <b>Mobile</b><small>390</small>
-        </button>
-      </div>
-    </section>
 
-    <section class="part" aria-labelledby="export-h">
-      <div class="part-head">
-        <h2 id="export-h"><span class="step" aria-hidden="true">03</span>Handoff format</h2>
-      </div>
-      <div class="formats" role="radiogroup" aria-labelledby="export-h">
-        <label><input type="radio" name="format" value="figma" checked /><span>Figma</span></label>
-        <label><input type="radio" name="format" value="sketch" /><span>Sketch</span></label>
-        <label><input type="radio" name="format" value="react" /><span>React</span></label>
-        <label><input type="radio" name="format" value="md" /><span>Markdown</span></label>
-        <label><input type="radio" name="format" value="svg" /><span>SVG</span></label>
-        <label><input type="radio" name="format" value="html" /><span>HTML</span></label>
-        <label><input type="radio" name="format" value="json" /><span>JSON</span></label>
-      </div>
-      <p class="native-help" id="native-help" hidden></p>
-      <div class="options" role="group" aria-label="Capture options">
-      <label class="opt">
-        <input type="checkbox" class="cb" id="opt-scroll-stitch" />
-        <span>Scroll pages to load lazy images</span>
-      </label>
-      <label class="opt">
-        <input type="checkbox" class="cb" id="opt-design-system" />
-        <span>Include a Design System / Brand Kit frame</span>
-      </label>
-      <label class="opt">
-        <input type="checkbox" class="cb" id="opt-dual-theme" />
-        <span>Capture both light and dark themes</span>
-      </label>
-      <label class="opt">
-        <input type="checkbox" class="cb" id="opt-delay-3s" />
-        <span>3s delay (open menus or hover states before copy)</span>
-      </label>
-      </div>
-    </section>
+      <section class="block" aria-labelledby="export-h">
+        <div class="block-head">
+          <h2 id="export-h">Copy as</h2>
+        </div>
+        <div class="formats" role="radiogroup" aria-labelledby="export-h">
+          <label><input type="radio" name="format" value="figma" checked /><span>Figma</span></label>
+          <label><input type="radio" name="format" value="sketch" /><span>Sketch</span></label>
+          <label><input type="radio" name="format" value="react" /><span>React TSX</span></label>
+          <label><input type="radio" name="format" value="md" /><span>Markdown</span></label>
+          <label><input type="radio" name="format" value="svg" /><span>SVG</span></label>
+          <label><input type="radio" name="format" value="html" /><span>HTML</span></label>
+          <label hidden><input type="radio" name="format" value="json" /><span>JSON</span></label>
+        </div>
+        <p class="native-help" id="native-help" hidden></p>
+      </section>
 
-    <section class="part" id="sessions-panel" aria-labelledby="sessions-h">
-      <div class="part-head">
-        <h2 id="sessions-h">Saved captures</h2>
-      </div>
-      <p class="section-note">Re-export results or resume unfinished work. Up to 8 sessions kept. Discard removes saved results.</p>
-      <p class="session-empty" id="sessions-empty">No saved captures yet. Your capture sessions will appear here.</p>
-      <div id="sessions-list"></div>
-      <p id="session-feedback" role="status" aria-live="polite"></p>
-      <details id="capture-diagnostics" hidden>
-        <summary>Capture notes</summary>
-        <ul id="diagnostics-list"></ul>
-      </details>
-    </section>
+      <section class="block" aria-labelledby="sizes-h">
+        <div class="block-head">
+          <h2 id="sizes-h">Viewports</h2>
+          <span class="tally" id="sizes-tally">2 selected</span>
+        </div>
+        <div class="sizes" role="group" aria-labelledby="sizes-h">
+          <button type="button" class="size" data-size="current" aria-pressed="false">
+            <svg class="size-check" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M2 5.2 4.2 7.4 8.2 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <b>Current</b><small id="current-w">1440</small>
+          </button>
+          <button type="button" class="size" data-size="1920" aria-pressed="false">
+            <svg class="size-check" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M2 5.2 4.2 7.4 8.2 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <b>Desktop</b><small>1920</small>
+          </button>
+          <button type="button" class="size" data-size="1440" aria-pressed="true">
+            <svg class="size-check" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M2 5.2 4.2 7.4 8.2 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <b>Laptop</b><small>1440</small>
+          </button>
+          <button type="button" class="size" data-size="768" aria-pressed="false">
+            <svg class="size-check" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M2 5.2 4.2 7.4 8.2 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <b>Tablet</b><small>768</small>
+          </button>
+          <button type="button" class="size" data-size="390" aria-pressed="true">
+            <svg class="size-check" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M2 5.2 4.2 7.4 8.2 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <b>Mobile</b><small>390</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="block" aria-labelledby="options-h">
+        <div class="block-head">
+          <h2 id="options-h">Capture options</h2>
+        </div>
+        <div class="options" role="group" aria-labelledby="options-h">
+          <label class="opt">
+            <input type="checkbox" class="cb" id="opt-delay-3s" />
+            <span class="opt-label">Hover delay</span>
+            <span class="opt-state" id="opt-delay-3s-state">Off</span>
+          </label>
+          <label class="opt is-on">
+            <input type="checkbox" class="cb" id="opt-design-system" checked />
+            <span class="opt-label">Brand kit</span>
+            <span class="opt-state" id="opt-design-system-state">On</span>
+          </label>
+          <label class="opt">
+            <input type="checkbox" class="cb" id="opt-scroll-stitch" />
+            <span class="opt-label">Scroll lazy</span>
+            <span class="opt-state" id="opt-scroll-stitch-state">Off</span>
+          </label>
+          <label class="opt">
+            <input type="checkbox" class="cb" id="opt-dual-theme" />
+            <span class="opt-label">Dual theme</span>
+            <span class="opt-state" id="opt-dual-theme-state">Off</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="sessions-panel" id="sessions-panel" aria-label="Saved captures" hidden>
+        <p class="session-empty" id="sessions-empty" hidden>No saved captures yet.</p>
+        <div id="sessions-list"></div>
+        <p id="session-feedback" role="status" aria-live="polite"></p>
+        <details id="capture-diagnostics" hidden>
+          <summary>Capture notes</summary>
+          <ul id="diagnostics-list"></ul>
+        </details>
+      </section>
     </main>
 
     <footer class="run" aria-label="Capture action and status">
-      <button type="button" id="capture-btn" class="cta" disabled>
-        <span class="cta-title" id="capture-title">Capture</span>
-        <span class="cta-sub" id="capture-sub">Finding pages...</span>
+      <button type="button" id="capture-btn" class="cta">
+        <span class="cta-title" id="capture-title">Copy 3 frames to Figma</span>
+        <span class="cta-shortcut">Alt Shift K</span>
+        <span class="cta-sub" id="capture-sub">2 viewports + brand kit</span>
       </button>
       <div class="status" id="status" role="status">
-        <span class="dot" aria-hidden="true"></span>
-        <span class="status-text" id="status-text">Ready</span>
+        <span class="status-text" id="status-text">Then paste into Figma with Cmd V</span>
         <button type="button" class="text-btn" id="figma-btn" hidden>Copy again</button>
       </div>
       <div class="progress-wrap" id="progress-wrap" hidden>

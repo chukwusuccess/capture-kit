@@ -602,6 +602,101 @@ function runFigmaUpgradeTests() {
     'Design System typography specimen must resolve font-family using cleanSvgFontFamily'
   );
 
+  // Beast Accuracy Upgrades: feDropShadow from shadows, inset top highlight, border+ring overlay, rounded image clipPath, styled tspan runs
+  const beastCapture: Capture = {
+    ...baseCapture,
+    assets: {
+      'avatar-1': {
+        kind: 'image',
+        mimeType: 'image/png',
+        base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      },
+    },
+    nodes: [
+      {
+        id: 'shadow-glass-card',
+        type: 'rect',
+        box: { x: 40, y: 40, w: 300, h: 160 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(15, 23, 42, 0.8)' }],
+          strokes: [{ color: 'rgba(255, 255, 255, 0.1)', width: 1, style: 'solid' }],
+          opacity: 1,
+          radius: { topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 12 },
+          shadows: [
+            { x: 0, y: 12, blur: 24, spread: 0, color: 'rgba(0, 0, 0, 0.45)', inset: false },
+            { x: 0, y: 1, blur: 0, spread: 0, color: 'rgba(255, 255, 255, 0.25)', inset: true },
+            { x: 0, y: 0, blur: 0, spread: 2, color: 'rgba(59, 130, 246, 0.5)', inset: false },
+          ],
+        },
+      },
+      {
+        id: 'rounded-avatar',
+        type: 'image',
+        box: { x: 60, y: 60, w: 48, h: 48 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 24, topRight: 24, bottomRight: 24, bottomLeft: 24 },
+          shadows: [],
+          clip: false,
+        },
+        assetRef: 'avatar-1',
+      },
+      {
+        id: 'rich-tspan-text',
+        type: 'text',
+        box: { x: 60, y: 120, w: 240, h: 28 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: 'Ship Fast',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 18,
+          fontWeight: 500,
+          lineHeight: 24,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgb(255, 255, 255)',
+          runs: [
+            { text: 'Ship ', fontWeight: 400 },
+            { text: 'Fast', fontFamily: 'Georgia, serif', fontSize: 20, fontWeight: 700, italic: true, underline: true, color: 'rgb(56, 189, 248)' },
+          ],
+        },
+      },
+    ],
+  };
+
+  const beastSvg = modelToFigma(beastCapture).svg;
+  assert.ok(
+    beastSvg.includes('<filter id="fx-shadow-glass-card"') &&
+      beastSvg.includes('<feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="rgb(0, 0, 0)" flood-opacity="0.45" />'),
+    'Box shadows must emit <feDropShadow> inside <filter id="fx-..."> in <defs>'
+  );
+  assert.ok(
+    beastSvg.includes('<line id="shadow-glass-card-inset-top" x1="52" y1="40.5" x2="328" y2="40.5" stroke="rgba(255, 255, 255, 0.25)" stroke-width="1" />'),
+    'Top specular inset shadow must emit crisp top highlight <line>'
+  );
+  assert.ok(
+    beastSvg.includes('<rect id="shadow-glass-card-ring" x="38" y="38" width="304" height="164" fill="none" rx="14" ry="14" stroke="rgba(59, 130, 246, 0.5)" stroke-width="2" />'),
+    'Border + spread ring shadow must emit outer ring <rect> expanded by spread'
+  );
+  assert.ok(
+    beastSvg.includes('<clipPath id="clip-rounded-avatar">') &&
+      beastSvg.includes('<rect x="60" y="60" width="48" height="48" rx="24" ry="24" />') &&
+      beastSvg.includes('clip-path="url(#clip-rounded-avatar)"'),
+    'Rounded <image> node must emit and reference <clipPath> even when style.clip is false'
+  );
+  assert.ok(
+    beastSvg.includes('font-family="Georgia" font-size="20" font-weight="700" font-style="italic" text-decoration="underline" fill="rgb(56, 189, 248)">Fast</tspan>'),
+    'Rich <tspan> runs must emit font-family, font-size, font-style="italic", and text-decoration="underline"'
+  );
+
   console.log('packages/destinations/figma upgrade tests passed');
 }
 

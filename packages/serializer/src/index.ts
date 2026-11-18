@@ -575,23 +575,43 @@ const IGNORED_TAGS: Record<string, true> = {
   title: true,
 };
 
-function parseBoxShadow(shadowStr: string) {
+export function parseBoxShadow(shadowStr: string) {
   if (!shadowStr || shadowStr === 'none') return [];
-  const parts = shadowStr.split(/,(?![^(]*\))/);
+  const parts = splitTopLevelCommas(shadowStr);
   const shadows = [];
 
   for (const part of parts) {
     const trimmed = part.trim();
-    if (!trimmed) continue;
+    if (!trimmed || trimmed === 'none') continue;
 
-    const inset = trimmed.includes('inset');
-    const clean = trimmed.replace('inset', '').trim();
-    const colorMatch = clean.match(/rgba?\([^)]+\)|#[0-9a-fA-F]+|[a-z]+/);
-    const color = colorMatch ? colorMatch[0] : 'rgba(0, 0, 0, 0.2)';
-    const lengths = clean
-      .replace(color, '')
-      .trim()
+    const inset = /\binset\b/i.test(trimmed);
+    const withoutInset = trimmed.replace(/\binset\b/gi, '').trim();
+
+    let color = 'rgba(0, 0, 0, 0.2)';
+    let rest = withoutInset;
+
+    const funcOrHexMatch = withoutInset.match(
+      /(?:rgba?|hsla?|oklch|oklab|lch|lab|color)\([^)]+\)|#[0-9a-fA-F]{3,8}\b/i
+    );
+    if (funcOrHexMatch) {
+      color = funcOrHexMatch[0];
+      rest = withoutInset.replace(color, '').trim();
+    } else {
+      const tokens = withoutInset.split(/\s+/).filter(Boolean);
+      const lengthTokens: string[] = [];
+      for (const tok of tokens) {
+        if (/^[a-zA-Z]+$/.test(tok)) {
+          color = tok;
+        } else {
+          lengthTokens.push(tok);
+        }
+      }
+      rest = lengthTokens.join(' ');
+    }
+
+    const lengths = rest
       .split(/\s+/)
+      .filter(Boolean)
       .map((s) => parseFloat(s) || 0);
 
     const [x = 0, y = 0, blur = 0, spread] = lengths;
@@ -1006,7 +1026,10 @@ function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string
    if (bgPos && bgPos !== '0% 0%') out.backgroundPosition = bgPos;
    const bgRepeat = computed.backgroundRepeat?.trim();
    if (bgRepeat && bgRepeat !== 'repeat') out.backgroundRepeat = bgRepeat;
-   const bgClip = computed.backgroundClip?.trim() || (computed as CSSStyleDeclaration & { webkitBackgroundClip?: string }).webkitBackgroundClip?.trim();
+   const bgClip =
+     computed.backgroundClip?.trim() ||
+     (computed as CSSStyleDeclaration & { webkitBackgroundClip?: string }).webkitBackgroundClip?.trim() ||
+     (typeof computed.getPropertyValue === 'function' ? computed.getPropertyValue('-webkit-background-clip')?.trim() : '');
    if (bgClip && bgClip !== 'border-box') out.backgroundClip = bgClip;
    // Radial/linear fade masks on glow washes: without this the divider paints
    // as a solid pill in every renderer.
@@ -2581,6 +2604,43 @@ async function serializeSubtree(
 
   let textMs = 0;
   let textCharsMeasured = 0;
+  const bgClipTextFillsMap = new Map<Element, Fill[]>();
+  const resolveInheritedBgClipFills = (el: Element): Fill[] | undefined => {
+    let cur: Element | null = el;
+    while (cur) {
+      const f = bgClipTextFillsMap.get(cur);
+      if (f && f.length > 0) return f;
+      cur = cur.parentElement;
+    }
+    return undefined;
+  };
+  const isTransparentCssColor = (c: string | undefined): boolean => {
+    if (!c) return true;
+    const norm = c.trim().toLowerCase();
+    return norm === 'transparent' || norm === 'rgba(0, 0, 0, 0)' || norm === 'rgba(0,0,0,0)';
+  };
+  const resolveEffectiveTextColor = (computed: CSSStyleDeclaration, bgClipFills?: Fill[]): string => {
+    const wtfc =
+      (computed as CSSStyleDeclaration & { webkitTextFillColor?: string }).webkitTextFillColor?.trim() ||
+      (typeof computed.getPropertyValue === 'function' ? computed.getPropertyValue('-webkit-text-fill-color')?.trim() : '');
+    if (bgClipFills && bgClipFills.length > 0) {
+      const primaryStop = bgClipFills[0]?.stops?.[0]?.color || bgClipFills[0]?.color;
+      if (primaryStop && (isTransparentCssColor(wtfc) || isTransparentCssColor(computed.color))) {
+        return primaryStop;
+      }
+    }
+    if (wtfc && !isTransparentCssColor(wtfc) && wtfc.toLowerCase() !== 'currentcolor') {
+      return wtfc;
+    }
+    if (computed.color && !isTransparentCssColor(computed.color)) {
+      return computed.color;
+    }
+    if (bgClipFills && bgClipFills.length > 0) {
+      const primaryStop = bgClipFills[0]?.stops?.[0]?.color || bgClipFills[0]?.color;
+      if (primaryStop) return primaryStop;
+    }
+    return computed.color || 'rgba(0, 0, 0, 1)';
+  };
   const nodesStart = nowMs();
   try {
   for (const el of elements) {
@@ -3225,11 +3285,11 @@ async function serializeSubtree(
           canvas.height = videoEl.videoHeight;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(videoEl, 0, 0);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          const match = dataUrl.match(/^data:image\/jpeg;base64,(.+)$/);
-          if (match) {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          const parsed = dataUrl ? dataUriToAsset(dataUrl) : null;
+          if (parsed && parsed.base64) {
             const assetKey = `asset-${nextAssetId++}`;
-            assets[assetKey] = { kind: 'image', mimeType: 'image/jpeg', base64: match[1] };
+            assets[assetKey] = { kind: 'image', mimeType: parsed.mimeType, base64: parsed.base64 };
             assetRef = assetKey;
           }
         }
@@ -3237,7 +3297,7 @@ async function serializeSubtree(
         // Tainted/cross-origin video: fall back to poster or raster capture below.
       }
       if (!assetRef) {
-        const poster = videoEl.getAttribute('poster');
+        const poster = videoEl.getAttribute?.('poster') || (videoEl as HTMLVideoElement & { poster?: string }).poster || '';
         if (poster) {
           if (poster.startsWith('data:')) {
             const parsed = dataUriToAsset(poster);
@@ -3251,9 +3311,15 @@ async function serializeSubtree(
               const resolvedPoster = new URL(poster, baseURI);
               const isSameOrigin = resolvedPoster.origin === defaultView.location?.origin;
               if (isSameOrigin || resolvedPoster.protocol === 'blob:' || hasRuntimeBridge) {
-                const assetKey = `asset-${nextAssetId++}`;
-                enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
-                assetRef = assetKey;
+                const cachedKey = urlToAssetKeyCache.get(resolvedPoster.href);
+                if (cachedKey) {
+                  assetRef = cachedKey;
+                } else {
+                  const assetKey = `asset-${nextAssetId++}`;
+                  urlToAssetKeyCache.set(resolvedPoster.href, assetKey);
+                  enqueueAssetFetch({ url: resolvedPoster.href, assetKey, nodeId, maxWidth: maxWidthForBox(w) });
+                  assetRef = assetKey;
+                }
               }
             } catch {
               // ignore unresolvable poster
@@ -3384,6 +3450,12 @@ async function serializeSubtree(
     }
 
     const hasChildren = el.children.length > 0;
+    const isOwnBgClipText = style.backgroundClip === 'text' && fills.length > 0;
+    if (isOwnBgClipText) {
+      bgClipTextFillsMap.set(el, style.fills);
+    }
+    const inheritedBgClipFills = !isOwnBgClipText && fills.length === 0 ? resolveInheritedBgClipFills(el) : undefined;
+    const effectiveBgClipFills = isOwnBgClipText ? style.fills : inheritedBgClipFills;
     const hasVisualDecoration =
       fills.length > 0 ||
       strokes.length > 0 ||
@@ -3429,7 +3501,7 @@ async function serializeSubtree(
           num2(computed.paddingBottom)
       );
 
-      let runs: Array<{ text: string; x?: number; y?: number; w?: number; fontFamily?: string; fontSize?: number; fontWeight?: string | number; color?: string }> | undefined;
+      let runs: Array<{ text: string; x?: number; y?: number; w?: number; h?: number; fontFamily?: string; fontSize?: number; fontWeight?: string | number; color?: string; gradientFill?: Fill; fills?: Fill[] }> | undefined;
       if (typeof doc.createRange === 'function' && childTextNodes.length === 1) {
         try {
           const tNode = childTextNodes[0];
@@ -3482,11 +3554,13 @@ async function serializeSubtree(
           }
 
           if (effectiveLines.length > 1) {
+            const gradFill = effectiveBgClipFills?.find((f) => f.type === 'gradient');
             runs = effectiveLines.map((l) => ({
               text: l.text,
               x: round2(l.x),
               y: round2(l.y),
               w: round2(l.w),
+              ...(gradFill ? { gradientFill: gradFill } : {}),
             }));
           }
         } catch {
@@ -3494,13 +3568,17 @@ async function serializeSubtree(
         }
       }
 
+      const leafStyle = effectiveBgClipFills
+        ? { ...style, fills: effectiveBgClipFills, backgroundClip: 'text' }
+        : style;
+
       nodes.push({
         id: nodeId,
         ...(semanticName ? { name: semanticName } : {}),
         parentId,
         type: 'text',
         box: { x: cbX, y: cbY, w: cbW, h: cbH },
-        style,
+        style: leafStyle,
         text: {
           content: combinedText,
           fontFamily: computed.fontFamily || 'system-ui, sans-serif',
@@ -3509,7 +3587,7 @@ async function serializeSubtree(
           lineHeight,
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
-          color: computed.color || 'rgba(0, 0, 0, 1)',
+          color: resolveEffectiveTextColor(computed, effectiveBgClipFills),
           ...(runs ? { runs } : {}),
           ...extractTextFidelity(computed),
         },
@@ -3517,8 +3595,8 @@ async function serializeSubtree(
       continue;
     }
 
-    const isBgClipText = style.backgroundClip === 'text';
-    const containerStyle = isBgClipText ? { ...style, fills: [] } : style;
+    const isBgClipText = Boolean(effectiveBgClipFills && effectiveBgClipFills.length > 0);
+    const containerStyle = isOwnBgClipText ? { ...style, fills: [] } : style;
 
     nodes.push({
       id: nodeId,
@@ -3544,13 +3622,11 @@ async function serializeSubtree(
     }
 
     for (const textNode of childTextNodes) {
-      const textVal = textNode.textContent?.trim() || '';
+      const whiteSpace = computed.whiteSpace || 'normal';
+      const preserveWs = whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'break-spaces';
+      const rawText = textNode.textContent || '';
+      const textVal = (preserveWs ? rawText : whiteSpace === 'pre-line' ? rawText.replace(/[ \t\r]+/g, ' ') : rawText.replace(/\s+/g, ' ')).trim();
       if (!textVal) continue;
-
-      let textX = x;
-      let textY = y;
-      let textW = w;
-      let textH = h;
 
       const num = (v: string | undefined): number => Math.max(0, parseFloat(v ?? "") || 0);
       // Content box: where the line box actually starts. For a lone text leaf
@@ -3573,28 +3649,44 @@ async function serializeSubtree(
 
       if (typeof doc.createRange === 'function') {
         try {
-          const fullStr = textNode.textContent || '';
-          const preserveWs = computed.whiteSpace === 'pre' || computed.whiteSpace === 'pre-wrap' || computed.whiteSpace === 'break-spaces';
+          const fullStr = rawText;
           const textStart = nowMs();
           const { lines, measuredCalls } = measureWrappedLines(
             doc, textNode, fullStr, fontSize, scrollX, scrollY, frameRect.originX, frameRect.originY, preserveWs
           );
           textMs += nowMs() - textStart;
           textCharsMeasured += measuredCalls;
-          for (const l of lines) lineBoxes.push(l);
+          for (const l of lines) {
+            lineBoxes.push({
+              text: l.text,
+              x: round2(l.x),
+              y: round2(l.y),
+              w: round2(l.w),
+              h: round2(l.h),
+            });
+          }
           if (lineBoxes.length === 0) {
             const range = doc.createRange();
-            const leadWs = fullStr.length - fullStr.trimStart().length;
-            const trailWs = fullStr.trimEnd().length;
+            const leadWs = preserveWs ? 0 : fullStr.length - fullStr.trimStart().length;
+            const trailWs = preserveWs ? fullStr.length : fullStr.trimEnd().length;
             if ((leadWs > 0 || trailWs < fullStr.length) && leadWs < trailWs && typeof range.setStart === 'function' && typeof range.setEnd === 'function') {
               range.setStart(textNode, leadWs);
               range.setEnd(textNode, trailWs);
             } else {
               range.selectNodeContents(textNode);
             }
-            const rangeRect = range.getBoundingClientRect();
-            if (rangeRect.width > 0 && rangeRect.height > 0) {
-              lineBoxes.push({ text: textVal, x: rangeRect.left + scrollX - frameRect.originX, y: rangeRect.top + scrollY - frameRect.originY, w: rangeRect.width + 2, h: rangeRect.height });
+            const clientRects = typeof range.getClientRects === 'function'
+              ? Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0)
+              : [];
+            const rangeRect = clientRects[0] ?? range.getBoundingClientRect();
+            if (rangeRect && rangeRect.width > 0 && rangeRect.height > 0) {
+              lineBoxes.push({
+                text: textVal,
+                x: round2(rangeRect.left + scrollX - frameRect.originX),
+                y: round2(rangeRect.top + scrollY - frameRect.originY),
+                w: round2(rangeRect.width + 2),
+                h: round2(rangeRect.height),
+              });
             }
           }
         } catch {
@@ -3613,7 +3705,7 @@ async function serializeSubtree(
           type: 'text' as const,
           box: { x: lb.x, y: lb.y, w: Math.max(0, lb.w), h: Math.max(0, lb.h) },
           style: {
-            fills: isBgClipText ? style.fills : [],
+            fills: isBgClipText && effectiveBgClipFills ? effectiveBgClipFills : [],
             strokes: [],
             opacity: 1,
             radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
@@ -3629,10 +3721,7 @@ async function serializeSubtree(
             lineHeight,
             letterSpacing,
             align: parseTextAlign(computed.textAlign),
-            color:
-              isBgClipText && style.fills[0]?.stops?.[0]?.color
-                ? style.fills[0].stops[0].color
-                : computed.color || 'rgba(0, 0, 0, 1)',
+            color: resolveEffectiveTextColor(computed, effectiveBgClipFills),
             ...extractTextFidelity(computed),
           },
         };
