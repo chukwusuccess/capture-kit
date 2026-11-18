@@ -29,6 +29,8 @@ interface WindowWithCaptureKit {
   __captureKitSerialize?: (opts?: { scrollStitch?: boolean; collectTimings?: boolean }) => Promise<unknown>;
   __captureKitPickElement?: () => Promise<unknown>;
   __captureKitCancelPick?: () => void;
+  __captureKitPickAndCopy?: (opts?: { format?: string; includeDesignSystem?: boolean }) => Promise<unknown>;
+  __captureKitCopyPageDirect?: (opts?: { format?: string; includeDesignSystem?: boolean }) => Promise<void>;
 }
 
 const roundTiming = (ms: number): number => Math.round(ms * 100) / 100;
@@ -985,4 +987,38 @@ const chromeRasterDeps: RasterCaptureDeps = {
     return true;
   }
   return false;
+});
+
+(chrome as unknown as {
+  commands?: { onCommand: { addListener: (cb: (cmd: string) => void) => void } };
+}).commands?.onCommand.addListener((command: string) => {
+  if (command !== 'pick-element' && command !== 'copy-page') return;
+  void (async () => {
+    try {
+      const tabId = await getActiveTabId();
+      await injectSerializer(tabId);
+      const stored = await chrome.storage.local.get(['format', 'designSystem']);
+      const format = typeof stored.format === 'string'
+        ? (stored.format === 'figma-native' ? 'figma' : stored.format)
+        : 'figma';
+      const includeDesignSystem = Boolean(stored.designSystem);
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        args: [command, format, includeDesignSystem],
+        func: (...args: unknown[]) => {
+          const cmd = String(args[0]);
+          const fmt = typeof args[1] === 'string' ? args[1] : 'figma';
+          const includeDs = Boolean(args[2]);
+          const w = window as unknown as WindowWithCaptureKit;
+          if (cmd === 'pick-element') {
+            void w.__captureKitPickAndCopy?.({ format: fmt, includeDesignSystem: includeDs }).catch(() => undefined);
+          } else if (cmd === 'copy-page') {
+            void w.__captureKitCopyPageDirect?.({ format: fmt, includeDesignSystem: includeDs }).catch(() => undefined);
+          }
+        },
+      });
+    } catch {
+      // Ignore shortcut triggers on non-scriptable pages
+    }
+  })();
 });
