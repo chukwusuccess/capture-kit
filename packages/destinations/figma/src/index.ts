@@ -1,4 +1,4 @@
-import type { Capture, CornerRadius, Node } from '@capture-kit/model';
+import type { Capture, CornerRadius, Fill, Node } from '@capture-kit/model';
 
 export interface FigmaExportOptions {
   pasteboardFormat?: 'clipboard' | 'file';
@@ -324,6 +324,41 @@ function isNodeOffscreen(node: Node, frame: Capture['frame']): boolean {
   return Math.max(...ys) <= 0 || Math.max(...xs) <= 0 || Math.min(...xs) >= frame.width || Math.min(...ys) >= frame.height;
 }
 
+function parsePatternTileSize(
+  fill: Fill,
+  box: { w: number; h: number }
+): { pw: number; ph: number } | null {
+  if (fill.backgroundRepeat === 'no-repeat' || !fill.backgroundSize) return null;
+  const parts = fill.backgroundSize.trim().split(/\s+/);
+  if (parts.length === 0 || parts.length > 2) return null;
+  const parsePx = (s: string): number | null => {
+    const m = s.match(/^([\d.]+)px$/i);
+    return m ? parseFloat(m[1]) : null;
+  };
+  const pw = parsePx(parts[0]);
+  const ph = parts.length === 2 ? parsePx(parts[1]) : pw;
+  if (pw === null || ph === null || !(pw > 0 && ph > 0)) return null;
+  if (pw < box.w - 1 || ph < box.h - 1) return { pw, ph };
+  return null;
+}
+
+function formatGradientDef(gradId: string, gradFill: Fill): string {
+  const stops = (gradFill.stops ?? []).map((s) => formatSvgStop(s.color, Math.round(s.position * 100))).join('\n');
+  if (gradFill.gradientType === 'radial') {
+    const cx = `${Math.round((gradFill.cx ?? 0.5) * 100)}%`;
+    const cy = `${Math.round((gradFill.cy ?? 0.5) * 100)}%`;
+    return `    <radialGradient id="${gradId}" cx="${cx}" cy="${cy}" r="75%">\n${stops}\n    </radialGradient>`;
+  }
+  const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  const x1 = `${Math.round((0.5 - cos * 0.5) * 100)}%`;
+  const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
+  const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
+  const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
+  return `    <linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`;
+}
+
 function renderNodeToFigmaSvg(
   node: Node,
   assets: Capture['assets'],
@@ -446,7 +481,12 @@ function renderNodeToFigmaSvg(
             const rDeco = r.underline ? ' text-decoration="underline"' : '';
             const rColor = !textGradFill && r.color ? ` fill="${escapeXml(r.color)}"` : '';
             const runX = anchor === 'start' && r.x !== undefined ? r.x : idx === 0 && inlineLeadWidth > 0 ? firstRunX : textX;
-            const posAttrs = idx > 0 ? ` x="${runX}" dy="${lh}"` : inlineLeadWidth > 0 || (anchor === 'start' && r.x !== undefined) ? ` x="${runX}"` : '';
+            const prevY = idx > 0 ? effectiveRuns[idx - 1]?.y : undefined;
+            const measuredDy = idx > 0 && r.y !== undefined && prevY !== undefined
+              ? Math.round((r.y - prevY) * 100) / 100
+              : 0;
+            const dy = measuredDy > 0 ? measuredDy : lh;
+            const posAttrs = idx > 0 ? ` x="${runX}" dy="${dy}"` : inlineLeadWidth > 0 || (anchor === 'start' && r.x !== undefined) ? ` x="${runX}"` : '';
             return `<tspan${posAttrs}${rFamily}${rSize}${rWeight}${rItalic}${rDeco}${rColor}>${escapeXml(applyTextTransform(r.text, text.textTransform))}</tspan>`;
           })
           .join('')
@@ -474,9 +514,17 @@ function renderNodeToFigmaSvg(
     const dy = box.y + (box.h - (vb ? vb.height : box.h) * s) / 2;
     const scale = s === 1 ? '' : ` scale(${s})`;
     const paths = node.vectorPaths
-      .filter((p, idx) => !(idx > 0 && /^M 0 0 H [\d.]+ V [\d.]+ H 0 Z$/.test(p.d) && (p.fill === '#fff' || p.fill === '#ffffff')))
-      .map((p) => {
-        const rawFill = p.stroke && /^M 0\.5 0\.5 H /.test(p.d) ? 'none' : p.fill?.startsWith('url(') ? 'rgba(133, 139, 152, 0.25)' : p.fill;
+      .map((p, idx) => ({ p, idx }))
+      .filter(({ p, idx }) => !(idx > 0 && /^M 0 0 H [\d.]+ V [\d.]+ H 0 Z$/.test(p.d) && (p.fill === '#fff' || p.fill === '#ffffff')))
+      .map(({ p, idx }) => {
+        const hasVGrad = Boolean(p.fillGradient?.stops?.length);
+        const rawFill = p.stroke && /^M 0\.5 0\.5 H /.test(p.d)
+          ? 'none'
+          : hasVGrad
+          ? `url(#vgrad-${escapeXml(node.id)}-${idx})`
+          : p.fill?.startsWith('url(')
+          ? 'rgba(133, 139, 152, 0.25)'
+          : p.fill;
         const fill = rawFill ? ` fill="${escapeXml(rawFill)}"` : ' fill="currentColor"';
         const stroke = p.stroke ? ` stroke="${escapeXml(p.stroke)}"` : '';
         const sw = p.strokeWidth ? ` stroke-width="${p.strokeWidth}"` : '';
@@ -530,10 +578,13 @@ function renderNodeToFigmaSvg(
       layers.push(`    <image id="${escapeXml(node.id)}-img" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`);
     }
     for (let gIdx = gradFills.length - 1; gIdx >= 0; gIdx--) {
+      const gradFill = gradFills[gIdx];
       const gradId = gIdx === 0 ? `grad-${escapeXml(node.id)}` : `grad-${escapeXml(node.id)}-${gIdx}`;
+      const patSize = parsePatternTileSize(gradFill, box);
+      const fillRef = patSize ? `pat-${escapeXml(node.id)}-${gIdx}` : gradId;
       const idAttr = gIdx === 0 && !firstSolid?.color ? ` id="${escapeXml(node.id)}"` : ` id="${escapeXml(node.id)}-grad-${gIdx}"`;
       const sAttr = gIdx === 0 ? strokeAttrs : '';
-      layers.push(`    <rect${idAttr} x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#${gradId})"${rx}${sAttr}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
+      layers.push(`    <rect${idAttr} x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#${fillRef})"${rx}${sAttr}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
     }
     return `${layers.join('\n')}${outlineOverlay}${ringOverlay}${topHighlightOverlay}${lineSuffix}`;
   }
@@ -770,22 +821,23 @@ function buildFigmaDefs(captures: Capture[]): string {
       gradFills.forEach((gradFill, gIdx) => {
         if (!gradFill.stops) return;
         const gradId = gIdx === 0 ? `grad-${escapeXml(node.id)}` : `grad-${escapeXml(node.id)}-${gIdx}`;
-        const stops = gradFill.stops.map((s) => formatSvgStop(s.color, Math.round(s.position * 100))).join('\n');
-        if (gradFill.gradientType === 'radial') {
-          const cx = `${Math.round((gradFill.cx ?? 0.5) * 100)}%`;
-          const cy = `${Math.round((gradFill.cy ?? 0.5) * 100)}%`;
-          defs.push(`    <radialGradient id="${gradId}" cx="${cx}" cy="${cy}" r="75%">\n${stops}\n    </radialGradient>`);
-        } else {
-          const angleRad = (((gradFill.angle ?? 180) - 90) * Math.PI) / 180;
-          const cos = Math.cos(angleRad);
-          const sin = Math.sin(angleRad);
-          const x1 = `${Math.round((0.5 - cos * 0.5) * 100)}%`;
-          const y1 = `${Math.round((0.5 - sin * 0.5) * 100)}%`;
-          const x2 = `${Math.round((0.5 + cos * 0.5) * 100)}%`;
-          const y2 = `${Math.round((0.5 + sin * 0.5) * 100)}%`;
-          defs.push(`    <linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">\n${stops}\n    </linearGradient>`);
+        defs.push(formatGradientDef(gradId, gradFill));
+        const patSize = parsePatternTileSize(gradFill, node.box);
+        if (patSize) {
+          defs.push(
+            `    <pattern id="pat-${escapeXml(node.id)}-${gIdx}" width="${patSize.pw}" height="${patSize.ph}" patternUnits="userSpaceOnUse">\n` +
+            `      <rect x="0" y="0" width="${patSize.pw}" height="${patSize.ph}" fill="url(#${gradId})" />\n` +
+            `    </pattern>`
+          );
         }
       });
+      if (node.vectorPaths) {
+        node.vectorPaths.forEach((vp, vIdx) => {
+          if (vp.fillGradient?.stops && vp.fillGradient.stops.length > 0) {
+            defs.push(formatGradientDef(`vgrad-${escapeXml(node.id)}-${vIdx}`, vp.fillGradient));
+          }
+        });
+      }
 
       const clipShape = clipShapeForNode(node);
       if (clipShape) {
