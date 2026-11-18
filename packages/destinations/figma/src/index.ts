@@ -503,7 +503,16 @@ function renderNodeToFigmaSvg(
       if (line1.length > 0 && rest) effectiveRuns = [{ text: line1.join(' ') }, { text: rest }];
     }
     const firstRunX = inlineLeadWidth > 0 && anchor === 'start' ? Math.round((box.x + inlineLeadWidth + 8) * 100) / 100 : textX;
-    const lsAttr = typeof text.letterSpacing === 'number' && text.letterSpacing !== 0 ? ` letter-spacing="${text.letterSpacing}"` : '';
+    const cleanedFam = cleanSvgFontFamily(text.fontFamily);
+    const standardFonts = new Set(['Inter', 'Roboto Mono', 'Georgia']);
+    const isCustomFont = !standardFonts.has(cleanedFam);
+    const effectiveLs =
+      typeof text.letterSpacing === 'number' && text.letterSpacing !== 0
+        ? text.letterSpacing
+        : isCustomFont && text.fontSize >= 24 && box.w >= 400
+        ? -Math.round(text.fontSize * 0.03 * 100) / 100
+        : 0;
+    const lsAttr = effectiveLs !== 0 ? ` letter-spacing="${effectiveLs}"` : '';
     const wsAttr = typeof text.wordSpacing === 'number' && text.wordSpacing !== 0 ? ` word-spacing="${text.wordSpacing}"` : typeof text.wordSpacing === 'string' && text.wordSpacing && text.wordSpacing !== 'normal' && text.wordSpacing !== '0px' ? ` word-spacing="${escapeXml(text.wordSpacing)}"` : '';
     const textStrokeAttr = text.textStroke ? ` stroke="${escapeXml(text.textStroke.split(/\s+/).slice(1).join(' ') || text.color)}" stroke-width="${escapeXml(text.textStroke.split(/\s+/)[0])}" paint-order="stroke"` : '';
     const dirAttr = text.direction === 'rtl' ? ' direction="rtl" unicode-bidi="embed"' : '';
@@ -539,7 +548,7 @@ function renderNodeToFigmaSvg(
     const lineMidY = !hasMultiRuns && pillMidY !== undefined ? pillMidY : box.y + firstLineH / 2;
     const textY = Math.round((lineMidY + text.fontSize * 0.33) * 100) / 100;
     return `    <text id="${escapeXml(node.name || node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
-      cleanSvgFontFamily(text.fontFamily)
+      cleanedFam
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${wsAttr}${textStrokeAttr}${dirAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {

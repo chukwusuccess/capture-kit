@@ -871,6 +871,39 @@ function runFigmaUpgradeTests() {
     'External SVG image assets must be inlined as nested <svg> vector nodes'
   );
 
+  // Large wide display text with custom non-system fonts applies slight negative tracking so Inter fallback stays inside box.w
+  const customWideTextCap = emptyCapture({
+    url: 'https://test.figma-destination.local',
+    version: '0.2.3',
+    frame: { width: 1440, height: 400, baseURI: 'https://test.figma-destination.local/' },
+    nodes: [
+      {
+        id: 'wide-display',
+        type: 'text',
+        box: { x: 40, y: 40, w: 1360, h: 120 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: 'Our web agency has made a name for itself',
+          fontFamily: 'Steradian-Rg, sans-serif',
+          fontSize: 50,
+          fontWeight: 400,
+          lineHeight: 60,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgb(0, 0, 0)',
+        },
+      },
+    ],
+  });
+  const customWideSvg = modelToFigma(customWideTextCap).svg;
+  assert.ok(customWideSvg.includes('letter-spacing="-1.5"'), 'Expected custom wide display font to emit -1.5 letter-spacing compensation');
+
   console.log('packages/destinations/figma upgrade tests passed');
 }
 
