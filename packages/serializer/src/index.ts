@@ -559,6 +559,7 @@ async function fetchAssetBlob(url: string, timeoutMs: number): Promise<Blob> {
 }
 export interface ElementPickerOptions {
   onSelect: (el: Element) => void;
+  onMultiSelect?: (elements: Element[]) => void | Promise<void>;
   onCancel?: () => void;
   highlightColor?: string;
 }
@@ -1416,14 +1417,57 @@ function parseLayout(computed: CSSStyleDeclaration): Layout | undefined {
   };
 }
 
+const SVG_SHAPE_TAGS = new Set(['path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line']);
+const SVG_SHAPE_SELECTOR = 'path, rect, circle, ellipse, polygon, polyline, line';
+
+function findAttrWithin(el: Element, attr: string, stopAt: Element): string | undefined {
+  let cur: Element | null = el;
+  while (cur) {
+    const val = typeof cur.getAttribute === 'function' ? cur.getAttribute(attr) : null;
+    if (val) return val;
+    if (cur === stopAt) break;
+    cur = cur.parentElement;
+  }
+  return undefined;
+}
+
 function extractSvgPaths(
-  svgEl: Element
+  svgEl: Element,
+  opts?: { inheritFrom?: Element[]; fallbackColor?: string; allowDefsAncestor?: boolean }
 ): Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> {
   const paths: Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> = [];
+  const tagSelf = svgEl.tagName?.toLowerCase() ?? '';
+  const candidates: Element[] = SVG_SHAPE_TAGS.has(tagSelf)
+    ? [svgEl]
+    : typeof svgEl.querySelectorAll === 'function'
+      ? Array.from(svgEl.querySelectorAll(SVG_SHAPE_SELECTOR))
+      : [];
 
-  if (typeof svgEl.querySelectorAll !== 'function') return paths;
-  for (const child of svgEl.querySelectorAll('path, rect, circle, ellipse, polygon, polyline, line')) {
-    if (typeof child.closest === 'function' && child.closest('defs, clipPath, mask, pattern, marker')) continue;
+  let cachedColor: string | undefined | null = opts?.fallbackColor !== undefined ? opts.fallbackColor : null;
+  const resolveColor = (): string | undefined => {
+    if (cachedColor !== null) return cachedColor;
+    try {
+      const host = tagSelf === 'symbol' ? svgEl.closest?.('svg') ?? svgEl : svgEl;
+      const view = svgEl.ownerDocument?.defaultView ?? (typeof window !== 'undefined' ? window : undefined);
+      const cs = view?.getComputedStyle?.(host as Element);
+      cachedColor = cs?.color || undefined;
+    } catch {
+      cachedColor = undefined;
+    }
+    return cachedColor;
+  };
+
+  for (const child of candidates) {
+    const excludedAnc = typeof child.closest === 'function'
+      ? child.closest('defs, clipPath, mask, pattern, marker')
+      : null;
+    if (excludedAnc) {
+      const isDefs = excludedAnc.tagName?.toLowerCase() === 'defs';
+      const insideRoot = typeof svgEl.contains === 'function' && svgEl.contains(excludedAnc) && excludedAnc !== svgEl;
+      if (!isDefs || !opts?.allowDefsAncestor || insideRoot) {
+        continue;
+      }
+    }
     const tag = child.tagName.toLowerCase();
     let d = '';
 
@@ -1464,26 +1508,36 @@ function extractSvgPaths(
     }
 
     if (d) {
-      let fill = child.getAttribute('fill') || (typeof child.closest === 'function' ? child.closest('[fill]')?.getAttribute('fill') : null) || undefined;
-      let stroke = child.getAttribute('stroke') || (typeof child.closest === 'function' ? child.closest('[stroke]')?.getAttribute('stroke') : null) || undefined;
+      let fill =
+        findAttrWithin(child, 'fill', svgEl) ??
+        (!opts?.allowDefsAncestor && typeof child.closest === 'function'
+          ? child.closest('[fill]')?.getAttribute('fill') ?? undefined
+          : undefined) ??
+        opts?.inheritFrom?.map((h) => h.getAttribute?.('fill')).find(Boolean) ??
+        undefined;
+      let stroke =
+        findAttrWithin(child, 'stroke', svgEl) ??
+        (!opts?.allowDefsAncestor && typeof child.closest === 'function'
+          ? child.closest('[stroke]')?.getAttribute('stroke') ?? undefined
+          : undefined) ??
+        opts?.inheritFrom?.map((h) => h.getAttribute?.('stroke')).find(Boolean) ??
+        undefined;
       if (fill && fill.startsWith('url(')) {
         const gId = fill.match(/#([^)\s"']+)/)?.[1];
         const stop = gId ? svgEl.ownerDocument?.getElementById(gId)?.querySelector?.('stop') : null;
         fill = stop?.getAttribute?.('stop-color') || undefined;
       }
-      if (!fill || fill === 'currentColor' || fill === 'inherit' || stroke === 'currentColor' || stroke === 'inherit') {
-        try {
-          const host = svgEl.tagName?.toLowerCase() === 'symbol' ? svgEl.closest('svg') ?? svgEl : svgEl;
-          const cs = (svgEl.ownerDocument?.defaultView ?? window).getComputedStyle(host as Element);
-          if (cs?.color) {
-            if (!fill || fill === 'currentColor' || fill === 'inherit') fill = cs.color;
-            if (stroke === 'currentColor' || stroke === 'inherit') stroke = cs.color;
-          }
-        } catch {
-          // keep currentColor
-        }
+      if (!fill || fill === 'currentColor' || fill === 'inherit') {
+        const color = resolveColor();
+        if (color) fill = color;
       }
-      const sw = child.getAttribute('stroke-width');
+      if (stroke === 'currentColor' || stroke === 'inherit') {
+        const color = resolveColor();
+        if (color) stroke = color;
+      }
+      const sw =
+        findAttrWithin(child, 'stroke-width', svgEl) ??
+        opts?.inheritFrom?.map((h) => h.getAttribute?.('stroke-width')).find(Boolean);
       const strokeWidth = sw ? parseFloat(sw) : undefined;
       paths.push({ d, fill, stroke, strokeWidth });
     }
@@ -2919,31 +2973,41 @@ async function serializeSubtree(
         warning(report, 'asset_failed', 'Inline SVG bytes could not be captured.', nodeId);
       }
 
-       // Sprite <use> refs keep their shapes in a <symbol> elsewhere: query
-       // the resolved target so vector-first fires for sprite icons too.
-       const spriteTarget = (() => {
-         try {
-           const u = typeof el.querySelector === 'function' ? el.querySelector('use') : null;
-           const href = u?.getAttribute?.('href') ?? u?.getAttribute?.('xlink:href');
-           if (!u || !href) return null;
-           const fragId = decodeURIComponent(href.split('#').pop() || '');
-           return fragId ? doc.getElementById(fragId) : null;
-         } catch {
-           return null;
-         }
-       })();
-       // Clip-region rules: the symbol's own <clipPath> shapes are region
-      // geometry, not artwork — keeping them paints a solid box behind the
-      // real shapes (netlify's white rect). Match by path data.
+      // Sprite <use> refs keep their shapes in a <symbol>/<g>/<path> elsewhere:
+      // resolve every #<id> reference so vector-first fires for sprite icons too.
+      const resolvedUseRefs: Array<{ useEl: Element; refEl: Element }> = [];
+      if (typeof el.querySelectorAll === 'function') {
+        for (const useEl of el.querySelectorAll('use')) {
+          const href = useEl.getAttribute?.('href') || useEl.getAttribute?.('xlink:href') || '';
+          if (!href.startsWith('#')) continue;
+          const rawId = href.slice(1);
+          if (!rawId) continue;
+          let refEl = doc.getElementById(rawId);
+          if (!refEl && rawId.includes('%')) {
+            try {
+              refEl = doc.getElementById(decodeURIComponent(rawId));
+            } catch {
+              // ignore malformed URI escape
+            }
+          }
+          if (refEl) {
+            resolvedUseRefs.push({ useEl, refEl });
+          }
+        }
+      }
+      // Clip-region rules: <clipPath> shapes are region geometry, not artwork.
       const clipDs = (() => {
         try {
-          const scope = spriteTarget ?? el;
-          if (typeof scope.querySelectorAll !== 'function') return new Set<string>();
+          const scopes = [el, ...resolvedUseRefs.map((r) => r.refEl)];
           const out = new Set<string>();
-          for (const cp of scope.querySelectorAll('clipPath')) {
-            for (const s of (cp as Element).querySelectorAll('path, rect, circle, polygon')) {
-              const dd = (s as Element).getAttribute?.('d');
-              if (dd) out.add(dd);
+          for (const scope of scopes) {
+            if (typeof scope.querySelectorAll !== 'function') continue;
+            for (const cp of scope.querySelectorAll('clipPath')) {
+              if ((cp as Element).tagName?.toLowerCase() !== 'clippath') continue;
+              for (const s of (cp as Element).querySelectorAll('path, rect, circle, polygon')) {
+                const dd = (s as Element).getAttribute?.('d');
+                if (dd) out.add(dd);
+              }
             }
           }
           return out;
@@ -2952,28 +3016,48 @@ async function serializeSubtree(
         }
       })();
       const hasSvgImages = typeof el.querySelector === 'function' && Boolean(el.querySelector('image'));
-      const vectorPaths = extractSvgPaths(spriteTarget ?? el).filter((p) => !clipDs.has(p.d));
+      const rawPaths = [
+        ...extractSvgPaths(el, { inheritFrom: [el], fallbackColor: computed.color }),
+        ...resolvedUseRefs.flatMap(({ useEl, refEl }) => {
+          const useColorAttr = useEl.getAttribute?.('color') || (useEl as HTMLElement).style?.color;
+          let useColor = computed.color;
+          if (useColorAttr) {
+            try {
+              const ucs = defaultView.getComputedStyle(useEl);
+              if (ucs?.color) useColor = ucs.color;
+            } catch {
+              useColor = useColorAttr;
+            }
+          }
+          return extractSvgPaths(refEl, {
+            inheritFrom: [useEl, el],
+            fallbackColor: useColor,
+            allowDefsAncestor: true,
+          });
+        }),
+      ];
+      const vectorPaths = rawPaths.filter((p) => !clipDs.has(p.d));
       // Vector-first: path-bearing svgs travel as real vector data, which
       // every importer honors. The base64 asset stays as fallback for
       // shape types paths can't express (or svgs with embedded <image>).
       const vectorFirst = vectorPaths.length > 0 && !hasSvgImages;
-       // Intrinsic viewBox size: destinations scale path units into the box.
-       const vectorViewBox = (() => {
-         try {
-           // Sprite symbols rarely carry their own viewBox: fall back to the
-          // host svg's (astro puts 0 0 512 209 on the svg, not the symbol).
-          const vb = (spriteTarget ?? el).getAttribute?.('viewBox') || el.getAttribute?.('viewBox');
-           const parts = (vb || '').trim().split(/[\s,]+/);
-           if (parts.length === 4) {
-             const w = parseFloat(parts[2]);
-             const h = parseFloat(parts[3]);
-             if (w > 0 && h > 0) return { width: w, height: h };
-           }
-           return undefined;
-         } catch {
-           return undefined;
-         }
-       })();
+      // Intrinsic viewBox size: destinations scale path units into the box.
+      const vectorViewBox = (() => {
+        try {
+          const vb =
+            el.getAttribute?.('viewBox') ||
+            resolvedUseRefs.map((r) => r.refEl.getAttribute?.('viewBox')).find(Boolean);
+          const parts = (vb || '').trim().split(/[\s,]+/);
+          if (parts.length === 4) {
+            const w = parseFloat(parts[2]);
+            const h = parseFloat(parts[3]);
+            if (w > 0 && h > 0) return { width: w, height: h };
+          }
+          return undefined;
+        } catch {
+          return undefined;
+        }
+      })();
        nodes.push({
          id: nodeId,
          parentId,
@@ -3893,6 +3977,7 @@ export function startElementPicker(
   const badgeId = '__capture_kit_picker_badge';
 
   let overlay = doc.getElementById(overlayId);
+  let badgeEl: Element | null = doc.getElementById(badgeId);
   if (!overlay && doc.body) {
     overlay = doc.createElement('div');
     overlay.id = overlayId;
@@ -3918,16 +4003,37 @@ export function startElementPicker(
     badge.style.borderRadius = '3px';
     badge.style.whiteSpace = 'nowrap';
     overlay.appendChild(badge);
+    badgeEl = badge;
 
     doc.body.appendChild(overlay);
   }
 
-  const badgeEl = doc.getElementById(badgeId);
-  let currentTarget: Element | null = null;
+  badgeEl = badgeEl ?? overlay?.firstElementChild ?? null;
+  let hoveredElement: Element | null = null;
+  const selectedElements: Element[] = [];
+  const selectionOverlays: HTMLElement[] = [];
+
+  function isPickerElement(el: Element | null): boolean {
+    if (!el) return false;
+    if (overlay && (el === overlay || overlay.contains(el))) return true;
+    return selectionOverlays.some((selOverlay) => el === selOverlay || selOverlay.contains(el));
+  }
+
+  function formatElementLabel(el: Element): string {
+    const tag = el.tagName.toLowerCase();
+    const classAttr = typeof el.getAttribute === 'function' ? el.getAttribute('class') : null;
+    const classStr =
+      classAttr ??
+      (typeof (el as { className?: unknown }).className === 'string'
+        ? (el as { className: string }).className
+        : '');
+    const firstClass = classStr.trim().split(/\s+/).find(Boolean) || '';
+    return firstClass ? `${tag}.${firstClass}` : tag;
+  }
 
   function updateOverlay(el: Element) {
-    if (!overlay || el === overlay || overlay.contains(el)) return;
-    currentTarget = el;
+    if (!overlay || isPickerElement(el)) return;
+    hoveredElement = el;
     const rect = el.getBoundingClientRect();
     overlay.style.display = 'block';
     overlay.style.left = `${rect.left}px`;
@@ -3936,18 +4042,53 @@ export function startElementPicker(
     overlay.style.height = `${rect.height}px`;
 
     if (badgeEl) {
-      const tag = el.tagName.toLowerCase();
-      const idStr = el.id ? `#${el.id}` : '';
+      const label = formatElementLabel(el);
       const w = Math.round(rect.width);
       const h = Math.round(rect.height);
-      badgeEl.textContent = `${tag}${idStr} (${w}x${h})`;
+      const countSuffix = selectedElements.length ? ` (${selectedElements.length} selected)` : '';
+      badgeEl.textContent = `${label} · ${w}×${h}${countSuffix}`;
     }
+  }
+
+  function addSelectionOverlay(el: Element) {
+    if (!doc.body) return;
+    const rect = el.getBoundingClientRect();
+    const selOverlay = doc.createElement('div');
+    selOverlay.style.position = 'fixed';
+    selOverlay.style.pointerEvents = 'none';
+    selOverlay.style.zIndex = '2147483646';
+    selOverlay.style.border = '2px solid #10b981';
+    selOverlay.style.background = 'rgba(16,185,129,0.12)';
+    selOverlay.style.left = `${rect.left}px`;
+    selOverlay.style.top = `${rect.top}px`;
+    selOverlay.style.width = `${rect.width}px`;
+    selOverlay.style.height = `${rect.height}px`;
+    doc.body.appendChild(selOverlay);
+    selectionOverlays.push(selOverlay);
+  }
+
+  function finishMultiSelect() {
+    const picked = [...selectedElements];
+    cleanup();
+    if (options.onMultiSelect) {
+      void options.onMultiSelect(picked);
+    } else {
+      options.onSelect(picked[0]);
+    }
+  }
+
+  function findFirstChildElement(el: Element | null): Element | null {
+    let child = el?.firstElementChild ?? null;
+    while (child && isPickerElement(child)) {
+      child = child.nextElementSibling;
+    }
+    return child;
   }
 
   function handleMouseMove(e: MouseEvent) {
     if (typeof doc.elementFromPoint !== 'function') return;
     const el = doc.elementFromPoint(e.clientX, e.clientY);
-    if (el && el !== overlay && !overlay?.contains(el)) {
+    if (el && !isPickerElement(el)) {
       updateOverlay(el);
     }
   }
@@ -3955,16 +4096,50 @@ export function startElementPicker(
   function handleClick(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (currentTarget) {
-      cleanup();
-      options.onSelect(currentTarget);
+    if (!hoveredElement) return;
+
+    if (e.shiftKey) {
+      if (!selectedElements.includes(hoveredElement)) {
+        selectedElements.push(hoveredElement);
+        addSelectionOverlay(hoveredElement);
+      }
+      updateOverlay(hoveredElement);
+      return;
     }
+
+    if (selectedElements.length > 0) {
+      if (!selectedElements.includes(hoveredElement)) {
+        selectedElements.push(hoveredElement);
+      }
+      finishMultiSelect();
+      return;
+    }
+
+    const target = hoveredElement;
+    cleanup();
+    options.onSelect(target);
   }
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       cleanup();
       options.onCancel?.();
+    } else if (e.key === 'ArrowUp') {
+      if (hoveredElement?.parentElement && hoveredElement.parentElement !== doc.documentElement) {
+        e.preventDefault();
+        updateOverlay(hoveredElement.parentElement);
+      }
+    } else if (e.key === 'ArrowDown') {
+      const child = findFirstChildElement(hoveredElement);
+      if (child) {
+        e.preventDefault();
+        updateOverlay(child);
+      }
+    } else if (e.key === 'Enter') {
+      if (selectedElements.length > 0) {
+        e.preventDefault();
+        finishMultiSelect();
+      }
     }
   }
 
@@ -3975,6 +4150,14 @@ export function startElementPicker(
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
     }
+    for (const selOverlay of selectionOverlays) {
+      if (selOverlay.parentNode) {
+        selOverlay.parentNode.removeChild(selOverlay);
+      }
+    }
+    selectionOverlays.length = 0;
+    selectedElements.length = 0;
+    hoveredElement = null;
   }
 
   doc.addEventListener('mousemove', handleMouseMove as EventListener, true);
