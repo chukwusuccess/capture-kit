@@ -490,6 +490,118 @@ function runFigmaUpgradeTests() {
     'Small blur (< 12px) must still use fx- filter'
   );
 
+  // Upgrade 5: Design System / Brand Kit Frame with Hex Codes, Gradient Swatches, and clean font-family
+  const dsCapture: Capture = {
+    ...baseCapture,
+    frame: {
+      ...baseCapture.frame,
+      background: 'rgb(15, 23, 42)',
+    },
+    nodes: [
+      {
+        id: 'ds-alpha-card',
+        type: 'rect',
+        box: { x: 40, y: 40, w: 300, h: 120 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(56, 189, 248, 0.8)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 12 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'ds-grad-banner',
+        type: 'rect',
+        box: { x: 40, y: 200, w: 400, h: 100 },
+        style: {
+          fills: [
+            {
+              type: 'gradient',
+              gradientType: 'linear',
+              angle: 90,
+              stops: [
+                { color: 'rgb(99, 102, 241)', position: 0 },
+                { color: 'rgba(56, 189, 248, 0.8)', position: 1 },
+              ],
+            },
+          ],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 16, topRight: 16, bottomRight: 16, bottomLeft: 16 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'ds-grad-banner-dup',
+        type: 'rect',
+        box: { x: 40, y: 320, w: 400, h: 100 },
+        style: {
+          fills: [
+            {
+              type: 'gradient',
+              gradientType: 'linear',
+              angle: 90,
+              stops: [
+                { color: 'rgb(99, 102, 241)', position: 0 },
+                { color: 'rgba(56, 189, 248, 0.8)', position: 1 },
+              ],
+            },
+          ],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 16, topRight: 16, bottomRight: 16, bottomLeft: 16 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'ds-heading-text',
+        type: 'text',
+        box: { x: 60, y: 60, w: 260, h: 40 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: 'Brand Kit Specimen',
+          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+          fontSize: 24,
+          fontWeight: 700,
+          lineHeight: 32,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgb(248, 250, 252)',
+        },
+      },
+    ],
+  };
+
+  const dsSvg = modelToFigma(dsCapture, { includeDesignSystem: true }).svg;
+  assert.ok(
+    dsSvg.includes('#0F172A') && dsSvg.includes('#38BDF8 · 80%'),
+    'Design System swatch cards must display uppercase #HEX labels with alpha percentage when alpha < 1'
+  );
+  assert.ok(
+    dsSvg.includes('<linearGradient id="ds-grad-0" x1="0%" y1="0%" x2="100%" y2="0%">') &&
+      dsSvg.includes('fill="url(#ds-grad-0)"'),
+    'Design System must emit ds-grad- linearGradient defs and gradient pill swatches'
+  );
+  assert.ok(
+    !dsSvg.includes('ds-grad-1'),
+    'Duplicate gradients must be deduplicated in Design System frame'
+  );
+  assert.ok(
+    dsSvg.includes('GRADIENTS') && dsSvg.includes('#6366F1 → #38BDF8 · 80%'),
+    'Design System GRADIENTS section must display stop hex labels (#START → #END)'
+  );
+  assert.ok(
+    dsSvg.includes('font-family="Inter" font-size="24" font-weight="700" fill="#f8fafc">Brand Kit Specimen</text>'),
+    'Design System typography specimen must resolve font-family using cleanSvgFontFamily'
+  );
+
   console.log('packages/destinations/figma upgrade tests passed');
 }
 
