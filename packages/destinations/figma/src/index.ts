@@ -35,6 +35,29 @@ function formatSvgStop(color: string, offsetPct: number): string {
   const opAttr = alpha < 1 ? ` stop-opacity="${alpha}"` : '';
   return `      <stop offset="${offsetPct}%" stop-color="${escapeXml(rgbColor)}"${opAttr} />`;
 }
+function cleanSvgFontFamily(fontFamily: string): string {
+  const candidates = (fontFamily || 'Inter')
+    .split(',')
+    .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean);
+  for (const name of candidates) {
+    const low = name.toLowerCase();
+    if (low === 'ui-sans-serif' || low === 'system-ui' || low === '-apple-system' || low === 'blinkmacsystemfont' || low === 'sans-serif' || low === 'segoe ui' || low === 'helvetica' || low === 'helvetica neue' || low === 'arial') {
+      return 'Inter';
+    }
+    if (low === 'ui-monospace' || low === 'sfmono-regular' || low === 'menlo' || low === 'monaco' || low === 'consolas' || low === 'monospace' || low === 'courier' || low === 'courier new') {
+      return 'Roboto Mono';
+    }
+    if (low === 'ui-serif' || low === 'serif' || low === 'times' || low === 'times new roman' || low === 'georgia') {
+      return 'Georgia';
+    }
+    if (!low.includes('emoji') && !low.includes('symbol')) {
+      return name;
+    }
+  }
+  return 'Inter';
+}
+
 function applyTextTransform(str: string, tt?: string): string {
   if (tt === 'uppercase') return str.toUpperCase();
   if (tt === 'lowercase') return str.toLowerCase();
@@ -332,7 +355,7 @@ function renderNodeToFigmaSvg(
     const lineMidY = !hasMultiRuns && pillMidY !== undefined ? pillMidY : box.y + firstLineH / 2;
     const textY = Math.round((lineMidY + text.fontSize * 0.33) * 100) / 100;
     return `    <text id="${escapeXml(node.name || node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
-      text.fontFamily
+      cleanSvgFontFamily(text.fontFamily)
     )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${wsAttr}${textStrokeAttr}${dirAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
@@ -388,12 +411,21 @@ function renderNodeToFigmaSvg(
     if (firstSolid?.color) {
       layers.push(`    <rect id="${escapeXml(node.id)}-base" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${escapeXml(firstSolid.color)}"${rx}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
     }
-    gradFills.forEach((_, gIdx) => {
+    if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {
+      const asset = assets[imageFill.assetRef];
+      const dataUri = `data:${asset.mimeType};base64,${asset.base64}`;
+      const { par: bgPar, tile } = backgroundPreserveAspectRatio(style);
+      const align = backgroundPositionAlign(style.backgroundPosition);
+      const meetSlice = bgPar.includes('meet') ? 'meet' : bgPar.includes('none') ? 'none' : 'slice';
+      const par = tile !== 'none' ? `xMidYMid ${meetSlice}` : `${align.x}${align.y} ${meetSlice}`;
+      layers.push(`    <image id="${escapeXml(node.id)}-img" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" xlink:href="${dataUri}" href="${dataUri}" preserveAspectRatio="${par}"${opacityAttr}${rx}${transformAttr}${filterAttr}${leafClipAttr} />`);
+    }
+    for (let gIdx = gradFills.length - 1; gIdx >= 0; gIdx--) {
       const gradId = gIdx === 0 ? `grad-${escapeXml(node.id)}` : `grad-${escapeXml(node.id)}-${gIdx}`;
       const idAttr = gIdx === 0 && !firstSolid?.color ? ` id="${escapeXml(node.id)}"` : ` id="${escapeXml(node.id)}-grad-${gIdx}"`;
-      const sAttr = gIdx === gradFills.length - 1 ? strokeAttrs : '';
+      const sAttr = gIdx === 0 ? strokeAttrs : '';
       layers.push(`    <rect${idAttr} x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="url(#${gradId})"${rx}${sAttr}${opacityAttr}${transformAttr}${filterAttr}${maskAttr}${leafClipAttr} />`);
-    });
+    }
     return layers.join('\n');
   }
   if (imageFill && imageFill.assetRef && assets[imageFill.assetRef]) {

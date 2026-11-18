@@ -3746,10 +3746,10 @@ export async function serializeDocument(
   const totalStart = nowMs();
   const effectiveOpts: SerializeOptions | undefined = opts?.fastMode
     ? {
-        readinessBudgetMs: 500,
-        assetTimeoutMs: 500,
+        readinessBudgetMs: 2500,
+        assetTimeoutMs: 1500,
         fontTimeoutMs: 50,
-        imageOptions: { timeoutMs: 250, totalTimeoutMs: 400 },
+        imageOptions: { timeoutMs: 300, totalTimeoutMs: 500 },
         ...opts,
       }
     : opts;
@@ -3812,10 +3812,10 @@ export async function serializeElement(
   const totalStart = nowMs();
   const effectiveOpts: SerializeOptions | undefined = opts?.fastMode
     ? {
-        readinessBudgetMs: 500,
-        assetTimeoutMs: 500,
+        readinessBudgetMs: 2500,
+        assetTimeoutMs: 1500,
         fontTimeoutMs: 50,
-        imageOptions: { timeoutMs: 250, totalTimeoutMs: 400 },
+        imageOptions: { timeoutMs: 300, totalTimeoutMs: 500 },
         ...opts,
       }
     : opts;
