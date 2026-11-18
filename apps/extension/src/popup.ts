@@ -37,7 +37,7 @@ let siteUrls: string[] = [];
 let siteOrigin = '';
 let currentUrl = '';
 let currentTabId = 0;
-let browserWidth = 0;
+let browserWidth = 1440;
 let discovered = false;
 let latestCaptures: Capture[] = [];
 let runBusy = false;
@@ -54,22 +54,32 @@ const $ = <T extends HTMLElement>(sel: string): T | null => document.querySelect
 const captureBtn = $<HTMLButtonElement>('#capture-btn');
 const captureTitle = $('#capture-title');
 const captureSub = $('#capture-sub');
+const scopeFullBtn = $<HTMLButtonElement>('#scope-full-btn');
 const pickBtn = $<HTMLButtonElement>('#pick-btn');
 const figmaBtn = $<HTMLButtonElement>('#figma-btn');
 const statusEl = $('#status');
 const statusText = $('#status-text');
 const siteLine = $('#site-line');
+const currentPathLine = $('#current-path-line');
+const pagesToggleBtn = $<HTMLButtonElement>('#pages-toggle-btn');
+const pagesCountLabel = $('#pages-count-label');
+const pagesDrawer = $('#pages-drawer');
 const currentW = $('#current-w');
 const sizesTally = $('#sizes-tally');
 const optScrollStitch = $<HTMLInputElement>('#opt-scroll-stitch');
 const optDesignSystem = $<HTMLInputElement>('#opt-design-system');
 const optDualTheme = $<HTMLInputElement>('#opt-dual-theme');
 const optDelay3s = $<HTMLInputElement>('#opt-delay-3s');
+const optScrollStitchState = $('#opt-scroll-stitch-state');
+const optDesignSystemState = $('#opt-design-system-state');
+const optDualThemeState = $('#opt-dual-theme-state');
+const optDelay3sState = $('#opt-delay-3s-state');
 const nativeHelp = $('#native-help');
 const progressWrap = $('#progress-wrap');
 const progressFill = $('#progress-fill');
 const progressPct = $('#progress-pct');
 const cancelBtn = $<HTMLButtonElement>('#cancel-btn');
+const sessionsPanel = $('#sessions-panel');
 const sessionsList = $('#sessions-list');
 const sessionsEmpty = $('#sessions-empty');
 const sessionFeedback = $('#session-feedback');
@@ -81,6 +91,16 @@ const selectAllPages = $<HTMLButtonElement>('#sel-all');
 const selectNoPages = $<HTMLButtonElement>('#sel-none');
 const sizeButtons = [...document.querySelectorAll<HTMLButtonElement>('.size')];
 const formatRadios = [...document.querySelectorAll<HTMLInputElement>('input[name="format"]')];
+
+const FORMAT_LABELS: Record<string, string> = {
+  figma: 'Figma',
+  sketch: 'Sketch',
+  react: 'React TSX',
+  md: 'Markdown',
+  svg: 'SVG',
+  html: 'HTML',
+  json: 'JSON',
+};
 
 function getFormat(): string {
   return formatRadios.find((r) => r.checked)?.value ?? 'figma';
@@ -202,6 +222,17 @@ function renderPages(): void {
   syncUI();
 }
 
+function syncOptionCard(
+  input: HTMLInputElement | null,
+  stateEl: HTMLElement | null,
+  onLabel: string,
+  offLabel: string
+): void {
+  const checked = Boolean(input?.checked);
+  if (stateEl) stateEl.textContent = checked ? onLabel : offLabel;
+  input?.closest('.opt')?.classList.toggle('is-on', checked);
+}
+
 // Update checkbox/count state in place so keyboard focus survives.
 function syncUI(): void {
   for (const section of pageGroups?.querySelectorAll<HTMLElement>('.grp') ?? []) {
@@ -222,10 +253,23 @@ function syncUI(): void {
   }
 
   for (const b of sizeButtons) {
-    if (b.dataset.size === 'current' && currentW) currentW.textContent = browserWidth ? String(browserWidth) : '—';
+    if (b.dataset.size === 'current' && currentW) currentW.textContent = browserWidth ? String(browserWidth) : '1440';
   }
   const widths = pickedWidths();
-  if (sizesTally) sizesTally.textContent = widths.length ? `${widths.join(', ')} px` : 'None selected';
+  if (sizesTally) sizesTally.textContent = `${widths.length} selected`;
+
+  const rawPath = currentUrl ? pagePath(currentUrl) : '/';
+  if (currentPathLine) currentPathLine.textContent = rawPath === '/' ? '/ Home' : rawPath;
+
+  const totalPages = siteUrls.length || 1;
+  const pickedCount = siteUrls.length > 0 ? pickedUrls().length : 1;
+  const arrow = pagesDrawer && !pagesDrawer.hidden ? '▴' : '▾';
+  if (pagesCountLabel) pagesCountLabel.textContent = `${pickedCount} of ${totalPages} ${arrow}`;
+
+  syncOptionCard(optDelay3s, optDelay3sState, '3s', 'Off');
+  syncOptionCard(optDesignSystem, optDesignSystemState, 'On', 'Off');
+  syncOptionCard(optScrollStitch, optScrollStitchState, 'On', 'Off');
+  syncOptionCard(optDualTheme, optDualThemeState, 'On', 'Off');
 
   updateCaptureButton();
 }
@@ -233,27 +277,43 @@ function syncUI(): void {
 function updateFormatHelp(): void {
   if (nativeHelp) nativeHelp.hidden = getFormat() !== 'figma-native';
 }
+
 function updateCaptureButton(): void {
   if (!captureBtn || !captureTitle || !captureSub) return;
-  const pages = pickedUrls().length;
+  const pages = siteUrls.length > 0 ? pickedUrls().length : 1;
   const sizes = pickedWidths().length;
-  const frames = pages * sizes;
+  const fmt = getFormat();
+  const fmtLabel = FORMAT_LABELS[fmt] ?? fmt.toUpperCase();
+  const hasBrandKit = Boolean(optDesignSystem?.checked);
+  const totalFrames = pages * sizes + (hasBrandKit && (fmt === 'figma' || fmt === 'sketch') ? 1 : 0);
 
-  captureTitle.textContent =
-    sizes > 1 ? `Copy ${plural(pages, 'page')} × ${sizes} sizes` : `Copy ${plural(pages, 'page')}`;
+  if (fmt === 'figma' || fmt === 'sketch' || fmt === 'svg' || fmt === 'html') {
+    captureTitle.textContent = `Copy ${plural(totalFrames, 'frame')} to ${fmtLabel}`;
+  } else {
+    captureTitle.textContent = `Copy to ${fmtLabel}`;
+  }
+
   let sub = '';
-  if (!discovered && siteUrls.length === 0) sub = 'Finding pages…';
-  else if (pages === 0) sub = 'Tick at least one page';
-  else if (sizes === 0) sub = 'Pick at least one size';
-  else if (sizes > MAX_SIZES) sub = `Up to ${MAX_SIZES} sizes per run`;
-  else if (getFormat() === 'figma') sub = `${plural(frames, 'frame')}, copied to clipboard for Figma (Cmd+V)`;
-  else if (getFormat() === 'sketch') sub = `${plural(frames, 'frame')}, copied to clipboard for Sketch (Cmd+V)`;
-  else if (getFormat() === 'react') sub = `${plural(frames, 'component')}, copied to clipboard as React TSX`;
-  else if (getFormat() === 'md') sub = `${plural(frames, 'spec')}, copied to clipboard as Markdown`;
-  else sub = `${plural(frames, 'frame')}, copied to clipboard as ${getFormat().toUpperCase()}`;
+  if (pages === 0) sub = 'Tick at least one page';
+  else if (sizes === 0) sub = 'Pick at least one viewport';
+  else if (sizes > MAX_SIZES) sub = `Up to ${MAX_SIZES} viewports per run`;
+  else {
+    const pagePrefix = pages > 1 ? `${plural(pages, 'page')} · ` : '';
+    sub = `${pagePrefix}${plural(sizes, 'viewport')}${hasBrandKit ? ' + brand kit' : ''}`;
+  }
 
   captureSub.textContent = sub;
-  captureBtn.disabled = runBusy || frames === 0 || pages > MAX_PAGES || sizes > MAX_SIZES;
+  captureBtn.disabled = runBusy || pages === 0 || sizes === 0 || pages > MAX_PAGES || sizes > MAX_SIZES;
+
+  if (
+    statusEl &&
+    !statusEl.classList.contains('busy') &&
+    !statusEl.classList.contains('ok') &&
+    !statusEl.classList.contains('error') &&
+    (!progressWrap || progressWrap.hidden)
+  ) {
+    setStatus(`Then paste into ${fmtLabel} with Cmd V`, 'idle');
+  }
 }
 
 function setSelected(urls: string[], on: boolean): void {
@@ -316,7 +376,6 @@ async function queryActiveTab(): Promise<{ id?: number; url?: string; width?: nu
 async function loadTabInfo(): Promise<void> {
   const tab = await queryActiveTab();
   if (!tab?.url) {
-    if (siteLine) siteLine.textContent = 'Open a website to capture it';
     return;
   }
   try {
@@ -326,8 +385,12 @@ async function loadTabInfo(): Promise<void> {
     siteOrigin = u.origin;
     currentUrl = u.origin + u.pathname + u.search;
     if (siteLine) siteLine.textContent = u.hostname;
+    if (siteUrls.length === 0) {
+      siteUrls = [currentUrl];
+      selected.add(currentUrl);
+    }
   } catch {
-    if (siteLine) siteLine.textContent = 'Open a website to capture it';
+    // Keep default hostname preview when opened outside a web tab
   }
   if (typeof tab.width === 'number') browserWidth = tab.width;
 }
@@ -451,7 +514,7 @@ async function discoverSite(): Promise<void> {
       await restoreSelection();
       collapseBigGroups();
       if (siteLine && siteOrigin) {
-        siteLine.textContent = `${plural(siteUrls.length, 'page')} on ${new URL(siteOrigin).hostname}`;
+        siteLine.textContent = new URL(siteOrigin).hostname;
       }
       renderPages();
     }
@@ -481,7 +544,7 @@ async function discoverSite(): Promise<void> {
   discovered = true;
   for (const url of [...selected]) if (!siteUrls.includes(url)) selected.delete(url);
   if (siteLine && siteOrigin) {
-    siteLine.textContent = `${plural(siteUrls.length, 'page')} on ${new URL(siteOrigin).hostname}`;
+    siteLine.textContent = new URL(siteOrigin).hostname;
   }
   renderPages();
   pageGroups?.querySelector('.here')?.scrollIntoView({ block: 'center' });
@@ -678,6 +741,7 @@ function sessionActionButton(session: CaptureSession, action: string, label: str
 
 function renderSessions(records: CaptureSession[]): void {
   knownSessions = records;
+  if (sessionsPanel) sessionsPanel.hidden = records.length === 0;
   sessionsList?.replaceChildren();
   if (sessionsEmpty) sessionsEmpty.hidden = records.length > 0;
   const active = records.find(isSessionActive);
@@ -1069,7 +1133,21 @@ async function startInstantPick(): Promise<void> {
   }
 }
 
+pagesToggleBtn?.addEventListener('click', () => {
+  if (!pagesDrawer) return;
+  pagesDrawer.hidden = !pagesDrawer.hidden;
+  pagesToggleBtn.setAttribute('aria-expanded', String(!pagesDrawer.hidden));
+  syncUI();
+});
+
+scopeFullBtn?.addEventListener('click', () => {
+  scopeFullBtn.setAttribute('aria-pressed', 'true');
+  pickBtn?.setAttribute('aria-pressed', 'false');
+});
+
 pickBtn?.addEventListener('click', () => {
+  scopeFullBtn?.setAttribute('aria-pressed', 'false');
+  pickBtn.setAttribute('aria-pressed', 'true');
   void startInstantPick();
 });
 
@@ -1129,10 +1207,15 @@ chrome.storage?.onChanged?.addListener((changes, areaName) => {
   }
 });
 
-optScrollStitch?.addEventListener('change', saveSettings);
-optDesignSystem?.addEventListener('change', saveSettings);
-optDualTheme?.addEventListener('change', saveSettings);
-optDelay3s?.addEventListener('change', saveSettings);
+const onOptionChange = (): void => {
+  syncUI();
+  saveSettings();
+};
+
+optScrollStitch?.addEventListener('change', onOptionChange);
+optDesignSystem?.addEventListener('change', onOptionChange);
+optDualTheme?.addEventListener('change', onOptionChange);
+optDelay3s?.addEventListener('change', onOptionChange);
 
 void refreshSessions().catch((error: unknown) => {
   const text = error instanceof Error ? error.message : String(error);
