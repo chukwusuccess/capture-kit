@@ -414,7 +414,7 @@ function eagerLoadImages(root: Document | Element, doc: Document): boolean {
       }
     }
     const existingSrc = img.getAttribute?.('src') || '';
-    const isPlaceholder = !existingSrc || /^data:image\/(gif|svg\+xml)/i.test(existingSrc);
+    const isPlaceholder = !existingSrc || isLazyPlaceholderUri(existingSrc);
     if (isPlaceholder) {
       const lazySrc = img.getAttribute?.('data-src') || img.getAttribute?.('data-lazy-src');
       if (lazySrc) {
@@ -686,29 +686,71 @@ function dataUriToAsset(uri: string): { mimeType: string; base64: string } | nul
     return null;
   }
 }
-function resolveHighestDpiSrc(img: HTMLImageElement): string {
-  if (img.currentSrc) return img.currentSrc;
-  const srcset = img.getAttribute('srcset');
-  if (srcset) {
-    const candidates = srcset.split(',').map((s) => s.trim().split(/\s+/));
-    let bestUrl = '';
-    let bestDensity = 0;
-    for (const [candUrl, descriptor] of candidates) {
-      if (!candUrl) continue;
-      let density = 1;
-      if (descriptor?.endsWith('x')) {
-        density = parseFloat(descriptor) || 1;
-      } else if (descriptor?.endsWith('w')) {
-        density = (parseFloat(descriptor) || 800) / 400;
-      }
-      if (density > bestDensity) {
-        bestDensity = density;
-        bestUrl = candUrl;
-      }
+function getRuntimeSendMessage(
+  defaultView: (Window & typeof globalThis) | null | undefined
+): ((msg: unknown) => Promise<unknown>) | null {
+  const candidates: unknown[] = [
+    defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined,
+    typeof globalThis !== 'undefined' && 'chrome' in globalThis ? (globalThis as { chrome?: unknown }).chrome : undefined,
+  ];
+  for (const rawChrome of candidates) {
+    const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
+    if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof (runtime as { sendMessage?: unknown }).sendMessage === 'function') {
+      const rt = runtime as { sendMessage: (m: unknown) => unknown };
+      return (msg: unknown) => Promise.resolve(rt.sendMessage(msg));
     }
-    if (bestUrl) return bestUrl;
   }
-  return img.src || img.getAttribute('src') || '';
+  return null;
+}
+
+function isLazyPlaceholderUri(uri: string | null | undefined): boolean {
+  return Boolean(uri && /^data:image\/(gif|svg\+xml)/i.test(uri.trim()));
+}
+
+function pickBestSrcsetCandidate(srcset: string | null | undefined): string {
+  if (!srcset) return '';
+  const candidates = srcset.split(',').map((s) => s.trim().split(/\s+/));
+  let bestUrl = '';
+  let bestDensity = 0;
+  for (const [candUrl, descriptor] of candidates) {
+    if (!candUrl || isLazyPlaceholderUri(candUrl)) continue;
+    let density = 1;
+    if (descriptor?.endsWith('x')) {
+      density = parseFloat(descriptor) || 1;
+    } else if (descriptor?.endsWith('w')) {
+      density = (parseFloat(descriptor) || 800) / 400;
+    }
+    if (density > bestDensity) {
+      bestDensity = density;
+      bestUrl = candUrl;
+    }
+  }
+  return bestUrl;
+}
+
+function resolveHighestDpiSrc(img: HTMLImageElement): string {
+  const currentSrc = img.currentSrc || '';
+  if (currentSrc && !isLazyPlaceholderUri(currentSrc)) return currentSrc;
+
+  const srcsetUrl = pickBestSrcsetCandidate(img.getAttribute?.('srcset'));
+  if (srcsetUrl) return srcsetUrl;
+
+  const lazySrcsetUrl = pickBestSrcsetCandidate(
+    img.getAttribute?.('data-srcset') || img.getAttribute?.('data-lazy-srcset')
+  );
+  if (lazySrcsetUrl) return lazySrcsetUrl;
+
+  const srcAttr = img.getAttribute?.('src') || '';
+  const domSrc = img.src || '';
+  if (!srcAttr || isLazyPlaceholderUri(srcAttr)) {
+    const lazySrc = img.getAttribute?.('data-src') || img.getAttribute?.('data-lazy-src') || '';
+    if (lazySrc && !isLazyPlaceholderUri(lazySrc)) return lazySrc;
+  }
+
+  if (domSrc && !isLazyPlaceholderUri(domSrc)) return domSrc;
+  if (srcAttr && !isLazyPlaceholderUri(srcAttr)) return srcAttr;
+
+  return currentSrc || domSrc || srcAttr || '';
 }
 // Deterministic subpixel boxes: 1341.333px renders identically to 1341.33px
 // at any real zoom, but long float tails make exports non-repeatable.
@@ -2272,6 +2314,9 @@ async function serializeSubtree(
   let assetBytes = 0;
   let assetsStart = 0;
   let assetsEnd = 0;
+  const sendRuntimeMessage = getRuntimeSendMessage(defaultView);
+  const hasRuntimeBridge = sendRuntimeMessage !== null;
+
   const activeAssetPromises: Promise<void>[] = [];
   const runAssetWorker = async () => {
     try {
@@ -2293,13 +2338,12 @@ async function serializeSubtree(
           assetBytes += buffer.byteLength;
         } catch (error) {
           failure = error;
-          const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
-          const runtime = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
-          if (runtime && typeof runtime === 'object' && 'sendMessage' in runtime && typeof runtime.sendMessage === 'function') {
+          if (sendRuntimeMessage) {
             try {
               const remBg = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
+              if (remBg <= 0) throw new CaptureTimeout('Readiness budget exhausted');
               const fbStart = nowMs();
-              const bg = (await withTimeout(Promise.resolve(runtime.sendMessage({ action: 'fetch-asset', url })), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+              const bg = (await withTimeout(sendRuntimeMessage({ action: 'fetch-asset', url, maxWidth }), remBg)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
               fetchBridgeMs += nowMs() - fbStart;
               if (bg?.success && bg.base64) {
                 let mimeType = bg.mimeType || 'image/png';
@@ -2319,8 +2363,8 @@ async function serializeSubtree(
                 assetsFetched++;
                 assetBytes += byteLen;
               }
-            } catch (error) {
-              failure = error;
+            } catch (bridgeError) {
+              failure = bridgeError;
             }
           }
         }
@@ -2336,14 +2380,6 @@ async function serializeSubtree(
       assetsEnd = nowMs();
     }
   };
-  const rawChrome: unknown = defaultView && 'chrome' in defaultView ? defaultView.chrome : undefined;
-  const runtimeBridge = rawChrome && typeof rawChrome === 'object' && 'runtime' in rawChrome ? rawChrome.runtime : undefined;
-  const sendRuntimeMessage = (
-    runtimeBridge && typeof runtimeBridge === 'object' && 'sendMessage' in runtimeBridge && typeof runtimeBridge.sendMessage === 'function'
-      ? (runtimeBridge.sendMessage as (msg: unknown) => Promise<unknown>)
-      : null
-  );
-  const hasRuntimeBridge = sendRuntimeMessage !== null;
 
   const pendingRectCaptures: Array<{
     box: { x: number; y: number; w: number; h: number };
@@ -3617,9 +3653,11 @@ async function serializeSubtree(
           if (sendRuntimeMessage) {
             try {
               const rem = Math.min(assetTimeoutMs, Math.max(0, readinessDeadline - Date.now()));
-              const bg = (await withTimeout(Promise.resolve(sendRuntimeMessage({ action: 'fetch-asset', url: u.resolved })), rem)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
-              if (bg?.success && bg.base64) {
-                dataUrl = `data:${bg.mimeType || 'image/png'};base64,${bg.base64}`;
+              if (rem > 0) {
+                const bg = (await withTimeout(sendRuntimeMessage({ action: 'fetch-asset', url: u.resolved }), rem)) as { success?: boolean; mimeType?: string; base64?: string } | undefined;
+                if (bg?.success && bg.base64) {
+                  dataUrl = `data:${bg.mimeType || 'image/png'};base64,${bg.base64}`;
+                }
               }
             } catch {
               // ignore
@@ -3738,21 +3776,25 @@ async function serializeSubtree(
   return capture;
 }
 
+function resolveFastModeOpts(opts?: SerializeOptions): SerializeOptions | undefined {
+  return opts?.fastMode
+    ? {
+        readinessBudgetMs: 3000,
+        assetTimeoutMs: 1200,
+        fontTimeoutMs: 50,
+        imageOptions: { timeoutMs: 300, totalTimeoutMs: 500 },
+        ...opts,
+      }
+    : opts;
+}
+
 export async function serializeDocument(
   doc: Document,
   opts?: SerializeOptions
 ): Promise<Capture> {
   const defaultView = doc.defaultView ?? window;
   const totalStart = nowMs();
-  const effectiveOpts: SerializeOptions | undefined = opts?.fastMode
-    ? {
-        readinessBudgetMs: 2500,
-        assetTimeoutMs: 1500,
-        fontTimeoutMs: 50,
-        imageOptions: { timeoutMs: 300, totalTimeoutMs: 500 },
-        ...opts,
-      }
-    : opts;
+  const effectiveOpts = resolveFastModeOpts(opts);
   const wantTimings = Boolean(effectiveOpts?.onTiming || effectiveOpts?.collectTimings);
   const readinessDeadline = Date.now() + boundedNumber(effectiveOpts?.readinessBudgetMs, 4000);
 
@@ -3810,15 +3852,7 @@ export async function serializeElement(
   opts?: SerializeOptions
 ): Promise<Capture> {
   const totalStart = nowMs();
-  const effectiveOpts: SerializeOptions | undefined = opts?.fastMode
-    ? {
-        readinessBudgetMs: 2500,
-        assetTimeoutMs: 1500,
-        fontTimeoutMs: 50,
-        imageOptions: { timeoutMs: 300, totalTimeoutMs: 500 },
-        ...opts,
-      }
-    : opts;
+  const effectiveOpts = resolveFastModeOpts(opts);
   const wantTimings = Boolean(effectiveOpts?.onTiming || effectiveOpts?.collectTimings);
   const readinessDeadline = Date.now() + boundedNumber(effectiveOpts?.readinessBudgetMs, 4000);
   const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : (null as unknown as Document));
