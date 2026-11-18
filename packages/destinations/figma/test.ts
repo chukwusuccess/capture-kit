@@ -838,6 +838,39 @@ function runFigmaUpgradeTests() {
     'Expected 0px 1px gradient underline to not paint a black fill or gradient'
   );
 
+  // External .svg <img> assets must be inlined as nested <svg> vectors for Figma
+  const eyeSvgB64 = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 157 120"><circle cx="78" cy="60" r="30" fill="#18181b"/></svg>', 'utf8').toString('base64');
+  const svgImgCap = emptyCapture({
+    url: 'https://test.figma-destination.local',
+    version: '0.2.3',
+    frame: { width: 400, height: 300, baseURI: 'https://test.figma-destination.local/' },
+    nodes: [
+      {
+        id: 'eye-img',
+        type: 'image',
+        box: { x: 40, y: 50, w: 157, h: 120 },
+        assetRef: 'svg-eye',
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+    ],
+    assets: {
+      'svg-eye': { kind: 'image', mimeType: 'image/svg+xml', base64: eyeSvgB64 },
+    },
+  });
+  const svgImgOut = modelToFigma(svgImgCap).svg;
+  assert.ok(
+    svgImgOut.includes('<svg id="eye-img" x="40" y="50" width="157" height="120" viewBox="0 0 157 120"') &&
+      svgImgOut.includes('<circle cx="78" cy="60" r="30" fill="#18181b"/>') &&
+      !svgImgOut.includes('data:image/svg+xml'),
+    'External SVG image assets must be inlined as nested <svg> vector nodes'
+  );
+
   console.log('packages/destinations/figma upgrade tests passed');
 }
 
