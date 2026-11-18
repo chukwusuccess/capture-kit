@@ -506,11 +506,19 @@ function renderNodeToFigmaSvg(
     const cleanedFam = cleanSvgFontFamily(text.fontFamily);
     const standardFonts = new Set(['Inter', 'Roboto Mono', 'Georgia']);
     const isCustomFont = !standardFonts.has(cleanedFam);
+    const longestLineLen = effectiveRuns && effectiveRuns.length > 0
+      ? Math.max(...effectiveRuns.map((r) => r.text.length))
+      : text.content.length;
+    const estInterW = longestLineLen * text.fontSize * 0.53;
+    const renderFontSize =
+      isCustomFont && box.w >= 200 && text.fontSize >= 20 && estInterW > box.w * 0.96
+        ? Math.round(text.fontSize * Math.max(0.84, (box.w * 0.95) / estInterW) * 10) / 10
+        : text.fontSize;
     const effectiveLs =
       typeof text.letterSpacing === 'number' && text.letterSpacing !== 0
         ? text.letterSpacing
         : isCustomFont && text.fontSize >= 24 && box.w >= 400
-        ? -Math.round(text.fontSize * 0.03 * 100) / 100
+        ? -Math.round(renderFontSize * 0.03 * 100) / 100
         : 0;
     const lsAttr = effectiveLs !== 0 ? ` letter-spacing="${effectiveLs}"` : '';
     const wsAttr = typeof text.wordSpacing === 'number' && text.wordSpacing !== 0 ? ` word-spacing="${text.wordSpacing}"` : typeof text.wordSpacing === 'string' && text.wordSpacing && text.wordSpacing !== 'normal' && text.wordSpacing !== '0px' ? ` word-spacing="${escapeXml(text.wordSpacing)}"` : '';
@@ -549,7 +557,7 @@ function renderNodeToFigmaSvg(
     const textY = Math.round((lineMidY + text.fontSize * 0.33) * 100) / 100;
     return `    <text id="${escapeXml(node.name || node.id)}" x="${firstRunX}" y="${textY}"${anchorAttr} font-family="${escapeXml(
       cleanedFam
-    )}" font-size="${text.fontSize}" font-weight="${text.fontWeight}"${lsAttr}${wsAttr}${textStrokeAttr}${dirAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
+    )}" font-size="${renderFontSize}" font-weight="${text.fontWeight}"${lsAttr}${wsAttr}${textStrokeAttr}${dirAttr}${italicAttr}${decoAttr}${textFillAttr}${opacityAttr}${transformAttr}${filterAttr}>${innerContent}</text>`;
   }
   if (type === 'vector' && node.vectorPaths && node.vectorPaths.length > 0) {
     // Path data lives in viewBox units: scale into the laid-out box with a
@@ -1013,9 +1021,19 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
   type GradientStop = { color: string; position: number };
   const gradientMap = new Map<string, GradientStop[]>();
   const typoMap = new Map<string, { family: string; size: number; weight: string | number; lh: string | number; sample: string }>();
+  const radiusCounts = new Map<number, number>();
+  const gapCounts = new Map<number, number>();
   for (const cap of captures) {
     addColor(cap.frame.background, 'Canvas');
     for (const n of cap.nodes) {
+      const rVal = Math.round(n.style.radius?.topLeft ?? 0);
+      if (rVal > 0 && rVal <= 200) {
+        radiusCounts.set(rVal, (radiusCounts.get(rVal) ?? 0) + 1);
+      }
+      const gVal = Math.round(n.style.layout?.gap ?? 0);
+      if (gVal > 0 && gVal <= 200) {
+        gapCounts.set(gVal, (gapCounts.get(gVal) ?? 0) + 1);
+      }
       for (const f of n.style.fills) {
         if (f.type === 'solid') addColor(f.color, 'Surface');
         if (f.type === 'gradient' && f.stops && f.stops.length >= 2) {
@@ -1116,6 +1134,36 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
     lines.push('    </g>');
     curY += rowH + 10;
   }
+
+  const topRadii = [...radiusCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([r]) => r);
+  const topGaps = [...gapCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([g]) => g);
+  if (topRadii.length > 0 || topGaps.length > 0) {
+    curY += 16;
+    lines.push(`    <text id="DS · Tokens Heading" x="32" y="${curY}" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">RADII &amp; SPACING TOKENS</text>`);
+    curY += 18;
+    topRadii.forEach((rv, i) => {
+      const sx = 32 + i * 146;
+      const chipR = Math.min(20, rv);
+      lines.push(`    <g id="Radius · ${rv}px">`);
+      lines.push(`      <rect x="${sx}" y="${curY}" width="134" height="54" rx="8" ry="8" fill="#1e293b" stroke="#334155" stroke-width="1" />`);
+      lines.push(`      <rect x="${sx + 10}" y="${curY + 11}" width="32" height="32" rx="${chipR}" ry="${chipR}" fill="rgba(99,102,241,0.22)" stroke="#818cf8" stroke-width="1.5" />`);
+      lines.push(`      <text x="${sx + 52}" y="${curY + 25}" font-family="Roboto Mono, monospace" font-size="11" font-weight="600" fill="#f8fafc">${rv}px</text>`);
+      lines.push(`      <text x="${sx + 52}" y="${curY + 40}" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#94a3b8">Radius</text>`);
+      lines.push('    </g>');
+    });
+    if (topRadii.length > 0) curY += 66;
+    topGaps.forEach((gv, i) => {
+      const sx = 32 + i * 146;
+      const barW = Math.max(6, Math.min(48, gv));
+      lines.push(`    <g id="Spacing · ${gv}px">`);
+      lines.push(`      <rect x="${sx}" y="${curY}" width="134" height="44" rx="8" ry="8" fill="#111827" stroke="#1f2937" stroke-width="1" />`);
+      lines.push(`      <rect x="${sx + 10}" y="${curY + 18}" width="${barW}" height="8" rx="3" ry="3" fill="#34d399" />`);
+      lines.push(`      <text x="${sx + 68}" y="${curY + 25}" font-family="Roboto Mono, monospace" font-size="11" font-weight="600" fill="#f8fafc">${gv}px gap</text>`);
+      lines.push('    </g>');
+    });
+    if (topGaps.length > 0) curY += 56;
+  }
+
   const dsHeight = Math.max(420, curY + 24);
   const defsBlock = dsDefs.length > 0 ? [`    <defs>`, ...dsDefs, '    </defs>'] : [];
   const svg = [

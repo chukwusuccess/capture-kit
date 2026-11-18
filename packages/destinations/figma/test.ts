@@ -902,7 +902,34 @@ function runFigmaUpgradeTests() {
     ],
   });
   const customWideSvg = modelToFigma(customWideTextCap).svg;
-  assert.ok(customWideSvg.includes('letter-spacing="-1.5"'), 'Expected custom wide display font to emit -1.5 letter-spacing compensation');
+  assert.ok(customWideSvg.includes('letter-spacing="-'), 'Expected custom wide display font to emit negative letter-spacing compensation');
+
+  // Design system frame includes Radii & Spacing tokens when present
+  const dsCap = emptyCapture({
+    url: 'https://test.figma-destination.local',
+    version: '0.2.3',
+    frame: { width: 800, height: 400, baseURI: 'https://test.figma-destination.local/' },
+    nodes: [
+      {
+        id: 'ds-card',
+        type: 'frame',
+        box: { x: 20, y: 20, w: 300, h: 120 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgb(15, 23, 42)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 16, topRight: 16, bottomRight: 16, bottomLeft: 16 },
+          shadows: [],
+          layout: { mode: 'horizontal', gap: 24 },
+        },
+      },
+    ],
+  });
+  const dsTokensSvg = modelToFigma(dsCap, { includeDesignSystem: true }).svg;
+  assert.ok(
+    dsTokensSvg.includes('RADII &amp; SPACING TOKENS') && dsTokensSvg.includes('16px') && dsTokensSvg.includes('24px gap'),
+    'Design System frame must include Radii & Spacing tokens'
+  );
 
   console.log('packages/destinations/figma upgrade tests passed');
 }
