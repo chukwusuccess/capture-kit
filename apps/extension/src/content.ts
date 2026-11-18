@@ -34,7 +34,7 @@ customWindow.__captureKitSerialize = async (opts?: SerializeOptions): Promise<un
 function createViewportIframe(targetWidth: number): HTMLIFrameElement {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText = `position:fixed!important;left:-20000px!important;top:0!important;width:${targetWidth}px!important;height:900px!important;border:0!important;visibility:hidden!important;pointer-events:none!important;z-index:-9999!important;`;
+  iframe.style.cssText = `position:fixed!important;left:-20000px!important;top:0!important;width:${targetWidth}px!important;height:900px!important;border:0!important;opacity:0.001!important;pointer-events:none!important;z-index:-9999!important;`;
   return iframe;
 }
 
@@ -48,7 +48,7 @@ async function tryLoadLiveIframe(iframe: HTMLIFrameElement): Promise<Document | 
         clearTimeout(timer);
         resolve(ok);
       };
-      const timer = setTimeout(() => finish(false), 900);
+      const timer = setTimeout(() => finish(false), 2000);
       iframe.addEventListener('load', () => finish(true), { once: true });
       iframe.addEventListener('error', () => finish(false), { once: true });
       iframe.src = location.href;
@@ -62,6 +62,19 @@ async function tryLoadLiveIframe(iframe: HTMLIFrameElement): Promise<Document | 
   }
 }
 
+async function quickRevealIframe(win: Window | null | undefined, doc: Document): Promise<void> {
+  if (!win) return;
+  const maxH = Math.max(doc.documentElement?.scrollHeight ?? 0, doc.body?.scrollHeight ?? 0);
+  if (maxH <= 900) return;
+  const steps = [0.33, 0.66, 1];
+  for (const frac of steps) {
+    win.scrollTo(0, Math.round(maxH * frac));
+    await new Promise<void>((r) => setTimeout(r, 45));
+  }
+  win.scrollTo(0, 0);
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+}
+
 async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOptions): Promise<unknown> {
   let activeIframe: HTMLIFrameElement | null = null;
   try {
@@ -73,8 +86,9 @@ async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOpt
     if (docToSerialize) {
       liveIframe.contentWindow?.dispatchEvent(new Event('resize'));
       await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 120)));
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 250)));
       });
+      await quickRevealIframe(liveIframe.contentWindow, docToSerialize);
     } else {
       liveIframe.remove();
       const fallbackIframe = createViewportIframe(targetWidth);
