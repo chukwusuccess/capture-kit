@@ -28,6 +28,79 @@ function parseStopAlpha(color: string): number {
   return rgba ? Math.max(0, Math.min(1, parseFloat(rgba[1]))) : 1;
 }
 
+function parseGlowColor(color: string): { rgb: string; alpha: number } {
+  const c = color.trim();
+  const low = c.toLowerCase();
+  if (low === 'transparent') return { rgb: '#000000', alpha: 0 };
+  const rgbaComma = c.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+  if (rgbaComma) {
+    const a = rgbaComma[4] !== undefined ? Math.max(0, Math.min(1, parseFloat(rgbaComma[4]))) : 1;
+    return { rgb: `rgb(${rgbaComma[1]}, ${rgbaComma[2]}, ${rgbaComma[3]})`, alpha: a };
+  }
+  const rgbaSpace = c.match(/^rgba?\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/i);
+  if (rgbaSpace) {
+    let a = 1;
+    if (rgbaSpace[4]) {
+      a = rgbaSpace[4].endsWith('%') ? parseFloat(rgbaSpace[4]) / 100 : parseFloat(rgbaSpace[4]);
+      a = Math.max(0, Math.min(1, a));
+    }
+    return { rgb: `rgb(${rgbaSpace[1]}, ${rgbaSpace[2]}, ${rgbaSpace[3]})`, alpha: a };
+  }
+  const hex8 = c.match(/^#([0-9a-f]{6})([0-9a-f]{2})$/i);
+  if (hex8) {
+    const a = Math.round((parseInt(hex8[2], 16) / 255) * 1000) / 1000;
+    return { rgb: `#${hex8[1]}`, alpha: a };
+  }
+  const hex4 = c.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+  if (hex4) {
+    const a = Math.round((parseInt(hex4[4] + hex4[4], 16) / 255) * 1000) / 1000;
+    return { rgb: `#${hex4[1]}${hex4[1]}${hex4[2]}${hex4[2]}${hex4[3]}${hex4[3]}`, alpha: a };
+  }
+  return { rgb: c, alpha: 1 };
+}
+
+function getAmbientGlowColor(node: Node): string | null {
+  if (node.type !== 'rect' && node.type !== 'frame') return null;
+  const blurMatch = node.style.filter?.match(/blur\(\s*([\d.]+)\s*px\s*\)/i);
+  if (!blurMatch || parseFloat(blurMatch[1]) < 12) return null;
+  const primarySolid = node.style.fills.find(
+    (f) => f.type === 'solid' && f.color && parseGlowColor(f.color).alpha > 0
+  );
+  if (primarySolid?.color) return primarySolid.color;
+  const gradFill = node.style.fills.find((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
+  if (gradFill?.stops) {
+    const stop = gradFill.stops.find((s) => parseGlowColor(s.color).alpha > 0) ?? gradFill.stops[0];
+    if (stop?.color && parseGlowColor(stop.color).alpha > 0) return stop.color;
+  }
+  return null;
+}
+
+function collectAmbientGlowIds(capture: Capture): Set<string> {
+  const childrenMap = new Map<string, Node[]>();
+  for (const node of capture.nodes) {
+    if (node.parentId) {
+      const list = childrenMap.get(node.parentId) ?? [];
+      list.push(node);
+      childrenMap.set(node.parentId, list);
+    }
+  }
+  const hasTextDescendant = (nodeId: string): boolean => {
+    const children = childrenMap.get(nodeId) ?? [];
+    for (const c of children) {
+      if (c.type === 'text') return true;
+      if (hasTextDescendant(c.id)) return true;
+    }
+    return false;
+  };
+  const ids = new Set<string>();
+  for (const node of capture.nodes) {
+    if (getAmbientGlowColor(node) && !hasTextDescendant(node.id)) {
+      ids.add(node.id);
+    }
+  }
+  return ids;
+}
+
 function formatSvgStop(color: string, offsetPct: number): string {
   const alpha = parseStopAlpha(color);
   const rgba = color.trim().match(/^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,/i);
@@ -253,7 +326,8 @@ function renderNodeToFigmaSvg(
   assets: Capture['assets'],
   isGroupSelf = false,
   inlineLeadWidth = 0,
-  pillMidY?: number
+  pillMidY?: number,
+  isAmbientGlow = false
 ): string {
   const { box, style, type } = node;
   const opacityAttr = style.opacity !== undefined && style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
@@ -402,6 +476,10 @@ function renderNodeToFigmaSvg(
   }
 
   // Handle rect or frame
+  if (isAmbientGlow) {
+    return `    <ellipse id="${escapeXml(node.id)}" cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${Math.round(box.w * 0.65)}" ry="${Math.round(box.h * 0.65)}" fill="url(#glow-${escapeXml(node.id)})"${opacityAttr}${transformAttr} />`;
+  }
+
   const gradFills = style.fills.filter((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
   const firstSolid = style.fills.find((f) => f.type === 'solid' && f.color);
   const imageFill = style.fills.find((f) => f.type === 'image' && f.assetRef);
@@ -455,6 +533,7 @@ function buildFigmaLayers(capture: Capture): string {
   const childrenMap = new Map<string, Node[]>();
   const rootNodes: Node[] = [];
   const nodeMap = new Map<string, Node>();
+  const glowIds = collectAmbientGlowIds(capture);
 
   for (const node of capture.nodes) {
     nodeMap.set(node.id, node);
@@ -468,6 +547,19 @@ function buildFigmaLayers(capture: Capture): string {
     } else {
       rootNodes.push(node);
     }
+  }
+
+  function findFirstDescendantText(node: Node): string | null {
+    const children = childrenMap.get(node.id) ?? [];
+    for (const child of children) {
+      if (child.type === 'text' && child.text?.content) {
+        const cleaned = child.text.content.replace(/\s+/g, ' ').trim();
+        if (cleaned) return cleaned;
+      }
+      const nested = findFirstDescendantText(child);
+      if (nested) return nested;
+    }
+    return null;
   }
 
   function findInlineLeadWidth(node: Node): number {
@@ -494,11 +586,12 @@ function buildFigmaLayers(capture: Capture): string {
     if (!children || children.length === 0) {
       return isNodeOffscreen(node, capture.frame)
         ? ''
-        : renderNodeToFigmaSvg(node, capture.assets, false, findInlineLeadWidth(node), resolvePillMidY(node));
+        : renderNodeToFigmaSvg(node, capture.assets, false, findInlineLeadWidth(node), resolvePillMidY(node), glowIds.has(node.id));
     }
     const childrenSvg = children.map(renderTree).filter(Boolean).join('\n');
     if (!childrenSvg && isNodeOffscreen(node, capture.frame)) return '';
-    const selfLayer = renderNodeToFigmaSvg(node, capture.assets, true);
+    const isGlow = glowIds.has(node.id);
+    const selfLayer = renderNodeToFigmaSvg(node, capture.assets, true, 0, undefined, isGlow);
     const childrenOverflow = children.some(
       (c) =>
         c.box.x < node.box.x - 1 ||
@@ -506,15 +599,46 @@ function buildFigmaLayers(capture: Capture): string {
         c.box.x + c.box.w > node.box.x + node.box.w + 2 ||
         c.box.y + c.box.h > node.box.y + node.box.h + 2
     );
+    const clipShape = clipShapeForNode(node);
+    const tm = svgTransformMatrix(node);
+    const groupHasFilter =
+      !isGlow &&
+      ((node.style.filter && node.style.filter !== 'none') ||
+        (node.style.backdropFilter && node.style.backdropFilter !== 'none') ||
+        (node.style.shadows ?? []).some(
+          (s) => !s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)'
+        ));
+
+    if (
+      children.length === 1 &&
+      !selfLayer &&
+      !node.style.clip &&
+      !childrenOverflow &&
+      !tm &&
+      (node.style.opacity ?? 1) >= 1 &&
+      (!node.style.filter || node.style.filter === 'none') &&
+      (!node.style.backdropFilter || node.style.backdropFilter === 'none') &&
+      !groupHasFilter &&
+      (!node.style.maskImage || node.style.maskImage === 'none') &&
+      !clipShape
+    ) {
+      return childrenSvg;
+    }
+
     const clipAttr =
-      clipShapeForNode(node) && childrenOverflow
+      clipShape && childrenOverflow
         ? ` clip-path="url(#clip-${escapeXml(node.id)})" data-clips-content="true"`
         : '';
     const groupOpacity = !selfLayer && node.style.opacity !== undefined && node.style.opacity < 1 ? ` opacity="${node.style.opacity}"` : '';
     const groupMask = node.style.maskImage && node.style.maskImage !== 'none' ? ` mask="url(#mask-${escapeXml(node.id)})"` : '';
-    const groupHasFilter = (node.style.filter && node.style.filter !== 'none') || (node.style.backdropFilter && node.style.backdropFilter !== 'none') || (node.style.shadows ?? []).some((s) => !s.inset && (s.blur > 0 || Math.abs(s.x) > 0 || Math.abs(s.y) > 0) && s.color && s.color !== 'transparent' && s.color !== 'rgba(0, 0, 0, 0)');
     const groupFilter = groupHasFilter ? ` filter="url(#fx-${escapeXml(node.id)})"` : '';
-    const groupId = node.name ? `${escapeXml(node.name)} (${escapeXml(node.id)})` : `group-${escapeXml(node.id)}`;
+    const descendantText = !node.name ? findFirstDescendantText(node) : null;
+    const rawGroupId = node.name
+      ? `${node.name} (${node.id})`
+      : descendantText
+      ? `Container · ${descendantText.slice(0, 24).trimEnd()} (${node.id})`
+      : `group-${node.id}`;
+    const groupId = escapeXml(rawGroupId);
     return [`  <g id="${groupId}"${clipAttr}${groupOpacity}${groupMask}${groupFilter}>`, selfLayer, childrenSvg, '  </g>'].filter(Boolean).join('\n');
   }
 
@@ -573,7 +697,9 @@ function buildFilterPrimitives(filter: string | undefined, shadows?: Node['style
 function buildFigmaDefs(captures: Capture[]): string {
   const defs: string[] = [];
   for (const [cIdx, capture] of captures.entries()) {
+    const glowIds = collectAmbientGlowIds(capture);
     for (const node of capture.nodes) {
+      if (glowIds.has(node.id)) continue;
       const prims = buildFilterPrimitives(node.style.filter, node.style.shadows, node.style.backdropFilter);
       if (prims.length > 0) {
         defs.push(
@@ -585,6 +711,20 @@ function buildFigmaDefs(captures: Capture[]): string {
       `    <clipPath id="frame-clip-${cIdx}">\n      <rect x="0" y="0" width="${capture.frame.width}" height="${capture.frame.height}" />\n    </clipPath>`
     );
     for (const node of capture.nodes) {
+      if (glowIds.has(node.id)) {
+        const rawColor = getAmbientGlowColor(node);
+        if (rawColor) {
+          const { rgb, alpha } = parseGlowColor(rawColor);
+          const startAlpha = alpha >= 1 ? 0.65 : alpha;
+          defs.push(
+            `    <radialGradient id="glow-${escapeXml(node.id)}" cx="50%" cy="50%" r="50%">\n` +
+            `      <stop offset="0%" stop-color="${escapeXml(rgb)}" stop-opacity="${startAlpha}" />\n` +
+            `      <stop offset="100%" stop-color="${escapeXml(rgb)}" stop-opacity="0" />\n` +
+            `    </radialGradient>`
+          );
+        }
+        continue;
+      }
       const gradFills = node.style.fills.filter((f) => f.type === 'gradient' && f.stops && f.stops.length > 0);
       gradFills.forEach((gradFill, gIdx) => {
         if (!gradFill.stops) return;

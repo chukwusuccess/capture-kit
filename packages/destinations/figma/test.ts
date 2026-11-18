@@ -192,10 +192,10 @@ function runFigmaDestinationTests() {
     'Embedded base64 image data URI missing'
   );
 
-  // 7. Assert group hierarchy wrapping
+  // 7. Assert group hierarchy wrapping with semantic naming from descendant text
   assert.ok(
-    payload.svg.includes('<g id="group-node-card">'),
-    'Parent group element missing'
+    payload.svg.includes('<g id="Container · Figma Card Title &amp; Subti (node-card)">'),
+    'Parent group element missing or semantic group id mismatch'
   );
 
   // 8. Several captures share one paste: a row per page, its sizes side by side
@@ -296,6 +296,204 @@ function runFigmaFontResolutionTests() {
   console.log('packages/destinations/figma font resolution tests passed');
 }
 
+function runFigmaUpgradeTests() {
+  const baseCapture = emptyCapture({
+    url: 'https://test.figma-destination.local',
+    version: '0.1.0',
+    frame: {
+      width: 1200,
+      height: 800,
+      baseURI: 'https://test.figma-destination.local/',
+    },
+    nodes: [],
+  });
+
+  // Upgrade 1: Single-child unstyled pass-through frame wrappers are flattened
+  const divSoupCapture: Capture = {
+    ...baseCapture,
+    nodes: [
+      {
+        id: 'outer-div-soup',
+        type: 'frame',
+        box: { x: 40, y: 40, w: 300, h: 80 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'inner-div-soup',
+        parentId: 'outer-div-soup',
+        type: 'frame',
+        box: { x: 40, y: 40, w: 300, h: 80 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'leaf-label',
+        parentId: 'inner-div-soup',
+        type: 'text',
+        box: { x: 50, y: 50, w: 200, h: 24 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+        text: {
+          content: 'Flattened Leaf Label',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 16,
+          fontWeight: 500,
+          lineHeight: 24,
+          letterSpacing: 0,
+          align: 'left',
+          color: 'rgba(255, 255, 255, 1)',
+        },
+      },
+      // Non-text wrapper with 2 children should fall back to group-${node.id}
+      {
+        id: 'shapes-only-group',
+        type: 'frame',
+        box: { x: 400, y: 40, w: 200, h: 100 },
+        style: {
+          fills: [],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'shape-a',
+        parentId: 'shapes-only-group',
+        type: 'rect',
+        box: { x: 400, y: 40, w: 80, h: 80 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(255, 0, 0, 1)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+      {
+        id: 'shape-b',
+        parentId: 'shapes-only-group',
+        type: 'rect',
+        box: { x: 500, y: 40, w: 80, h: 80 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(0, 255, 0, 1)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+        },
+      },
+    ],
+  };
+
+  const flattenedSvg = modelToFigma(divSoupCapture).svg;
+  assert.ok(
+    !flattenedSvg.includes('outer-div-soup') && !flattenedSvg.includes('inner-div-soup'),
+    'Single-child unstyled pass-through frame wrappers must be flattened without emitting <g> wrappers'
+  );
+  assert.ok(
+    flattenedSvg.includes('<text id="leaf-label"') && flattenedSvg.includes('Flattened Leaf Label'),
+    'Leaf node inside flattened wrappers must still be emitted'
+  );
+  assert.ok(
+    flattenedSvg.includes('<g id="group-shapes-only-group">'),
+    'Container without text descendants must fall back to group-${node.id}'
+  );
+
+  // Upgrade 3: CSS blur(Npx) with N >= 12 converts to native SVG radialGradient + ellipse
+  const glowCapture: Capture = {
+    ...baseCapture,
+    nodes: [
+      {
+        id: 'hero-glow',
+        type: 'rect',
+        box: { x: 100, y: 50, w: 400, h: 200 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(99, 102, 241, 0.45)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 999, topRight: 999, bottomRight: 999, bottomLeft: 999 },
+          shadows: [],
+          filter: 'blur(24px)',
+        },
+      },
+      {
+        id: 'opaque-glow',
+        type: 'rect',
+        box: { x: 600, y: 100, w: 200, h: 200 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgb(56, 189, 248)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+          filter: 'blur(32px)',
+        },
+      },
+      {
+        id: 'small-blur',
+        type: 'rect',
+        box: { x: 20, y: 20, w: 80, h: 80 },
+        style: {
+          fills: [{ type: 'solid', color: 'rgba(255, 255, 255, 0.5)' }],
+          strokes: [],
+          opacity: 1,
+          radius: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+          shadows: [],
+          filter: 'blur(8px)',
+        },
+      },
+    ],
+  };
+
+  const glowSvg = modelToFigma(glowCapture).svg;
+  assert.ok(
+    glowSvg.includes('<radialGradient id="glow-hero-glow" cx="50%" cy="50%" r="50%">'),
+    'Ambient glow node must emit radialGradient def'
+  );
+  assert.ok(
+    glowSvg.includes('stop-color="rgb(99, 102, 241)" stop-opacity="0.45"') &&
+      glowSvg.includes('stop-color="rgb(99, 102, 241)" stop-opacity="0"'),
+    'Ambient glow radialGradient must preserve alpha at 0% and fade to stop-opacity="0" at 100%'
+  );
+  assert.ok(
+    glowSvg.includes('stop-color="rgb(56, 189, 248)" stop-opacity="0.65"') &&
+      glowSvg.includes('stop-color="rgb(56, 189, 248)" stop-opacity="0"'),
+    'Opaque ambient glow must use stop-opacity="0.65" at 0%'
+  );
+  assert.ok(
+    glowSvg.includes('<ellipse id="hero-glow" cx="300" cy="150" rx="260" ry="130" fill="url(#glow-hero-glow)" />'),
+    'Ambient glow node must render as native <ellipse> with radialGradient fill'
+  );
+  assert.ok(
+    !glowSvg.includes('filter="url(#fx-hero-glow)"') && !glowSvg.includes('id="fx-hero-glow"'),
+    'Ambient glow node must not reference or emit fx- Gaussian blur filter'
+  );
+  assert.ok(
+    glowSvg.includes('filter="url(#fx-small-blur)"'),
+    'Small blur (< 12px) must still use fx- filter'
+  );
+
+  console.log('packages/destinations/figma upgrade tests passed');
+}
+
 runFigmaDestinationTests();
 runNativePlanningTests();
 runFigmaFontResolutionTests();
+runFigmaUpgradeTests();

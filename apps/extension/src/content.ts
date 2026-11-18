@@ -5,11 +5,17 @@ import {
   startElementPicker,
   type SerializeOptions,
 } from '@capture-kit/serializer';
+import { modelToFigma } from '@capture-kit/destination-figma';
+import { modelToReact } from '@capture-kit/destination-react';
+import { modelToMarkdown } from '@capture-kit/destination-markdown';
+import { modelToHtml } from '@capture-kit/destination-html';
+import { modelToSvg } from '@capture-kit/destination-svg';
 
 interface WindowWithCaptureKit {
   __captureKitSerialize?: (opts?: SerializeOptions) => Promise<unknown>;
   __captureKitSerializeWidths?: (widths: number[], opts?: SerializeOptions) => Promise<unknown[]>;
   __captureKitPickElement?: () => Promise<unknown>;
+  __captureKitPickAndCopy?: (opts?: { format?: string; includeDesignSystem?: boolean }) => Promise<unknown>;
   __captureKitCancelPick?: () => void;
   __captureKitReplica?: () => Promise<string>;
 }
@@ -22,42 +28,89 @@ customWindow.__captureKitSerialize = async (opts?: SerializeOptions): Promise<un
   return await serializeDocument(document, opts);
 };
 
-async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOptions): Promise<unknown> {
+function createViewportIframe(targetWidth: number): HTMLIFrameElement {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.cssText = `position:fixed!important;left:-20000px!important;top:0!important;width:${targetWidth}px!important;height:900px!important;border:0!important;visibility:hidden!important;pointer-events:none!important;z-index:-9999!important;`;
-  document.documentElement.appendChild(iframe);
+  return iframe;
+}
+
+async function tryLoadLiveIframe(iframe: HTMLIFrameElement): Promise<Document | null> {
   try {
-    const idoc = iframe.contentDocument;
-    if (!idoc) throw new Error('Could not create viewport iframe');
-    const headHtml = document.head ? document.head.innerHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') : '';
-    const bodyHtml = document.body ? document.body.innerHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') : '';
-    const htmlAttrs = Array.from(document.documentElement.attributes)
-      .map((a) => `${a.name}="${a.value.replace(/"/g, '&quot;')}"`)
-      .join(' ');
-    const bodyAttrs = document.body
-      ? Array.from(document.body.attributes)
-          .map((a) => `${a.name}="${a.value.replace(/"/g, '&quot;')}"`)
-          .join(' ')
-      : '';
-    idoc.open();
-    idoc.write(`<!DOCTYPE html><html ${htmlAttrs}><head><base href="${location.href}">${headHtml}</head><body ${bodyAttrs}>${bodyHtml}</body></html>`);
-    idoc.close();
-    await new Promise<void>((resolve) => {
-      const done = () => requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      if (idoc.readyState === 'complete') setTimeout(done, 120);
-      else {
-        iframe.addEventListener('load', () => setTimeout(done, 120), { once: true });
-        setTimeout(done, 400);
-      }
+    const loaded = await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      const timer = setTimeout(() => finish(false), 900);
+      iframe.addEventListener('load', () => finish(true), { once: true });
+      iframe.addEventListener('error', () => finish(false), { once: true });
+      iframe.src = location.href;
     });
-    const cap = await serializeDocument(idoc, { ...opts, fastMode: true, baseURI: location.href });
+    if (!loaded) return null;
+    const doc = iframe.contentDocument;
+    if (doc?.body && doc.body.children.length > 0) return doc;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function serializeAtWidthInIframe(targetWidth: number, opts?: SerializeOptions): Promise<unknown> {
+  let activeIframe: HTMLIFrameElement | null = null;
+  try {
+    const liveIframe = createViewportIframe(targetWidth);
+    activeIframe = liveIframe;
+    document.documentElement.appendChild(liveIframe);
+
+    let docToSerialize = await tryLoadLiveIframe(liveIframe);
+    if (docToSerialize) {
+      liveIframe.contentWindow?.dispatchEvent(new Event('resize'));
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 120)));
+      });
+    } else {
+      liveIframe.remove();
+      const fallbackIframe = createViewportIframe(targetWidth);
+      activeIframe = fallbackIframe;
+      document.documentElement.appendChild(fallbackIframe);
+
+      const idoc = fallbackIframe.contentDocument;
+      if (!idoc) throw new Error('Could not create viewport iframe');
+      const headHtml = document.head ? document.head.innerHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') : '';
+      const bodyHtml = document.body ? document.body.innerHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') : '';
+      const htmlAttrs = Array.from(document.documentElement.attributes)
+        .map((a) => `${a.name}="${a.value.replace(/"/g, '&quot;')}"`)
+        .join(' ');
+      const bodyAttrs = document.body
+        ? Array.from(document.body.attributes)
+            .map((a) => `${a.name}="${a.value.replace(/"/g, '&quot;')}"`)
+            .join(' ')
+        : '';
+      idoc.open();
+      idoc.write(`<!DOCTYPE html><html ${htmlAttrs}><head><base href="${location.href}">${headHtml}</head><body ${bodyAttrs}>${bodyHtml}</body></html>`);
+      idoc.close();
+      await new Promise<void>((resolve) => {
+        const done = () => requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        if (idoc.readyState === 'complete') setTimeout(done, 120);
+        else {
+          fallbackIframe.addEventListener('load', () => setTimeout(done, 120), { once: true });
+          setTimeout(done, 400);
+        }
+      });
+      docToSerialize = idoc;
+    }
+
+    const cap = await serializeDocument(docToSerialize, { ...opts, fastMode: true, baseURI: location.href });
     cap.url = location.href;
     cap.frame.width = targetWidth;
     cap.frame.baseURI = location.href;
     return cap;
   } finally {
-    iframe.remove();
+    activeIframe?.remove();
   }
 }
 
@@ -118,6 +171,89 @@ customWindow.__captureKitReplica = () =>
     },
   });
 
+let toastHideTimer: ReturnType<typeof setTimeout> | undefined;
+let toastRemoveTimer: ReturnType<typeof setTimeout> | undefined;
+
+function showPageToast(text: string, isError = false): void {
+  const root = document.body ?? document.documentElement;
+  if (!root) return;
+  const TOAST_ID = '__capture_kit_toast';
+  document.getElementById(TOAST_ID)?.remove();
+  if (toastHideTimer !== undefined) clearTimeout(toastHideTimer);
+  if (toastRemoveTimer !== undefined) clearTimeout(toastRemoveTimer);
+
+  const toast = document.createElement('div');
+  toast.id = TOAST_ID;
+  toast.setAttribute('role', 'status');
+  toast.textContent = text;
+  toast.style.cssText = [
+    'position: fixed',
+    'bottom: 24px',
+    'right: 24px',
+    'z-index: 2147483647',
+    `background: ${isError ? '#7f1d1d' : '#111827'}`,
+    'color: #f8fafc',
+    'padding: 10px 16px',
+    'border-radius: 999px',
+    'font: 600 13px/1.4 system-ui, sans-serif',
+    'box-shadow: 0 10px 25px rgba(0,0,0,0.35)',
+    `border: 1px solid ${isError ? 'rgba(248,113,113,0.45)' : 'rgba(255,255,255,0.12)'}`,
+    'pointer-events: none',
+    'opacity: 1',
+    'transition: opacity 250ms ease',
+  ].join('; ');
+  root.appendChild(toast);
+
+  toastHideTimer = setTimeout(() => {
+    toast.style.opacity = '0';
+    toastRemoveTimer = setTimeout(() => {
+      toast.remove();
+    }, 260);
+  }, 3200);
+}
+
+async function copyTextInPage(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch (err) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+    (document.body ?? document.documentElement).appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (ok) return;
+    throw err;
+  }
+}
+
+function formatCaptureOutput(
+  capture: Awaited<ReturnType<typeof serializeElement>>,
+  format: string,
+  includeDesignSystem?: boolean
+): string {
+  switch (format) {
+    case 'figma':
+    case 'figma-native':
+    case 'sketch':
+      return modelToFigma([capture], { includeDesignSystem }).svg;
+    case 'react':
+      return modelToReact(capture);
+    case 'md':
+      return modelToMarkdown(capture);
+    case 'svg':
+      return modelToSvg(capture);
+    case 'html':
+      return modelToHtml(capture);
+    case 'json':
+    default:
+      return JSON.stringify(capture, null, 2);
+  }
+}
+
 customWindow.__captureKitPickElement = async (): Promise<unknown> => {
   const { promise, resolve, reject } = Promise.withResolvers<unknown>();
   let cleanup: (() => void) | undefined;
@@ -138,6 +274,51 @@ customWindow.__captureKitPickElement = async (): Promise<unknown> => {
     },
     onCancel: () => {
       if (cancelPick === cancel) cancelPick = undefined;
+      reject(new Error('Element selection cancelled'));
+    },
+  });
+  cancelPick = cancel;
+  return promise;
+};
+
+customWindow.__captureKitPickAndCopy = async (opts?: {
+  format?: string;
+  includeDesignSystem?: boolean;
+}): Promise<unknown> => {
+  cancelPick?.();
+  const { promise, resolve, reject } = Promise.withResolvers<unknown>();
+  let cleanup: (() => void) | undefined;
+  const cancel = (): void => {
+    cleanup?.();
+    if (cancelPick === cancel) cancelPick = undefined;
+    showPageToast('Element selection cancelled');
+    reject(new Error('Element selection cancelled'));
+  };
+
+  showPageToast('Click any element on the page to copy it (Esc to cancel)');
+  cleanup = startElementPicker(document, {
+    onSelect: async (el: Element) => {
+      if (cancelPick === cancel) cancelPick = undefined;
+      try {
+        const capture = await serializeElement(el, { fastMode: true });
+        const format = opts?.format ?? 'figma';
+        const output = formatCaptureOutput(capture, format, opts?.includeDesignSystem);
+        await copyTextInPage(output);
+        const copiedMsg =
+          format === 'figma' || format === 'sketch' || format === 'figma-native'
+            ? '✓ Copied element — press Cmd+V in Figma or Sketch!'
+            : `✓ Copied element (${format.toUpperCase()}) — ready to paste!`;
+        showPageToast(copiedMsg);
+        resolve(capture);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showPageToast(`Failed to copy element: ${msg}`, true);
+        reject(err);
+      }
+    },
+    onCancel: () => {
+      if (cancelPick === cancel) cancelPick = undefined;
+      showPageToast('Element selection cancelled');
       reject(new Error('Element selection cancelled'));
     },
   });

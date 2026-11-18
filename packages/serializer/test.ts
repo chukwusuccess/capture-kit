@@ -1006,7 +1006,158 @@ function runFontMatchingTests() {
   console.log('✓ font matching & missing-font diagnostic tests passed');
 }
 
-runSerializerAccuracyTests().then(runReadinessTests).then(runFontMatchingTests).catch((err) => {
-  console.error('packages/serializer test failure:', err);
-  process.exit(1);
-});
+async function runFastModeImageEmbeddingTests() {
+  const originalFetch = globalThis.fetch;
+  const imgBytes = Buffer.from('mock-cdn-image-bytes');
+  const imgBase64 = imgBytes.toString('base64');
+  const fetchCalls: string[] = [];
+  const bridgeCalls: Array<{ action?: string; url?: string; maxWidth?: number }> = [];
+
+  try {
+    globalThis.fetch = async (input) => {
+      fetchCalls.push(String(input));
+      throw new TypeError('Failed to fetch (CORS)');
+    };
+
+    const { doc, body } = createMockDocument();
+    Object.assign(doc.defaultView, {
+      chrome: {
+        runtime: {
+          sendMessage: async (msg: { action?: string; url?: string; maxWidth?: number }) => {
+            bridgeCalls.push(msg);
+            if (msg.action === 'fetch-asset' && msg.url) {
+              return { success: true, mimeType: 'image/png', base64: imgBase64 };
+            }
+            return { success: false };
+          },
+        },
+      },
+    });
+    Object.assign(doc, {
+      styleSheets: [
+        {
+          cssRules: [
+            {
+              type: 5,
+              style: {
+                fontFamily: 'Inter',
+                fontWeight: '400',
+                fontStyle: 'normal',
+                src: 'url("https://cdn.example.com/inter.woff2") format("woff2")',
+              },
+              cssText: "@font-face { font-family: 'Inter'; src: url('https://cdn.example.com/inter.woff2'); }",
+            },
+          ],
+        },
+      ],
+    });
+    doc.fonts = {
+      forEach: (cb: (f: { family: string; weight: string; style: string; status?: string }) => void) => {
+        cb({ family: 'Inter', weight: '400', style: 'normal', status: 'loaded' });
+      },
+    };
+
+    // 1. Cross-origin CDN <img>
+    const cdnImg = new MockElement('img', { left: 0, top: 0, width: 200, height: 100 });
+    cdnImg.src = 'https://cdn.example.com/hero.png';
+    body.appendChild(cdnImg);
+
+    // 2. Lazy <img> with 1x1 transparent GIF placeholder in src & currentSrc, real URL in data-src
+    const gifPlaceholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    const lazyDataSrcImg = new MockElement('img', { left: 0, top: 120, width: 160, height: 90 });
+    lazyDataSrcImg.src = gifPlaceholder;
+    lazyDataSrcImg.currentSrc = gifPlaceholder;
+    const lazyAttrs = new Map<string, string>([
+      ['src', gifPlaceholder],
+      ['data-src', 'https://cdn.example.com/lazy-photo.jpg'],
+    ]);
+    lazyDataSrcImg.getAttribute = (name: string) => lazyAttrs.get(name) ?? null;
+    body.appendChild(lazyDataSrcImg);
+
+    // 3. Lazy <img> with SVG data-URI placeholder in src & currentSrc, real URLs in srcset
+    const svgPlaceholder = 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22/%3E';
+    const lazySrcsetImg = new MockElement('img', { left: 0, top: 220, width: 180, height: 90 });
+    lazySrcsetImg.src = svgPlaceholder;
+    lazySrcsetImg.currentSrc = svgPlaceholder;
+    const srcsetAttrs = new Map<string, string>([
+      ['src', svgPlaceholder],
+      ['srcset', 'https://cdn.example.com/lazy-1x.png 1x, https://cdn.example.com/lazy-2x.png 2x'],
+    ]);
+    lazySrcsetImg.getAttribute = (name: string) => srcsetAttrs.get(name) ?? null;
+    body.appendChild(lazySrcsetImg);
+
+    // 4. Cross-origin CSS background-image
+    const bgDiv = new MockElement('div', { left: 0, top: 320, width: 300, height: 120 });
+    bgDiv.styleOverrides = {
+      backgroundImage: 'url("https://cdn.example.com/banner-bg.png")',
+    };
+    body.appendChild(bgDiv);
+
+    // 5. Text node referencing Inter font
+    const heading = new MockElement('p', { left: 0, top: 450, width: 200, height: 24 });
+    heading.styleOverrides = { fontFamily: 'Inter, sans-serif' };
+    heading.appendChild(new MockNode(3 /* TEXT_NODE */, 'Hello fastMode'));
+    body.appendChild(heading);
+
+    const capture = CaptureSchema.parse(await serializeDocument(doc as unknown as Document, { fastMode: true }));
+
+    // WOFF2 font embedding must be skipped in fastMode
+    assert.strictEqual(
+      fetchCalls.some((u) => u.includes('inter.woff2')),
+      false,
+      'fastMode must skip WOFF2 font fetching'
+    );
+    assert.strictEqual(
+      bridgeCalls.some((m) => m.url?.includes('inter.woff2')),
+      false,
+      'fastMode must skip WOFF2 font runtime bridge fetching'
+    );
+    assert.strictEqual(
+      Object.values(capture.assets).some((a) => a.kind === 'font'),
+      false,
+      'fastMode must not embed font assets'
+    );
+    assert.strictEqual(capture.fonts.length, 0, 'fastMode must skip extractWebFonts');
+
+    // All 4 image assets (including lazy-resolved URLs and background-image) must be embedded via fetch-asset fallback
+    const expectedUrls = [
+      'https://cdn.example.com/hero.png',
+      'https://cdn.example.com/lazy-photo.jpg',
+      'https://cdn.example.com/lazy-2x.png',
+      'https://cdn.example.com/banner-bg.png',
+    ];
+    for (const expectedUrl of expectedUrls) {
+      const call = bridgeCalls.find((m) => m.action === 'fetch-asset' && m.url === expectedUrl);
+      assert.ok(call, `Expected fetch-asset fallback for ${expectedUrl}`);
+      assert.ok(typeof call.maxWidth === 'number' && call.maxWidth > 0, `Expected maxWidth on fetch-asset for ${expectedUrl}`);
+    }
+
+    const imageNodes = capture.nodes.filter((n) => n.type === 'image');
+    assert.strictEqual(imageNodes.length, 3, 'Expected 3 serialized image nodes');
+    for (const imgNode of imageNodes) {
+      assert.ok(imgNode.assetRef, `Image node ${imgNode.id} must have assetRef`);
+      const embedded = capture.assets[imgNode.assetRef];
+      assert.ok(embedded, `Missing embedded asset for ${imgNode.assetRef}`);
+      assert.strictEqual(embedded.base64, imgBase64, 'Image must embed fetched CDN bytes, not placeholder GIF/SVG');
+    }
+
+    const bgNode = capture.nodes.find((n) => n.style.fills.some((f) => f.type === 'image'));
+    assert.ok(bgNode, 'Expected div with embedded background-image fill');
+    const bgFill = bgNode.style.fills.find((f) => f.type === 'image');
+    assert.ok(bgFill?.assetRef && capture.assets[bgFill.assetRef]?.base64 === imgBase64,
+      'Background image must embed fetched CDN bytes via fetch-asset fallback');
+
+    console.log('✓ fastMode cross-origin & lazy image embedding tests passed');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+runSerializerAccuracyTests()
+  .then(runReadinessTests)
+  .then(runFontMatchingTests)
+  .then(runFastModeImageEmbeddingTests)
+  .catch((err) => {
+    console.error('packages/serializer test failure:', err);
+    process.exit(1);
+  });
