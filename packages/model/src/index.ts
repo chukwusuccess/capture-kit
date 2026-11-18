@@ -111,9 +111,12 @@ export const TextRunSchema = z.object({
   color: z.string().optional(),
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
+  gradientFill: FillSchema.optional(),
+  fills: z.array(FillSchema).optional(),
   x: z.number().optional(),
   y: z.number().optional(),
   w: z.number().optional(),
+  h: z.number().optional(),
 });
 
 export const TextPropsSchema = z.object({
