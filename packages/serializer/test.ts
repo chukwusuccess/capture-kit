@@ -116,6 +116,17 @@ class MockElement extends MockNode {
     return this.parentNode;
   }
 
+  get firstElementChild(): MockElement | null {
+    return this.children[0] ?? null;
+  }
+
+  get nextElementSibling(): MockElement | null {
+    if (!this.parentNode) return null;
+    const siblings = this.parentNode.children;
+    const idx = siblings.indexOf(this);
+    return idx >= 0 && idx + 1 < siblings.length ? siblings[idx + 1] : null;
+  }
+
   appendChild<T extends MockNode>(child: T): T {
     child.parentNode = this;
     if (child instanceof MockElement) {
@@ -134,21 +145,36 @@ class MockElement extends MockNode {
   }
 
   querySelectorAll(sel: string): MockElement[] {
+    const tags = new Set(
+      sel
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => /^[a-z0-9-]+$/.test(s))
+    );
     const result: MockElement[] = [];
     for (const child of this.children) {
-      if (sel === 'img' && child.tagName === 'IMG') result.push(child);
+      if (tags.has(child.tagName.toLowerCase())) result.push(child);
       result.push(...child.querySelectorAll(sel));
     }
     return result;
   }
 
   classList = { add(_cls: string): void {}, contains(_cls: string): boolean { return false; } };
-  contains(_el: unknown): boolean {
-    return false;
+  contains(el: unknown): boolean {
+    if (el === this) return true;
+    return this.children.some((c) => c.contains(el));
   }
+  attrs = new Map<string, string>();
   dAttr = '';
   pointsAttr = '';
+  setAttribute(attr: string, val: string): void {
+    this.attrs.set(attr, val);
+    if (attr === 'id') this.id = val;
+    if (attr === 'd') this.dAttr = val;
+    if (attr === 'points') this.pointsAttr = val;
+  }
   getAttribute(attr: string): string | null {
+    if (this.attrs.has(attr)) return this.attrs.get(attr)!;
     if (attr === 'src') return this.src;
     if (attr === 'd') return this.dAttr || null;
     if (attr === 'points') return this.pointsAttr || null;
@@ -194,7 +220,17 @@ function createMockDocument() {
       el.ownerDocument = doc as unknown as Document;
       return el;
     },
-    getElementById: () => null,
+    getElementById: (id: string) => {
+      function findById(root: MockElement): MockElement | null {
+        if (root.id === id) return root;
+        for (const child of root.children) {
+          const found = findById(child);
+          if (found) return found;
+        }
+        return null;
+      }
+      return findById(html);
+    },
     addEventListener: (type: string, fn: EventListener) => {
       const list = listeners.get(type) ?? [];
       list.push(fn);
@@ -266,7 +302,7 @@ function createMockDocument() {
   html.ownerDocument = doc as unknown as Document;
   body.ownerDocument = doc as unknown as Document;
   Object.assign(doc.defaultView, { document: doc });
-  return { doc, body, styleMap, scrolledPositions };
+  return { doc, body, styleMap, scrolledPositions, listeners };
 }
 
 async function runSerializerAccuracyTests() {
@@ -1153,10 +1189,176 @@ async function runFastModeImageEmbeddingTests() {
   }
 }
 
+async function runSpriteAndProPickerTests() {
+  // 1. SVG sprite <use href="#..."> resolution
+  {
+    const { doc, body } = createMockDocument();
+
+    // Hidden inline SVG sprite sheet with <symbol id="icon-star" viewBox="0 0 24 24">
+    const spriteSheet = new MockElement('svg', { left: 0, top: 0, width: 0, height: 0 });
+    spriteSheet.styleOverrides = { display: 'none' };
+    const symbolEl = new MockElement('symbol', { left: 0, top: 0, width: 24, height: 24 });
+    symbolEl.setAttribute('id', 'icon-star');
+    symbolEl.setAttribute('viewBox', '0 0 24 24');
+    const starPath = new MockElement('path');
+    const starD = 'M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8Z';
+    starPath.setAttribute('d', starD);
+    starPath.setAttribute('fill', 'currentColor');
+    symbolEl.appendChild(starPath);
+
+    // Direct shape inside sprite sheet (<path id="icon-line">)
+    const directShape = new MockElement('path');
+    directShape.setAttribute('id', 'icon-line');
+    directShape.setAttribute('d', 'M2 12L22 12');
+    spriteSheet.appendChild(symbolEl);
+    spriteSheet.appendChild(directShape);
+    body.appendChild(spriteSheet);
+
+    // Visible <svg><use href="#icon-star"></use></svg> (no viewBox on outer <svg>)
+    const iconSvg = new MockElement('svg', { left: 10, top: 10, width: 24, height: 24 });
+    iconSvg.styleOverrides = { color: 'rgba(16, 185, 129, 1)' };
+    const useStar = new MockElement('use');
+    useStar.setAttribute('href', '#icon-star');
+    iconSvg.appendChild(useStar);
+    iconSvg.outerHTML = '<svg><use href="#icon-star"></use></svg>';
+    body.appendChild(iconSvg);
+
+    // Visible <svg><use xlink:href="#icon-line"></use></svg> referencing a shape directly
+    const lineSvg = new MockElement('svg', { left: 50, top: 10, width: 24, height: 24 });
+    lineSvg.styleOverrides = { color: 'rgba(59, 130, 246, 1)' };
+    lineSvg.setAttribute('fill', 'none');
+    lineSvg.setAttribute('stroke', 'currentColor');
+    const useLine = new MockElement('use');
+    useLine.setAttribute('xlink:href', '#icon-line');
+    lineSvg.appendChild(useLine);
+    lineSvg.outerHTML = '<svg fill="none" stroke="currentColor"><use xlink:href="#icon-line"></use></svg>';
+    body.appendChild(lineSvg);
+
+    const capture = CaptureSchema.parse(await serializeDocument(doc as unknown as Document));
+
+    const starNode = capture.nodes.find((n) => n.box.x === 10 && n.box.y === 10);
+    assert.ok(starNode, 'Sprite <use href="#icon-star"> node not found');
+    assert.strictEqual(starNode.type, 'vector');
+    assert.ok(starNode.vectorPaths && starNode.vectorPaths.length >= 1, 'Sprite SVG missing vectorPaths');
+    assert.strictEqual(starNode.vectorPaths[0].d, starD);
+    assert.strictEqual(starNode.vectorPaths[0].fill, 'rgba(16, 185, 129, 1)');
+    assert.deepStrictEqual(starNode.vectorViewBox, { width: 24, height: 24 });
+
+    const lineNode = capture.nodes.find((n) => n.box.x === 50 && n.box.y === 10);
+    assert.ok(lineNode, 'Sprite <use xlink:href="#icon-line"> node not found');
+    assert.strictEqual(lineNode.type, 'vector');
+    assert.ok(lineNode.vectorPaths && lineNode.vectorPaths.length >= 1);
+    assert.strictEqual(lineNode.vectorPaths[0].d, 'M2 12L22 12');
+    assert.strictEqual(lineNode.vectorPaths[0].fill, 'none');
+    assert.strictEqual(lineNode.vectorPaths[0].stroke, 'rgba(59, 130, 246, 1)');
+  }
+
+  // 2. Pro startElementPicker: ArrowUp/ArrowDown + Shift+Click + Enter
+  {
+    const { doc, body, listeners } = createMockDocument();
+    const parentCard = new MockElement('section', { left: 0, top: 0, width: 400, height: 200 });
+    parentCard.setAttribute('class', 'hero-card primary');
+    const childBtn = new MockElement('button', { left: 20, top: 20, width: 120, height: 40 });
+    childBtn.setAttribute('class', 'cta-btn');
+    const siblingSpan = new MockElement('span', { left: 160, top: 20, width: 80, height: 24 });
+    siblingSpan.setAttribute('class', 'badge');
+    parentCard.appendChild(childBtn);
+    parentCard.appendChild(siblingSpan);
+    body.appendChild(parentCard);
+
+    let hoverTarget: MockElement = childBtn;
+    doc.elementFromPoint = () => hoverTarget as unknown as never;
+
+    let multiSelected: Element[] = [];
+    let singleSelected: Element | null = null;
+    let cancelled = false;
+
+    const cleanup = startElementPicker(doc as unknown as Document, {
+      onSelect: (el) => {
+        singleSelected = el;
+      },
+      onMultiSelect: (els) => {
+        multiSelected = els;
+      },
+      onCancel: () => {
+        cancelled = true;
+      },
+    });
+
+    const emit = (type: string, evt: Record<string, unknown>) => {
+      for (const fn of [...(listeners.get(type) ?? [])]) {
+        fn(evt as unknown as Event);
+      }
+    };
+
+    // Hover childBtn
+    emit('mousemove', { clientX: 30, clientY: 30 });
+    const badge = doc.getElementById('__capture_kit_picker_badge');
+    assert.ok(badge, 'Picker badge not created');
+    assert.strictEqual(badge.textContent, 'button.cta-btn · 120×40');
+
+    // ArrowUp steps to parentCard
+    let prevented = false;
+    emit('keydown', { key: 'ArrowUp', preventDefault: () => { prevented = true; } });
+    assert.strictEqual(prevented, true);
+    assert.strictEqual(badge.textContent, 'section.hero-card · 400×200');
+
+    // ArrowDown steps back to firstElementChild (childBtn)
+    prevented = false;
+    emit('keydown', { key: 'ArrowDown', preventDefault: () => { prevented = true; } });
+    assert.strictEqual(prevented, true);
+    assert.strictEqual(badge.textContent, 'button.cta-btn · 120×40');
+
+    // Shift+Click selects childBtn without exiting
+    emit('click', {
+      shiftKey: true,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    });
+    assert.strictEqual(multiSelected.length, 0);
+    assert.strictEqual(singleSelected, null);
+    assert.strictEqual(badge.textContent, 'button.cta-btn · 120×40 (1 selected)');
+
+    // Persistent green selection overlay should be added to body
+    const greenOverlay = body.children.find(
+      (c) => c.style.border === '2px solid #10b981' && c.style.background === 'rgba(16,185,129,0.12)'
+    );
+    assert.ok(greenOverlay, 'Persistent green selection overlay missing');
+
+    // Hover siblingSpan and Shift+Click it too
+    hoverTarget = siblingSpan;
+    emit('mousemove', { clientX: 170, clientY: 30 });
+    assert.strictEqual(badge.textContent, 'span.badge · 80×24 (1 selected)');
+    emit('click', {
+      shiftKey: true,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    });
+    assert.strictEqual(badge.textContent, 'span.badge · 80×24 (2 selected)');
+
+    // Enter finishes multi-select and cleans up overlays
+    emit('keydown', { key: 'Enter', preventDefault: () => {} });
+    assert.strictEqual(multiSelected.length, 2);
+    assert.strictEqual(multiSelected[0], childBtn);
+    assert.strictEqual(multiSelected[1], siblingSpan);
+    assert.strictEqual(doc.getElementById('__capture_kit_picker_overlay'), null, 'Main overlay not cleaned up');
+    assert.strictEqual(
+      body.children.some((c) => c.style.border === '2px solid #10b981'),
+      false,
+      'Green selection overlays not cleaned up'
+    );
+    assert.strictEqual(cancelled, false);
+    cleanup();
+  }
+
+  console.log('✓ SVG sprite resolution & Pro element picker tests passed');
+}
+
 runSerializerAccuracyTests()
   .then(runReadinessTests)
   .then(runFontMatchingTests)
   .then(runFastModeImageEmbeddingTests)
+  .then(runSpriteAndProPickerTests)
   .catch((err) => {
     console.error('packages/serializer test failure:', err);
     process.exit(1);
