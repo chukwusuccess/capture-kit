@@ -575,7 +575,259 @@ const IGNORED_TAGS: Record<string, true> = {
   title: true,
 };
 
-export function parseBoxShadow(shadowStr: string) {
+const cssColorCanvasCache = new WeakMap<Document, CanvasRenderingContext2D | null>();
+
+function formatRgba(r: number, g: number, b: number, a: number): string {
+  const rr = Math.max(0, Math.min(255, Math.round(r)));
+  const gg = Math.max(0, Math.min(255, Math.round(g)));
+  const bb = Math.max(0, Math.min(255, Math.round(b)));
+  const aa = Math.max(0, Math.min(1, Math.round(a * 1000) / 1000));
+  return `rgba(${rr}, ${gg}, ${bb}, ${aa})`;
+}
+
+function parseCssAlpha(token?: string): number {
+  if (!token) return 1;
+  const t = token.trim().toLowerCase();
+  if (!t || t === 'none') return t === 'none' ? 0 : 1;
+  const val = t.endsWith('%') ? parseFloat(t) / 100 : parseFloat(t);
+  if (Number.isNaN(val)) return 1;
+  return Math.max(0, Math.min(1, val));
+}
+
+function parseCssHueDeg(token: string): number {
+  const t = token.trim().toLowerCase();
+  if (t === 'none') return 0;
+  const ang = parseCssAngle(t);
+  if (ang !== undefined) return ang;
+  const n = parseFloat(t);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+function linearToSrgbChannel(c: number): number {
+  const clamped = Math.max(0, Math.min(1, c));
+  return clamped <= 0.0031308
+    ? 12.92 * clamped
+    : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+}
+
+function srgbToLinearChannel(c: number): number {
+  const sign = c < 0 ? -1 : 1;
+  const abs = Math.abs(c);
+  return abs <= 0.04045
+    ? c / 12.92
+    : sign * Math.pow((abs + 0.055) / 1.055, 2.4);
+}
+
+function oklabToRgba(L: number, a: number, b: number, alpha: number): string {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+
+  const l = l_ * l_ * l_;
+  const m = m_ * m_ * m_;
+  const s = s_ * s_ * s_;
+
+  const lr = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const lb = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+  return formatRgba(
+    linearToSrgbChannel(lr) * 255,
+    linearToSrgbChannel(lg) * 255,
+    linearToSrgbChannel(lb) * 255,
+    alpha
+  );
+}
+
+function resolveColorViaCanvas(color: string, doc: Document): string | null {
+  try {
+    let ctx = cssColorCanvasCache.get(doc);
+    if (ctx === undefined) {
+      if (typeof doc.createElement !== 'function') {
+        cssColorCanvasCache.set(doc, null);
+        return null;
+      }
+      const canvas = doc.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
+      cssColorCanvasCache.set(doc, ctx ?? null);
+    }
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 1, 1);
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+    return formatRgba(data[0], data[1], data[2], data[3] / 255);
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeCssColor(color: string, doc?: Document): string {
+  if (!color) return color;
+  const trimmed = color.trim();
+  if (!trimmed) return color;
+  const lower = trimmed.toLowerCase();
+
+  if (lower === 'none' || lower === 'transparent' || lower === 'currentcolor') {
+    return trimmed;
+  }
+  if (/^#[0-9a-f]{3,8}$/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // rgb(...) / rgba(...): keep comma-separated as-is; normalize space-separated `rgb(r g b / a)`
+  const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const inner = rgbMatch[1].trim();
+    if (inner.includes(',')) return trimmed;
+    const [rgbPart, alphaPart] = inner.split('/').map((s) => s.trim());
+    const chans = rgbPart.split(/\s+/).filter(Boolean);
+    if (chans.length >= 3) {
+      const parseRgbChan = (tok: string): number => {
+        if (tok.toLowerCase() === 'none') return 0;
+        return tok.endsWith('%') ? (parseFloat(tok) / 100) * 255 : parseFloat(tok);
+      };
+      return formatRgba(
+        parseRgbChan(chans[0]),
+        parseRgbChan(chans[1]),
+        parseRgbChan(chans[2]),
+        parseCssAlpha(alphaPart)
+      );
+    }
+    return trimmed;
+  }
+
+  // oklab(L a b [/ alpha])
+  const oklabMatch = trimmed.match(/^oklab\(([^)]+)\)$/i);
+  if (oklabMatch) {
+    const [chanPart, alphaPart] = oklabMatch[1].split('/').map((s) => s.trim());
+    const chans = chanPart.split(/\s+/).filter(Boolean);
+    if (chans.length >= 3) {
+      const parseL = (t: string): number => (t.toLowerCase() === 'none' ? 0 : t.endsWith('%') ? parseFloat(t) / 100 : parseFloat(t));
+      const parseAB = (t: string): number => (t.toLowerCase() === 'none' ? 0 : t.endsWith('%') ? (parseFloat(t) / 100) * 0.4 : parseFloat(t));
+      const L = parseL(chans[0]);
+      const a = parseAB(chans[1]);
+      const b = parseAB(chans[2]);
+      if (!Number.isNaN(L) && !Number.isNaN(a) && !Number.isNaN(b)) {
+        return oklabToRgba(L, a, b, parseCssAlpha(alphaPart));
+      }
+    }
+  }
+
+  // oklch(L C H [/ alpha])
+  const oklchMatch = trimmed.match(/^oklch\(([^)]+)\)$/i);
+  if (oklchMatch) {
+    const [chanPart, alphaPart] = oklchMatch[1].split('/').map((s) => s.trim());
+    const chans = chanPart.split(/\s+/).filter(Boolean);
+    if (chans.length >= 3) {
+      const parseL = (t: string): number => (t.toLowerCase() === 'none' ? 0 : t.endsWith('%') ? parseFloat(t) / 100 : parseFloat(t));
+      const parseC = (t: string): number => (t.toLowerCase() === 'none' ? 0 : t.endsWith('%') ? (parseFloat(t) / 100) * 0.4 : parseFloat(t));
+      const L = parseL(chans[0]);
+      const C = parseC(chans[1]);
+      const H = parseCssHueDeg(chans[2]);
+      if (!Number.isNaN(L) && !Number.isNaN(C) && !Number.isNaN(H)) {
+        const hRad = (H * Math.PI) / 180;
+        return oklabToRgba(L, C * Math.cos(hRad), C * Math.sin(hRad), parseCssAlpha(alphaPart));
+      }
+    }
+  }
+
+  // hsl(...) / hsla(...)
+  const hslMatch = trimmed.match(/^hsla?\(([^)]+)\)$/i);
+  if (hslMatch) {
+    const inner = hslMatch[1].trim();
+    let hStr: string | undefined;
+    let sStr: string | undefined;
+    let lStr: string | undefined;
+    let alphaPart: string | undefined;
+    if (inner.includes(',')) {
+      const parts = inner.split(',').map((s) => s.trim());
+      [hStr, sStr, lStr, alphaPart] = parts;
+    } else {
+      const [hslPart, aPart] = inner.split('/').map((s) => s.trim());
+      const parts = hslPart.split(/\s+/).filter(Boolean);
+      [hStr, sStr, lStr] = parts;
+      alphaPart = aPart;
+    }
+    if (hStr && sStr && lStr) {
+      const h = ((parseCssHueDeg(hStr) % 360) + 360) % 360;
+      const s = Math.max(0, Math.min(1, (sStr.toLowerCase() === 'none' ? 0 : parseFloat(sStr)) / 100));
+      const l = Math.max(0, Math.min(1, (lStr.toLowerCase() === 'none' ? 0 : parseFloat(lStr)) / 100));
+      if (!Number.isNaN(h) && !Number.isNaN(s) && !Number.isNaN(l)) {
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const hp = h / 60;
+        const x = c * (1 - Math.abs((hp % 2) - 1));
+        let r1 = 0;
+        let g1 = 0;
+        let b1 = 0;
+        if (hp >= 0 && hp < 1) { r1 = c; g1 = x; }
+        else if (hp < 2) { r1 = x; g1 = c; }
+        else if (hp < 3) { g1 = c; b1 = x; }
+        else if (hp < 4) { g1 = x; b1 = c; }
+        else if (hp < 5) { r1 = x; b1 = c; }
+        else { r1 = c; b1 = x; }
+        const m = l - c / 2;
+        return formatRgba((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255, parseCssAlpha(alphaPart));
+      }
+    }
+  }
+
+  // color(display-p3 r g b [/ alpha])
+  const p3Match = trimmed.match(/^color\(\s*display-p3\s+([^)]+)\)$/i);
+  if (p3Match) {
+    const [chanPart, alphaPart] = p3Match[1].split('/').map((s) => s.trim());
+    const chans = chanPart.split(/\s+/).filter(Boolean);
+    if (chans.length >= 3) {
+      const parseChan = (t: string): number => (t.toLowerCase() === 'none' ? 0 : t.endsWith('%') ? parseFloat(t) / 100 : parseFloat(t));
+      const r = srgbToLinearChannel(parseChan(chans[0]));
+      const g = srgbToLinearChannel(parseChan(chans[1]));
+      const b = srgbToLinearChannel(parseChan(chans[2]));
+      if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+        const X = 0.4865709486482162 * r + 0.26566769316909306 * g + 0.1982172852343625 * b;
+        const Y = 0.2289745640697488 * r + 0.6917385218365064 * g + 0.079286914093745 * b;
+        const Z = 0.04511338185890264 * g + 1.043944368900976 * b;
+        const lr = 3.2409699419045213 * X - 1.5373831775700935 * Y - 0.4986107602930033 * Z;
+        const lg = -0.9692436362808798 * X + 1.8759675015077206 * Y + 0.0415550574071756 * Z;
+        const lb = 0.0556300796969936 * X - 0.2039769588889766 * Y + 1.0569715142428786 * Z;
+        return formatRgba(
+          linearToSrgbChannel(lr) * 255,
+          linearToSrgbChannel(lg) * 255,
+          linearToSrgbChannel(lb) * 255,
+          parseCssAlpha(alphaPart)
+        );
+      }
+    }
+  }
+
+  // Fallback for color-mix(...), lch(...), lab(...), or other color(...) via 1x1 canvas
+  if (/^(?:color-mix|lch|lab|color)\(/i.test(trimmed) && doc) {
+    const resolved = resolveColorViaCanvas(trimmed, doc);
+    if (resolved) return resolved;
+  }
+
+  return trimmed;
+}
+
+function extractBalancedColorFunc(input: string, startIndex = 0): { color: string; endIndex: number } | null {
+  const slice = input.slice(startIndex);
+  const m = slice.match(/^(rgba?|hsla?|oklch|oklab|lch|lab|color-mix|color)\(/i);
+  if (!m) return null;
+  let depth = 0;
+  for (let i = startIndex + m[1].length; i < input.length; i++) {
+    if (input[i] === '(') depth++;
+    else if (input[i] === ')') {
+      depth--;
+      if (depth === 0) {
+        return { color: input.slice(startIndex, i + 1), endIndex: i + 1 };
+      }
+    }
+  }
+  return null;
+}
+
+export function parseBoxShadow(shadowStr: string, doc?: Document) {
   if (!shadowStr || shadowStr === 'none') return [];
   const parts = splitTopLevelCommas(shadowStr);
   const shadows = [];
@@ -590,23 +842,28 @@ export function parseBoxShadow(shadowStr: string) {
     let color = 'rgba(0, 0, 0, 0.2)';
     let rest = withoutInset;
 
-    const funcOrHexMatch = withoutInset.match(
-      /(?:rgba?|hsla?|oklch|oklab|lch|lab|color)\([^)]+\)|#[0-9a-fA-F]{3,8}\b/i
-    );
-    if (funcOrHexMatch) {
-      color = funcOrHexMatch[0];
-      rest = withoutInset.replace(color, '').trim();
+    const funcIdx = withoutInset.search(/(?:rgba?|hsla?|oklch|oklab|lch|lab|color-mix|color)\(/i);
+    const balanced = funcIdx >= 0 ? extractBalancedColorFunc(withoutInset, funcIdx) : null;
+    if (balanced) {
+      color = normalizeCssColor(balanced.color, doc);
+      rest = (withoutInset.slice(0, funcIdx) + withoutInset.slice(balanced.endIndex)).trim();
     } else {
-      const tokens = withoutInset.split(/\s+/).filter(Boolean);
-      const lengthTokens: string[] = [];
-      for (const tok of tokens) {
-        if (/^[a-zA-Z]+$/.test(tok)) {
-          color = tok;
-        } else {
-          lengthTokens.push(tok);
+      const hexMatch = withoutInset.match(/#[0-9a-fA-F]{3,8}\b/i);
+      if (hexMatch) {
+        color = normalizeCssColor(hexMatch[0], doc);
+        rest = withoutInset.replace(hexMatch[0], '').trim();
+      } else {
+        const tokens = withoutInset.split(/\s+/).filter(Boolean);
+        const lengthTokens: string[] = [];
+        for (const tok of tokens) {
+          if (/^[a-zA-Z]+$/.test(tok)) {
+            color = normalizeCssColor(tok, doc);
+          } else {
+            lengthTokens.push(tok);
+          }
         }
+        rest = lengthTokens.join(' ');
       }
-      rest = lengthTokens.join(' ');
     }
 
     const lengths = rest
@@ -817,9 +1074,9 @@ function parseAtPosition(preamble: string): { cx?: number; cy?: number } {
   return { cx: parseAxis(atMatch[1]), cy: parseAxis(atMatch[2] ?? atMatch[1]) };
 }
 
-function parseGradientStops(rawStops: string[], isConic = false): Array<{ color: string; position: number; positionPx?: number }> {
+function parseGradientStops(rawStops: string[], isConic = false, doc?: Document): Array<{ color: string; position: number; positionPx?: number }> {
   const parsed: Array<{ color: string; position?: number; positionPx?: number }> = [];
-  const colorRe = /^(rgba?\([^)]+\)|hsla?\([^)]+\)|#[0-9a-fA-F]+|[a-zA-Z]+)(.*)$/i;
+  const colorRe = /^(#[0-9a-fA-F]+|[a-zA-Z]+)(.*)$/i;
   const parsePos = (tok: string): { position?: number; positionPx?: number } | undefined => {
     const t = tok.trim().toLowerCase();
     if (t.endsWith('%')) return { position: Math.max(0, Math.min(1, parseFloat(t) / 100)) };
@@ -840,10 +1097,19 @@ function parseGradientStops(rawStops: string[], isConic = false): Array<{ color:
     if (!s) continue;
     // Pure color-stop hint (no color): e.g. "40%"
     if (/^[\d.]+(?:%|px|deg|turn|rad|grad)?$/i.test(s)) continue;
-    const m = s.match(colorRe);
-    if (!m) continue;
-    const color = m[1];
-    const rest = m[2].trim();
+    let rawColor: string | undefined;
+    let rest = '';
+    const balanced = extractBalancedColorFunc(s, 0);
+    if (balanced) {
+      rawColor = balanced.color;
+      rest = s.slice(balanced.endIndex).trim();
+    } else {
+      const m = s.match(colorRe);
+      if (!m) continue;
+      rawColor = m[1];
+      rest = m[2].trim();
+    }
+    const color = normalizeCssColor(rawColor, doc);
     if (!rest) {
       parsed.push({ color });
       continue;
@@ -875,7 +1141,7 @@ function parseGradientStops(rawStops: string[], isConic = false): Array<{ color:
   }));
 }
 
-function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string, bgRepeat?: string): Fill[] {
+function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string, bgRepeat?: string, doc?: Document): Fill[] {
   if (!bgImage || bgImage === 'none') return [];
   const fills: Fill[] = [];
   const layers = splitTopLevelCommas(bgImage);
@@ -918,7 +1184,7 @@ function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string
         else if (first.includes('top')) angle = 0;
         else if (first.includes('bottom')) angle = 180;
       }
-      const stops = parseGradientStops(parts.slice(stopStartIndex));
+      const stops = parseGradientStops(parts.slice(stopStartIndex), false, doc);
       if (stops.length >= 2) {
         fills.push({ type: 'gradient', gradientType: 'linear', angle, stops, opacity: 1, ...layerMeta });
       }
@@ -946,7 +1212,7 @@ function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string
         const beforeAt = first.split(/\bat\b/i)[0].replace(/\b(circle|ellipse)\b/gi, '').trim();
         if (beforeAt) radialSize = beforeAt;
       }
-      const stops = parseGradientStops(parts.slice(stopStartIndex));
+      const stops = parseGradientStops(parts.slice(stopStartIndex), false, doc);
       if (stops.length >= 2) {
         fills.push({
           type: 'gradient',
@@ -974,7 +1240,7 @@ function parseCssGradients(bgImage: string, bgSize?: string, bgPosition?: string
         cx = pos.cx;
         cy = pos.cy;
       }
-      const stops = parseGradientStops(parts.slice(stopStartIndex), true);
+      const stops = parseGradientStops(parts.slice(stopStartIndex), true, doc);
       if (stops.length >= 2) {
         fills.push({
           type: 'gradient',
@@ -1454,11 +1720,87 @@ function findAttrWithin(el: Element, attr: string, stopAt: Element): string | un
   return undefined;
 }
 
-function extractSvgPaths(
+function applyOpacityToColor(color: string, opacity: number): string {
+  const op = Math.max(0, Math.min(1, opacity));
+  if (op >= 1) return color;
+  const rgbaMatch = color.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+  if (rgbaMatch) {
+    const existingAlpha = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1;
+    return formatRgba(parseFloat(rgbaMatch[1]), parseFloat(rgbaMatch[2]), parseFloat(rgbaMatch[3]), existingAlpha * op);
+  }
+  const hexMatch = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    const r = hex.length === 3 ? parseInt(hex[0] + hex[0], 16) : parseInt(hex.slice(0, 2), 16);
+    const g = hex.length === 3 ? parseInt(hex[1] + hex[1], 16) : parseInt(hex.slice(2, 4), 16);
+    const b = hex.length === 3 ? parseInt(hex[2] + hex[2], 16) : parseInt(hex.slice(4, 6), 16);
+    return formatRgba(r, g, b, op);
+  }
+  return color;
+}
+
+function parseSvgGradient(gradEl: Element, doc?: Document): Fill | undefined {
+  const parseSvgCoord = (val: string | null | undefined, fallback: number): number => {
+    if (!val) return fallback;
+    const t = val.trim();
+    if (!t) return fallback;
+    const n = t.endsWith('%') ? parseFloat(t) / 100 : parseFloat(t);
+    return Number.isNaN(n) ? fallback : n;
+  };
+
+  let stopEls: Element[] =
+    typeof gradEl.querySelectorAll === 'function' ? Array.from(gradEl.querySelectorAll('stop')) : [];
+  if (stopEls.length === 0 && gradEl.children) {
+    stopEls = Array.from(gradEl.children).filter((c) => c.tagName?.toLowerCase() === 'stop');
+  }
+
+  const stops: Array<{ color: string; position: number }> = [];
+  for (let idx = 0; idx < stopEls.length; idx++) {
+    const stopEl = stopEls[idx];
+    const styleAttr = stopEl.getAttribute?.('style') || '';
+    let stopColor =
+      stopEl.getAttribute?.('stop-color') ||
+      styleAttr.match(/stop-color\s*:\s*([^;]+)/i)?.[1]?.trim() ||
+      '';
+    if (!stopColor) continue;
+    stopColor = normalizeCssColor(stopColor, doc);
+    const opStr =
+      stopEl.getAttribute?.('stop-opacity') ||
+      styleAttr.match(/stop-opacity\s*:\s*([^;]+)/i)?.[1]?.trim();
+    if (opStr) {
+      const op = parseFloat(opStr);
+      if (!Number.isNaN(op)) stopColor = applyOpacityToColor(stopColor, op);
+    }
+    const defaultPos = stopEls.length > 1 ? idx / (stopEls.length - 1) : 0;
+    const position = Math.max(0, Math.min(1, parseSvgCoord(stopEl.getAttribute?.('offset'), defaultPos)));
+    stops.push({ color: stopColor, position });
+  }
+  if (stops.length === 0) return undefined;
+
+  const gradTag = gradEl.tagName?.toLowerCase() ?? '';
+  if (gradTag === 'radialgradient') {
+    const cx = Math.max(0, Math.min(1, parseSvgCoord(gradEl.getAttribute?.('cx'), 0.5)));
+    const cy = Math.max(0, Math.min(1, parseSvgCoord(gradEl.getAttribute?.('cy'), 0.5)));
+    return { type: 'gradient', gradientType: 'radial', cx, cy, stops, opacity: 1 };
+  }
+
+  const x1 = parseSvgCoord(gradEl.getAttribute?.('x1'), 0);
+  const y1 = parseSvgCoord(gradEl.getAttribute?.('y1'), 0);
+  const x2 = parseSvgCoord(gradEl.getAttribute?.('x2'), 1);
+  const y2 = parseSvgCoord(gradEl.getAttribute?.('y2'), 0);
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let angle = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  if (angle < 0) angle += 360;
+  angle = Math.round(angle * 100) / 100;
+  return { type: 'gradient', gradientType: 'linear', angle, stops, opacity: 1 };
+}
+
+export function extractSvgPaths(
   svgEl: Element,
   opts?: { inheritFrom?: Element[]; fallbackColor?: string; allowDefsAncestor?: boolean }
-): Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> {
-  const paths: Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number }> = [];
+): Array<{ d: string; fill?: string; fillGradient?: Fill; stroke?: string; strokeWidth?: number }> {
+  const paths: Array<{ d: string; fill?: string; fillGradient?: Fill; stroke?: string; strokeWidth?: number }> = [];
   const tagSelf = svgEl.tagName?.toLowerCase() ?? '';
   const candidates: Element[] = SVG_SHAPE_TAGS.has(tagSelf)
     ? [svgEl]
@@ -1545,24 +1887,34 @@ function extractSvgPaths(
           : undefined) ??
         opts?.inheritFrom?.map((h) => h.getAttribute?.('stroke')).find(Boolean) ??
         undefined;
+      let fillGradient: Fill | undefined;
       if (fill && fill.startsWith('url(')) {
         const gId = fill.match(/#([^)\s"']+)/)?.[1];
-        const stop = gId ? svgEl.ownerDocument?.getElementById(gId)?.querySelector?.('stop') : null;
-        fill = stop?.getAttribute?.('stop-color') || undefined;
+        const gradEl = gId
+          ? (svgEl.ownerDocument?.getElementById?.(gId) ?? svgEl.querySelector?.(`#${gId}`) ?? null)
+          : null;
+        if (gradEl) {
+          fillGradient = parseSvgGradient(gradEl, svgEl.ownerDocument ?? undefined);
+          fill = fillGradient?.stops?.[0]?.color;
+        } else {
+          fill = undefined;
+        }
       }
       if (!fill || fill === 'currentColor' || fill === 'inherit') {
         const color = resolveColor();
         if (color) fill = color;
       }
+      if (fill) fill = normalizeCssColor(fill, svgEl.ownerDocument ?? undefined);
       if (stroke === 'currentColor' || stroke === 'inherit') {
         const color = resolveColor();
         if (color) stroke = color;
       }
+      if (stroke) stroke = normalizeCssColor(stroke, svgEl.ownerDocument ?? undefined);
       const sw =
         findAttrWithin(child, 'stroke-width', svgEl) ??
         opts?.inheritFrom?.map((h) => h.getAttribute?.('stroke-width')).find(Boolean);
       const strokeWidth = sw ? parseFloat(sw) : undefined;
-      paths.push({ d, fill, stroke, strokeWidth });
+      paths.push({ d, fill, ...(fillGradient ? { fillGradient } : {}), stroke, strokeWidth });
     }
   }
 
@@ -1589,7 +1941,7 @@ function parseCornerRadius(computed: CSSStyleDeclaration): CornerRadius {
   };
 }
 
-function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
+function parseStrokes(computed: CSSStyleDeclaration, doc?: Document): Stroke[] {
   const strokes: Stroke[] = [];
   const edgeDefs: Array<{ side: 'top' | 'right' | 'bottom' | 'left'; width: string; style: string; color: string }> = [
     { side: 'top', width: computed.borderTopWidth, style: computed.borderTopStyle, color: computed.borderTopColor },
@@ -1600,9 +1952,10 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
   const validEdges = edgeDefs
     .map((e) => {
       const w = Math.max(0, parseFloat(e.width) || 0);
-      const ok = w > 0 && e.style && e.style !== 'none' && e.color && e.color !== 'transparent' && e.color !== 'rgba(0, 0, 0, 0)';
+      const c = normalizeCssColor(e.color, doc);
+      const ok = w > 0 && e.style && e.style !== 'none' && c && c !== 'transparent' && c !== 'rgba(0, 0, 0, 0)';
       const st: 'solid' | 'dashed' | 'dotted' = e.style === 'dashed' || e.style === 'dotted' ? e.style : 'solid';
-      return ok ? { side: e.side, width: w, style: st, color: e.color } : null;
+      return ok ? { side: e.side, width: w, style: st, color: c } : null;
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
   if (validEdges.length === 4 && validEdges.every((e) => e.width === validEdges[0].width && e.color === validEdges[0].color && e.style === validEdges[0].style)) {
@@ -1613,7 +1966,7 @@ function parseStrokes(computed: CSSStyleDeclaration): Stroke[] {
   if (strokes.length === 0) {
     const ow = Math.max(0, parseFloat(computed.outlineWidth) || 0);
     const os = computed.outlineStyle;
-    const oc = computed.outlineColor;
+    const oc = normalizeCssColor(computed.outlineColor, doc);
     if (ow > 0 && os && os !== 'none' && os !== 'auto' && oc && oc !== 'transparent' && oc !== 'rgba(0, 0, 0, 0)') {
       const ost: 'solid' | 'dashed' | 'dotted' = os === 'dashed' || os === 'dotted' ? os : 'solid';
       strokes.push({ color: oc, width: ow, style: ost, side: 'all', offset: parseFloat(computed.outlineOffset) || 0 });
@@ -1644,11 +1997,19 @@ function extractPseudoElement(
 
     const cleanContent = contentRaw.replace(/^["']|["']$/g, '').trim();
 
-    const bg = computed.backgroundColor;
-    const hasBg = bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)';
-    const strokes = parseStrokes(computed);
+    const doc = el.ownerDocument ?? undefined;
+    const bg = normalizeCssColor(computed.backgroundColor, doc);
+    const hasBg = Boolean(bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)');
+    const gradients = parseCssGradients(
+      computed.backgroundImage,
+      computed.backgroundSize,
+      computed.backgroundPosition,
+      computed.backgroundRepeat,
+      doc
+    );
+    const strokes = parseStrokes(computed, doc);
     const radius = parseCornerRadius(computed);
-    const shadows = parseBoxShadow(computed.boxShadow);
+    const shadows = parseBoxShadow(computed.boxShadow, doc);
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
     const fidelity = extractFidelityStyle(computed);
 
@@ -1671,7 +2032,11 @@ function extractPseudoElement(
     const borderW = widthUnderBox ? contentW : contentW + padL + padR + bdL + bdR;
     const borderH = widthUnderBox ? contentH : contentH + padT + padB + bdT + bdB;
 
-    const isVisibleShape = (hasBg || strokes.length > 0) && borderW > 0 && borderH > 0;
+    const fills: Fill[] = [
+      ...(hasBg ? [{ type: 'solid' as const, color: bg, opacity: 1 }] : []),
+      ...gradients,
+    ];
+    const isVisibleShape = (fills.length > 0 || strokes.length > 0) && borderW > 0 && borderH > 0;
     if (!cleanContent && !isVisibleShape) {
       return null;
     }
@@ -1688,6 +2053,7 @@ function extractPseudoElement(
     const pContentW = Math.max(1, parentBox.w - pBdL - num(pc.borderRightWidth) - pPadL - num(pc.paddingRight));
 
     const topVal = parseFloat(computed.top);
+    const bottomVal = parseFloat(computed.bottom);
     const leftVal = parseFloat(computed.left);
     const rightVal = parseFloat(computed.right);
     const isAbsolute = computed.position === 'absolute' || computed.position === 'fixed';
@@ -1700,7 +2066,9 @@ function extractPseudoElement(
       x = Number.isNaN(leftVal)
         ? parentBox.x + pBdL + pContentW - (Number.isNaN(rightVal) ? 0 : rightVal) - borderW
         : parentBox.x + pBdL + leftVal;
-      y = Number.isNaN(topVal) ? parentBox.y + pBdT : parentBox.y + pBdT + topVal;
+      y = Number.isNaN(topVal)
+        ? (Number.isNaN(bottomVal) ? parentBox.y + pBdT : parentBox.y + parentBox.h - pBdB - bottomVal - borderH)
+        : parentBox.y + pBdT + topVal;
     } else {
       x = parentBox.x + pBdL + pPadL;
       y =
@@ -1742,7 +2110,6 @@ function extractPseudoElement(
     };
 
     const out: Node[] = [];
-    const fills: Fill[] = hasBg ? [{ type: 'solid', color: bg, opacity: 1 }] : [];
     let pillId = parentId;
 
     if (isVisibleShape) {
@@ -1783,7 +2150,7 @@ function extractPseudoElement(
           lineHeight,
           letterSpacing,
           align: parseTextAlign(computed.textAlign),
-          color: computed.color || 'rgba(0, 0, 0, 1)',
+          color: normalizeCssColor(computed.color || 'rgba(0, 0, 0, 1)', doc),
           ...extractTextFidelity(computed),
         },
       });
@@ -2348,7 +2715,7 @@ async function serializeSubtree(
   try {
     for (const rootEl of [doc.documentElement, doc.body]) {
       if (!rootEl) continue;
-      const rootBg = defaultView.getComputedStyle(rootEl).backgroundColor;
+      const rootBg = normalizeCssColor(defaultView.getComputedStyle(rootEl).backgroundColor, doc);
       if (rootBg && rootBg !== 'transparent' && rootBg !== 'rgba(0, 0, 0, 0)') {
         rootBackground = rootBg;
         break;
@@ -2626,20 +2993,20 @@ async function serializeSubtree(
     if (bgClipFills && bgClipFills.length > 0) {
       const primaryStop = bgClipFills[0]?.stops?.[0]?.color || bgClipFills[0]?.color;
       if (primaryStop && (isTransparentCssColor(wtfc) || isTransparentCssColor(computed.color))) {
-        return primaryStop;
+        return normalizeCssColor(primaryStop, doc);
       }
     }
     if (wtfc && !isTransparentCssColor(wtfc) && wtfc.toLowerCase() !== 'currentcolor') {
-      return wtfc;
+      return normalizeCssColor(wtfc, doc);
     }
     if (computed.color && !isTransparentCssColor(computed.color)) {
-      return computed.color;
+      return normalizeCssColor(computed.color, doc);
     }
     if (bgClipFills && bgClipFills.length > 0) {
       const primaryStop = bgClipFills[0]?.stops?.[0]?.color || bgClipFills[0]?.color;
-      if (primaryStop) return primaryStop;
+      if (primaryStop) return normalizeCssColor(primaryStop, doc);
     }
-    return computed.color || 'rgba(0, 0, 0, 1)';
+    return normalizeCssColor(computed.color || 'rgba(0, 0, 0, 1)', doc);
   };
   const nodesStart = nowMs();
   try {
@@ -2751,7 +3118,7 @@ async function serializeSubtree(
     }
 
     const fills: Fill[] = [];
-    const bg = computed.backgroundColor;
+    const bg = normalizeCssColor(computed.backgroundColor, doc);
     if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
       fills.push({
         type: 'solid',
@@ -2805,15 +3172,16 @@ async function serializeSubtree(
       computed.backgroundImage,
       computed.backgroundSize,
       computed.backgroundPosition,
-      computed.backgroundRepeat
+      computed.backgroundRepeat,
+      doc
     );
     fills.push(...gradients);
 
 
-    const strokes = parseStrokes(computed);
+    const strokes = parseStrokes(computed, doc);
     const opacity = Math.max(0, Math.min(1, parseFloat(computed.opacity) || 1));
     const radius = parseCornerRadius(computed);
-    const shadows = parseBoxShadow(computed.boxShadow);
+    const shadows = parseBoxShadow(computed.boxShadow, doc);
     const overflows =
       el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
     const isClipped =

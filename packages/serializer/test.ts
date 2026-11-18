@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { CaptureSchema } from '@capture-kit/model';
-import { arrayBufferToBase64, doesFontFaceCover, parseBoxShadow, reconcileMissingFonts, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
+import { arrayBufferToBase64, doesFontFaceCover, extractSvgPaths, normalizeCssColor, parseBoxShadow, reconcileMissingFonts, serializeDocument, serializeElement, startElementPicker, transcodeForDestinations, triggerPageScroll, waitForImages } from './src/index.js';
 
 interface MockComputedStyle {
   display: string;
@@ -38,6 +38,7 @@ interface MockComputedStyle {
   content?: string;
   position?: string;
   top?: string;
+  bottom?: string;
   left?: string;
   width?: string;
   height?: string;
@@ -1487,12 +1488,138 @@ async function runAccuracyBeastTests() {
   console.log('✓ Box-shadow multi-layer, gradient text & inline mixed-style text tests passed');
 }
 
+async function runAccuracyBeastRound2Tests() {
+  // 1. Modern CSS color space normalization
+  {
+    const oklchRes = normalizeCssColor('oklch(0.65 0.22 260)');
+    assert.ok(/^rgba\(\d+, \d+, \d+, 1\)$/.test(oklchRes), `Expected rgba for oklch, got ${oklchRes}`);
+    const oklchPctAlpha = normalizeCssColor('oklch(65% 0.22 260deg / 0.5)');
+    assert.ok(/^rgba\(\d+, \d+, \d+, 0\.5\)$/.test(oklchPctAlpha), `Expected 0.5 alpha for oklch, got ${oklchPctAlpha}`);
+
+    const oklabRes = normalizeCssColor('oklab(0.6 -0.1 -0.1)');
+    assert.ok(/^rgba\(\d+, \d+, \d+, 1\)$/.test(oklabRes), `Expected rgba for oklab, got ${oklabRes}`);
+
+    assert.strictEqual(normalizeCssColor('hsl(120, 100%, 50%)'), 'rgba(0, 255, 0, 1)');
+    assert.strictEqual(normalizeCssColor('hsl(240 100% 50% / 50%)'), 'rgba(0, 0, 255, 0.5)');
+
+    assert.strictEqual(normalizeCssColor('color(display-p3 1 0 0)'), 'rgba(255, 0, 0, 1)');
+    const p3Alpha = normalizeCssColor('color(display-p3 0.5 0.5 0.5 / 0.8)');
+    assert.ok(/^rgba\(\d+, \d+, \d+, 0\.8\)$/.test(p3Alpha), `Expected 0.8 alpha for display-p3, got ${p3Alpha}`);
+
+    assert.strictEqual(normalizeCssColor('rgb(10 20 30 / 0.4)'), 'rgba(10, 20, 30, 0.4)');
+    assert.strictEqual(normalizeCssColor('transparent'), 'transparent');
+    assert.strictEqual(normalizeCssColor('#ff00aa'), '#ff00aa');
+
+    // Canvas fallback for color-mix(...)
+    const mockCanvasDoc = {
+      createElement: () => ({
+        width: 1,
+        height: 1,
+        getContext: () => ({
+          clearRect: () => {},
+          fillRect: () => {},
+          fillStyle: '',
+          getImageData: () => ({ data: new Uint8ClampedArray([128, 64, 192, 255]) }),
+        }),
+      }),
+    } as unknown as Document;
+    assert.strictEqual(
+      normalizeCssColor('color-mix(in srgb, red 50%, blue)', mockCanvasDoc),
+      'rgba(128, 64, 192, 1)'
+    );
+  }
+
+  // 2. Multi-stop SVG gradient preservation in extractSvgPaths
+  {
+    const { doc, body } = createMockDocument();
+    const svg = doc.createElement('svg');
+    const defs = doc.createElement('defs');
+    const grad = doc.createElement('linearGradient');
+    grad.setAttribute('id', 'logoGrad');
+    grad.setAttribute('x1', '0%');
+    grad.setAttribute('y1', '0%');
+    grad.setAttribute('x2', '100%');
+    grad.setAttribute('y2', '100%');
+
+    const stop1 = doc.createElement('stop');
+    stop1.setAttribute('offset', '0%');
+    stop1.setAttribute('stop-color', '#ff0000');
+    const stop2 = doc.createElement('stop');
+    stop2.setAttribute('offset', '50%');
+    stop2.setAttribute('stop-color', 'oklch(0.65 0.22 260)');
+    const stop3 = doc.createElement('stop');
+    stop3.setAttribute('offset', '100%');
+    stop3.setAttribute('stop-color', '#0000ff');
+    stop3.setAttribute('stop-opacity', '0.5');
+
+    grad.appendChild(stop1);
+    grad.appendChild(stop2);
+    grad.appendChild(stop3);
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    const pathEl = doc.createElement('path');
+    pathEl.setAttribute('d', 'M 0 0 L 24 24 Z');
+    pathEl.setAttribute('fill', 'url(#logoGrad)');
+    svg.appendChild(pathEl);
+    body.appendChild(svg);
+
+    const paths = extractSvgPaths(svg as unknown as Element);
+    assert.strictEqual(paths.length, 1);
+    assert.ok(paths[0].fillGradient, 'Expected fillGradient on SVG path');
+    assert.strictEqual(paths[0].fillGradient?.type, 'gradient');
+    assert.strictEqual(paths[0].fillGradient?.gradientType, 'linear');
+    assert.strictEqual(paths[0].fillGradient?.angle, 135);
+    assert.strictEqual(paths[0].fillGradient?.stops?.length, 3);
+    assert.strictEqual(paths[0].fillGradient?.stops?.[0].color, '#ff0000');
+    assert.strictEqual(paths[0].fillGradient?.stops?.[0].position, 0);
+    assert.ok(paths[0].fillGradient?.stops?.[1].color.startsWith('rgba('), 'Expected normalized oklch stop color');
+    assert.strictEqual(paths[0].fillGradient?.stops?.[1].position, 0.5);
+    assert.strictEqual(paths[0].fillGradient?.stops?.[2].color, 'rgba(0, 0, 255, 0.5)');
+    assert.strictEqual(paths[0].fillGradient?.stops?.[2].position, 1);
+    assert.strictEqual(paths[0].fill, '#ff0000');
+  }
+
+  // 3. ::before pseudo-element with background-image gradient and bottom inset
+  {
+    const { doc, body } = createMockDocument();
+    const card = doc.createElement('div');
+    card.rect = { left: 50, top: 100, width: 200, height: 80 };
+    card.pseudoOverrides = {
+      '::before': {
+        content: '""',
+        display: 'block',
+        position: 'absolute',
+        bottom: '0px',
+        left: '10px',
+        width: '100px',
+        height: '4px',
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        backgroundImage: 'linear-gradient(90deg, #ff0000 0%, #0000ff 100%)',
+      },
+    };
+    body.appendChild(card);
+
+    const capture = CaptureSchema.parse(await serializeDocument(doc as unknown as Document));
+    const pseudoRect = capture.nodes.find((n) => n.type === 'rect' && n.box.h === 4 && n.box.w === 100);
+    assert.ok(pseudoRect, 'Expected ::before gradient rect node to be emitted');
+    assert.strictEqual(pseudoRect.box.x, 60, '::before left inset should be parent.x + 10');
+    assert.strictEqual(pseudoRect.box.y, 176, '::before bottom: 0px should place rect at parent.y + parent.h - 4');
+    assert.strictEqual(pseudoRect.style.fills.length, 1);
+    assert.strictEqual(pseudoRect.style.fills[0].type, 'gradient');
+    assert.strictEqual(pseudoRect.style.fills[0].stops?.length, 2);
+  }
+
+  console.log('✓ Accuracy Beast Round 2 (colors, SVG gradients, ::before gradients & bottom inset) tests passed');
+}
+
 runSerializerAccuracyTests()
   .then(runReadinessTests)
   .then(runFontMatchingTests)
   .then(runFastModeImageEmbeddingTests)
   .then(runSpriteAndProPickerTests)
   .then(runAccuracyBeastTests)
+  .then(runAccuracyBeastRound2Tests)
   .catch((err) => {
     console.error('packages/serializer test failure:', err);
     process.exit(1);
