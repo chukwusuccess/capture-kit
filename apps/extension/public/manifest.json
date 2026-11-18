@@ -21,5 +21,21 @@
   "background": {
     "service_worker": "background.js",
     "type": "module"
+  },
+  "commands": {
+    "pick-element": {
+      "suggested_key": {
+        "default": "Alt+Shift+C",
+        "mac": "Alt+Shift+C"
+      },
+      "description": "Pick an element on the page and copy to Figma/Sketch"
+    },
+    "copy-page": {
+      "suggested_key": {
+        "default": "Alt+Shift+K",
+        "mac": "Alt+Shift+K"
+      },
+      "description": "Copy current page to Figma/Sketch clipboard"
+    }
   }
 }
