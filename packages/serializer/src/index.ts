@@ -4223,7 +4223,7 @@ async function serializeSubtree(
     });
   }
   let rasterMs = 0;
-  if (!opts?.fastMode && pendingRectCaptures.length > 0 && sendRuntimeMessage) {
+  if (pendingRectCaptures.length > 0 && sendRuntimeMessage) {
     const rasterStart = nowMs();
     try {
       const rem = Math.min(assetTimeoutMs * pendingRectCaptures.length, Math.max(1500, readinessDeadline - Date.now()));
@@ -4320,10 +4320,10 @@ async function serializeSubtree(
 function resolveFastModeOpts(opts?: SerializeOptions): SerializeOptions | undefined {
   return opts?.fastMode
     ? {
-        readinessBudgetMs: 3000,
-        assetTimeoutMs: 1200,
-        fontTimeoutMs: 50,
-        imageOptions: { timeoutMs: 300, totalTimeoutMs: 500 },
+        readinessBudgetMs: 4500,
+        assetTimeoutMs: 3000,
+        fontTimeoutMs: 1200,
+        imageOptions: { timeoutMs: 1500, totalTimeoutMs: 2500 },
         ...opts,
       }
     : opts;
