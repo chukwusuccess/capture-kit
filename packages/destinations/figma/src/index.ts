@@ -791,6 +791,47 @@ function captureLabel(capture: Capture): string {
   }
 }
 
+function formatColorHexLabel(color: string): string {
+  const c = color.trim();
+  const toHex = (r: number, g: number, b: number) =>
+    [r, g, b]
+      .map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+
+  const comma = c.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+  if (comma) {
+    const hex = toHex(Number(comma[1]), Number(comma[2]), Number(comma[3]));
+    const a = comma[4] !== undefined ? Math.max(0, Math.min(1, parseFloat(comma[4]))) : 1;
+    return a < 1 ? `#${hex} · ${Math.round(a * 100)}%` : `#${hex}`;
+  }
+
+  const space = c.match(/^rgba?\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/i);
+  if (space) {
+    const hex = toHex(Number(space[1]), Number(space[2]), Number(space[3]));
+    let a = 1;
+    if (space[4]) {
+      a = space[4].endsWith('%') ? parseFloat(space[4]) / 100 : parseFloat(space[4]);
+      a = Math.max(0, Math.min(1, a));
+    }
+    return a < 1 ? `#${hex} · ${Math.round(a * 100)}%` : `#${hex}`;
+  }
+
+  const hex6 = c.match(/^#([0-9a-f]{6})$/i);
+  if (hex6) return `#${hex6[1].toUpperCase()}`;
+
+  const hex3 = c.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+  if (hex3) return `#${(hex3[1] + hex3[1] + hex3[2] + hex3[2] + hex3[3] + hex3[3]).toUpperCase()}`;
+
+  const hex8 = c.match(/^#([0-9a-f]{6})([0-9a-f]{2})$/i);
+  if (hex8) {
+    const a = parseInt(hex8[2], 16) / 255;
+    return a < 1 ? `#${hex8[1].toUpperCase()} · ${Math.round(a * 100)}%` : `#${hex8[1].toUpperCase()}`;
+  }
+
+  return c.slice(0, 14);
+}
+
 function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: string; width: number; height: number } {
   const dsWidth = 640;
   const colorCounts = new Map<string, { count: number; role: string }>();
@@ -801,13 +842,25 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
     const prev = colorCounts.get(c);
     colorCounts.set(c, { count: (prev?.count ?? 0) + 1, role: prev?.role ?? role });
   };
+  type GradientStop = { color: string; position: number };
+  const gradientMap = new Map<string, GradientStop[]>();
   const typoMap = new Map<string, { family: string; size: number; weight: string | number; lh: string | number; sample: string }>();
   for (const cap of captures) {
     addColor(cap.frame.background, 'Canvas');
     for (const n of cap.nodes) {
       for (const f of n.style.fills) {
         if (f.type === 'solid') addColor(f.color, 'Surface');
-        if (f.type === 'gradient' && f.stops) for (const s of f.stops) addColor(s.color, 'Accent');
+        if (f.type === 'gradient' && f.stops && f.stops.length >= 2) {
+          for (const s of f.stops) addColor(s.color, 'Accent');
+          if (gradientMap.size < 6) {
+            const gradKey = f.stops
+              .map((s) => `${formatColorHexLabel(s.color)}@${Math.round(s.position * 100)}`)
+              .join('|');
+            if (!gradientMap.has(gradKey)) {
+              gradientMap.set(gradKey, f.stops);
+            }
+          }
+        }
       }
       for (const st of n.style.strokes ?? []) addColor(st.color, 'Border');
       if (n.type === 'text' && n.text) {
@@ -827,33 +880,59 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
     }
   }
   const topColors = [...colorCounts.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 12);
+  const topGradients = [...gradientMap.values()].slice(0, 6);
   const topTypo = [...typoMap.values()].sort((a, b) => b.size - a.size).slice(0, 8);
+
+  const dsDefs: string[] = [];
+  topGradients.forEach((stops, i) => {
+    const stopXml = stops
+      .map((s) => formatSvgStop(s.color, Math.round(s.position * 100)))
+      .join('\n');
+    dsDefs.push(`      <linearGradient id="ds-grad-${i}" x1="0%" y1="0%" x2="100%" y2="0%">\n${stopXml}\n      </linearGradient>`);
+  });
+
   const lines: string[] = [];
   let curY = 88;
   lines.push('    <text id="DS · Title" x="32" y="48" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f8fafc">Design System &amp; Brand Kit</text>');
   lines.push('    <text id="DS · Colors Heading" x="32" y="80" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">COLOR TOKENS</text>');
   curY = 96;
-  const toHexLabel = (raw: string): string => {
-    const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/i);
-    if (!m) return raw.slice(0, 12);
-    const hex = [m[1], m[2], m[3]].map((v) => Math.max(0, Math.min(255, Number(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
-    const a = m[4] !== undefined ? Math.round(parseFloat(m[4]) * 100) : 100;
-    return a < 100 ? `#${hex} ${a}%` : `#${hex}`;
-  };
   topColors.forEach(([color, meta], idx) => {
     const col = idx % 4;
     const row = Math.floor(idx / 4);
     const sx = 32 + col * 146;
-    const sy = curY + row * 84;
-    const hexLabel = toHexLabel(color);
+    const sy = curY + row * 94;
+    const hexLabel = formatColorHexLabel(color);
     lines.push(`    <g id="Swatch · ${escapeXml(hexLabel)}">`);
-    lines.push(`      <rect x="${sx}" y="${sy}" width="134" height="72" rx="8" ry="8" fill="#1e293b" stroke="#334155" stroke-width="1" />`);
-    lines.push(`      <rect x="${sx + 4}" y="${sy + 4}" width="126" height="40" rx="5" ry="5" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.12)" stroke-width="1" />`);
-    lines.push(`      <text x="${sx + 10}" y="${sy + 61}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="10" font-weight="600" fill="#e2e8f0">${escapeXml(hexLabel)}</text>`);
-    lines.push(`      <text x="${sx + 124}" y="${sy + 61}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#94a3b8">${escapeXml(meta.role)}</text>`);
+    lines.push(`      <rect x="${sx}" y="${sy}" width="134" height="82" rx="8" ry="8" fill="#1e293b" stroke="#334155" stroke-width="1" />`);
+    lines.push(`      <rect x="${sx + 4}" y="${sy + 4}" width="126" height="38" rx="5" ry="5" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.12)" stroke-width="1" />`);
+    lines.push(`      <text x="${sx + 10}" y="${sy + 57}" font-family="Roboto Mono, monospace" font-size="10.5" font-weight="600" fill="#f8fafc">${escapeXml(hexLabel)}</text>`);
+    lines.push(`      <text x="${sx + 10}" y="${sy + 72}" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#94a3b8">${escapeXml(meta.role)}</text>`);
+    lines.push(`      <text x="${sx + 124}" y="${sy + 72}" text-anchor="end" font-family="Roboto Mono, monospace" font-size="9" font-weight="500" fill="#64748b">${meta.count}×</text>`);
     lines.push('    </g>');
   });
-  curY += Math.ceil(topColors.length / 4) * 84 + 28;
+  curY += Math.ceil(topColors.length / 4) * 94 + 28;
+
+  if (topGradients.length > 0) {
+    lines.push(`    <text id="DS · Gradients Heading" x="32" y="${curY}" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">GRADIENTS</text>`);
+    curY += 16;
+    topGradients.forEach((stops, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const sx = 32 + col * 294;
+      const sy = curY + row * 84;
+      const startHex = formatColorHexLabel(stops[0].color);
+      const endHex = formatColorHexLabel(stops[stops.length - 1].color);
+      const stopLabel = `${startHex} → ${endHex}`;
+      lines.push(`    <g id="Gradient · ${escapeXml(stopLabel)}">`);
+      lines.push(`      <rect x="${sx}" y="${sy}" width="282" height="72" rx="8" ry="8" fill="#1e293b" stroke="#334155" stroke-width="1" />`);
+      lines.push(`      <rect x="${sx + 6}" y="${sy + 6}" width="270" height="36" rx="18" ry="18" fill="url(#ds-grad-${i})" stroke="rgba(255,255,255,0.12)" stroke-width="1" />`);
+      lines.push(`      <text x="${sx + 10}" y="${sy + 59}" font-family="Roboto Mono, monospace" font-size="10" font-weight="600" fill="#e2e8f0">${escapeXml(stopLabel)}</text>`);
+      lines.push(`      <text x="${sx + 272}" y="${sy + 59}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#94a3b8">${stops.length} stops</text>`);
+      lines.push('    </g>');
+    });
+    curY += Math.ceil(topGradients.length / 2) * 84 + 28;
+  }
+
   lines.push(`    <text id="DS · Typography Heading" x="32" y="${curY}" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="0.8" fill="#94a3b8">TYPOGRAPHY SCALE</text>`);
   curY += 20;
   for (const t of topTypo) {
@@ -861,16 +940,19 @@ function buildDesignSystemFrame(captures: Capture[], offsetX: number): { svg: st
     const rowH = dispSize + 28;
     const maxChars = Math.max(10, Math.floor(330 / (dispSize * 0.58)));
     const sampleStr = t.sample.length > maxChars ? `${t.sample.slice(0, maxChars - 1).trimEnd()}…` : t.sample;
+    const resolvedFont = cleanSvgFontFamily(t.family);
     lines.push(`    <g id="Type · ${t.size}px ${escapeXml(String(t.weight))}">`);
     lines.push(`      <rect x="32" y="${curY}" width="576" height="${rowH}" rx="8" ry="8" fill="#111827" stroke="#1f2937" stroke-width="1" />`);
-    lines.push(`      <text x="48" y="${Math.round(curY + rowH / 2 + 4)}" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" font-weight="500" fill="#94a3b8">${escapeXml(t.family.slice(0, 12))} · ${t.size}px · w${escapeXml(String(t.weight))}</text>`);
-    lines.push(`      <text x="240" y="${Math.round(curY + rowH / 2 + dispSize * 0.33)}" font-family="${escapeXml(t.family)}, system-ui, sans-serif" font-size="${dispSize}" font-weight="${escapeXml(String(t.weight))}" fill="#f8fafc">${escapeXml(sampleStr)}</text>`);
+    lines.push(`      <text x="48" y="${Math.round(curY + rowH / 2 + 4)}" font-family="Roboto Mono, monospace" font-size="11" font-weight="500" fill="#94a3b8">${escapeXml(t.family.slice(0, 12))} · ${t.size}px · w${escapeXml(String(t.weight))}</text>`);
+    lines.push(`      <text x="240" y="${Math.round(curY + rowH / 2 + dispSize * 0.33)}" font-family="${escapeXml(resolvedFont)}" font-size="${dispSize}" font-weight="${escapeXml(String(t.weight))}" fill="#f8fafc">${escapeXml(sampleStr)}</text>`);
     lines.push('    </g>');
     curY += rowH + 10;
   }
   const dsHeight = Math.max(420, curY + 24);
+  const defsBlock = dsDefs.length > 0 ? [`    <defs>`, ...dsDefs, '    </defs>'] : [];
   const svg = [
     `  <g id="Design System" transform="translate(${offsetX} 0)">`,
+    ...defsBlock,
     `    <rect id="DS · Background" x="0" y="0" width="${dsWidth}" height="${dsHeight}" rx="16" ry="16" fill="#0b0f19" stroke="#1e293b" stroke-width="1" />`,
     ...lines,
     '  </g>',
