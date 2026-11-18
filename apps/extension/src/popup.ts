@@ -346,8 +346,13 @@ function saveSettings(): void {
 
 async function loadSettings(): Promise<void> {
   if (!chrome.storage?.local) return;
-  const data = await chrome.storage.local.get(['scrollStitch', 'designSystem', 'dualTheme', 'delay3s', 'format', 'sizes']);
-  if (typeof data.scrollStitch === 'boolean' && optScrollStitch) optScrollStitch.checked = data.scrollStitch;
+  const data = await chrome.storage.local.get(['scrollStitch', 'designSystem', 'dualTheme', 'delay3s', 'format', 'sizes', 'v023ScrollDefault']);
+  if (!data.v023ScrollDefault) {
+    if (optScrollStitch) optScrollStitch.checked = true;
+    await chrome.storage.local.set({ v023ScrollDefault: true, scrollStitch: true });
+  } else if (typeof data.scrollStitch === 'boolean' && optScrollStitch) {
+    optScrollStitch.checked = data.scrollStitch;
+  }
   if (typeof data.designSystem === 'boolean' && optDesignSystem) optDesignSystem.checked = data.designSystem;
   if (typeof data.dualTheme === 'boolean' && optDualTheme) optDualTheme.checked = data.dualTheme;
   if (typeof data.delay3s === 'boolean' && optDelay3s) optDelay3s.checked = data.delay3s;
