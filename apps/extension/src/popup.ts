@@ -64,6 +64,7 @@ const sizesTally = $('#sizes-tally');
 const optScrollStitch = $<HTMLInputElement>('#opt-scroll-stitch');
 const optDesignSystem = $<HTMLInputElement>('#opt-design-system');
 const optDualTheme = $<HTMLInputElement>('#opt-dual-theme');
+const optDelay3s = $<HTMLInputElement>('#opt-delay-3s');
 const nativeHelp = $('#native-help');
 const progressWrap = $('#progress-wrap');
 const progressFill = $('#progress-fill');
@@ -277,6 +278,7 @@ function saveSettings(): void {
     scrollStitch: optScrollStitch?.checked ?? false,
     designSystem: optDesignSystem?.checked ?? false,
     dualTheme: optDualTheme?.checked ?? false,
+    delay3s: optDelay3s?.checked ?? false,
     format: getFormat(),
     sizes: pickedSizes(),
   });
@@ -284,10 +286,11 @@ function saveSettings(): void {
 
 async function loadSettings(): Promise<void> {
   if (!chrome.storage?.local) return;
-  const data = await chrome.storage.local.get(['scrollStitch', 'designSystem', 'dualTheme', 'format', 'sizes']);
+  const data = await chrome.storage.local.get(['scrollStitch', 'designSystem', 'dualTheme', 'delay3s', 'format', 'sizes']);
   if (typeof data.scrollStitch === 'boolean' && optScrollStitch) optScrollStitch.checked = data.scrollStitch;
   if (typeof data.designSystem === 'boolean' && optDesignSystem) optDesignSystem.checked = data.designSystem;
   if (typeof data.dualTheme === 'boolean' && optDualTheme) optDualTheme.checked = data.dualTheme;
+  if (typeof data.delay3s === 'boolean' && optDelay3s) optDelay3s.checked = data.delay3s;
   const savedFormat = data.format === 'figma-native' ? 'figma' : data.format;
   const radio = formatRadios.find((r) => r.value === savedFormat);
   if (radio) radio.checked = true;
@@ -935,7 +938,13 @@ async function captureCurrentTabDirect(widths: number[]): Promise<boolean> {
   if (!currentTabId || !chrome.scripting?.executeScript) return false;
   runBusy = true;
   updateCaptureButton();
-  setStatus(`Capturing ${plural(widths.length, 'viewport')}…`, 'busy');
+  const delaySeconds = document.querySelector<HTMLInputElement>('#opt-delay-3s')?.checked ? 3 : 0;
+  setStatus(
+    delaySeconds > 0
+      ? `Capturing in ${delaySeconds}s — open menus or hover states on the page…`
+      : `Capturing ${plural(widths.length, 'viewport')}…`,
+    'busy'
+  );
   try {
     await chrome.scripting.executeScript({
       target: { tabId: currentTabId },
@@ -944,14 +953,19 @@ async function captureCurrentTabDirect(widths: number[]): Promise<boolean> {
     const scrollStitch = optScrollStitch?.checked ?? false;
     const [res] = await chrome.scripting.executeScript<unknown[]>({
       target: { tabId: currentTabId },
-      args: [widths, scrollStitch],
+      args: [widths, scrollStitch, delaySeconds],
       func: async (...args: unknown[]) => {
         const ws = Array.isArray(args[0]) ? (args[0] as number[]) : [1280];
         const stitch = Boolean(args[1]);
+        const delay = typeof args[2] === 'number' ? args[2] : 0;
         const w = window as unknown as {
+          __captureKitCountdown?: (seconds?: number) => Promise<void>;
           __captureKitSerializeWidths?: (widths: number[], opts?: unknown) => Promise<unknown[]>;
           __captureKitSerialize?: (opts?: unknown) => Promise<unknown>;
         };
+        if (delay > 0) {
+          await w.__captureKitCountdown?.(delay);
+        }
         if (typeof w.__captureKitSerializeWidths === 'function') {
           return await w.__captureKitSerializeWidths(ws, { fastMode: true, scrollStitch: stitch });
         }
@@ -968,6 +982,15 @@ async function captureCurrentTabDirect(widths: number[]): Promise<boolean> {
     const format = getFormat();
     const includeDesignSystem = optDesignSystem?.checked ?? false;
     const output = await exportCaptures(captures, format, includeDesignSystem);
+    await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      func: () => {
+        const w = window as unknown as {
+          __captureKitToast?: (text: string, isError?: boolean) => void;
+        };
+        w.__captureKitToast?.('✓ Copied to clipboard — press Cmd+V!');
+      },
+    }).catch(() => undefined);
     if (figmaBtn) figmaBtn.hidden = false;
     setStatus(output, 'ok');
     setSessionFeedback(output);
@@ -1109,6 +1132,7 @@ chrome.storage?.onChanged?.addListener((changes, areaName) => {
 optScrollStitch?.addEventListener('change', saveSettings);
 optDesignSystem?.addEventListener('change', saveSettings);
 optDualTheme?.addEventListener('change', saveSettings);
+optDelay3s?.addEventListener('change', saveSettings);
 
 void refreshSessions().catch((error: unknown) => {
   const text = error instanceof Error ? error.message : String(error);

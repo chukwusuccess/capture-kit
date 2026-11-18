@@ -16,6 +16,9 @@ interface WindowWithCaptureKit {
   __captureKitSerializeWidths?: (widths: number[], opts?: SerializeOptions) => Promise<unknown[]>;
   __captureKitPickElement?: () => Promise<unknown>;
   __captureKitPickAndCopy?: (opts?: { format?: string; includeDesignSystem?: boolean }) => Promise<unknown>;
+  __captureKitCopyPageDirect?: (opts?: { format?: string; includeDesignSystem?: boolean }) => Promise<void>;
+  __captureKitCountdown?: (seconds?: number) => Promise<void>;
+  __captureKitToast?: (text: string, isError?: boolean) => void;
   __captureKitCancelPick?: () => void;
   __captureKitReplica?: () => Promise<string>;
 }
@@ -212,6 +215,30 @@ function showPageToast(text: string, isError = false): void {
   }, 3200);
 }
 
+customWindow.__captureKitToast = showPageToast;
+
+customWindow.__captureKitCountdown = async (seconds = 3): Promise<void> => {
+  const total = Math.max(0, Math.floor(seconds));
+  if (total === 0) return;
+  for (let remaining = total; remaining >= 1; remaining--) {
+    const msg =
+      remaining === total
+        ? `Capturing in ${remaining}s — open your menu or hover state now…`
+        : `Capturing in ${remaining}s…`;
+    showPageToast(msg);
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+  }
+  document.getElementById('__capture_kit_toast')?.remove();
+  if (toastHideTimer !== undefined) {
+    clearTimeout(toastHideTimer);
+    toastHideTimer = undefined;
+  }
+  if (toastRemoveTimer !== undefined) {
+    clearTimeout(toastRemoveTimer);
+    toastRemoveTimer = undefined;
+  }
+};
+
 async function copyTextInPage(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
@@ -230,27 +257,30 @@ async function copyTextInPage(text: string): Promise<void> {
   }
 }
 
-function formatCaptureOutput(
-  capture: Awaited<ReturnType<typeof serializeElement>>,
+type SerializedCapture = Awaited<ReturnType<typeof serializeElement>>;
+
+function formatCapturesOutput(
+  captures: SerializedCapture[],
   format: string,
-  includeDesignSystem?: boolean
+  includeDesignSystem?: boolean,
+  single = false
 ): string {
   switch (format) {
     case 'figma':
     case 'figma-native':
     case 'sketch':
-      return modelToFigma([capture], { includeDesignSystem }).svg;
+      return modelToFigma(captures, { includeDesignSystem }).svg;
     case 'react':
-      return modelToReact(capture);
+      return captures.map((c) => modelToReact(c)).join('\n\n');
     case 'md':
-      return modelToMarkdown(capture);
+      return captures.map((c) => modelToMarkdown(c)).join('\n\n---\n\n');
     case 'svg':
-      return modelToSvg(capture);
+      return single && captures.length === 1 ? modelToSvg(captures[0]) : modelToFigma(captures).svg;
     case 'html':
-      return modelToHtml(capture);
+      return captures.map((c) => modelToHtml(c)).join('\n\n');
     case 'json':
     default:
-      return JSON.stringify(capture, null, 2);
+      return JSON.stringify(single && captures.length === 1 ? captures[0] : captures, null, 2);
   }
 }
 
@@ -295,14 +325,16 @@ customWindow.__captureKitPickAndCopy = async (opts?: {
     reject(new Error('Element selection cancelled'));
   };
 
-  showPageToast('Click any element on the page to copy it (Esc to cancel)');
-  cleanup = startElementPicker(document, {
+  showPageToast('Click to copy · ↑/↓ parent/child · Shift+Click multi-select · Esc cancel');
+  const pickerOpts: Parameters<typeof startElementPicker>[1] & {
+    onMultiSelect?: (els: Element[]) => void;
+  } = {
     onSelect: async (el: Element) => {
       if (cancelPick === cancel) cancelPick = undefined;
       try {
         const capture = await serializeElement(el, { fastMode: true });
         const format = opts?.format ?? 'figma';
-        const output = formatCaptureOutput(capture, format, opts?.includeDesignSystem);
+        const output = formatCapturesOutput([capture], format, opts?.includeDesignSystem, true);
         await copyTextInPage(output);
         const copiedMsg =
           format === 'figma' || format === 'sketch' || format === 'figma-native'
@@ -316,13 +348,55 @@ customWindow.__captureKitPickAndCopy = async (opts?: {
         reject(err);
       }
     },
+    onMultiSelect: async (els: Element[]) => {
+      if (cancelPick === cancel) cancelPick = undefined;
+      try {
+        const captures = await Promise.all(els.map((el) => serializeElement(el, { fastMode: true })));
+        const format = opts?.format ?? 'figma';
+        const output = formatCapturesOutput(captures, format, opts?.includeDesignSystem, false);
+        await copyTextInPage(output);
+        const copiedMsg =
+          format === 'figma' || format === 'sketch' || format === 'figma-native'
+            ? `✓ Copied ${captures.length} elements — press Cmd+V in Figma or Sketch!`
+            : `✓ Copied ${captures.length} elements (${format.toUpperCase()}) — ready to paste!`;
+        showPageToast(copiedMsg);
+        resolve(captures);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showPageToast(`Failed to copy elements: ${msg}`, true);
+        reject(err);
+      }
+    },
     onCancel: () => {
       if (cancelPick === cancel) cancelPick = undefined;
       showPageToast('Element selection cancelled');
       reject(new Error('Element selection cancelled'));
     },
-  });
+  };
+  cleanup = startElementPicker(document, pickerOpts);
   cancelPick = cancel;
   return promise;
+};
+
+customWindow.__captureKitCopyPageDirect = async (opts?: {
+  format?: string;
+  includeDesignSystem?: boolean;
+}): Promise<void> => {
+  showPageToast('Copying page…');
+  try {
+    const cap = await serializeDocument(document, { fastMode: true });
+    const format = opts?.format ?? 'figma';
+    const output = formatCapturesOutput([cap], format, opts?.includeDesignSystem, true);
+    await copyTextInPage(output);
+    const copiedMsg =
+      format === 'figma' || format === 'sketch' || format === 'figma-native'
+        ? '✓ Copied page — press Cmd+V in Figma or Sketch!'
+        : `✓ Copied page (${format.toUpperCase()}) — ready to paste!`;
+    showPageToast(copiedMsg);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    showPageToast(`Failed to copy page: ${msg}`, true);
+    throw err;
+  }
 };
 
