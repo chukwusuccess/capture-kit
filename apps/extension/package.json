@@ -1,0 +1,19 @@
+{
+  "name": "@capture-kit/extension",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch & vite build --config vite.content.config.ts --watch",
+    "build": "tsc --noEmit && vite build && vite build --config vite.content.config.ts"
+  },
+  "dependencies": {
+    "@capture-kit/model": "workspace:*",
+    "@capture-kit/serializer": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "vite": "^6.0.5"
+  }
+}

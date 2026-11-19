@@ -1,0 +1,20 @@
+{
+  "name": "@capture-kit/playground",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@capture-kit/dest-sketch": "workspace:*",
+    "@capture-kit/dest-svg": "workspace:*",
+    "@capture-kit/model": "workspace:*",
+    "@capture-kit/serializer": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.5"
+  }
+}

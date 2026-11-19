@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "capture-kit",
+  "version": "0.1.0",
+  "description": "Capture any website into a neutral model; export to Sketch, SVG, HTML.",
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "capture-kit"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
