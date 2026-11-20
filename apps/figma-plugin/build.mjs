@@ -20,7 +20,6 @@ await build({
       formats: ['iife'],
       fileName: () => 'code.js',
     },
-    rollupOptions: { output: { inlineDynamicImports: true } },
   },
 });
 await mkdir(new URL('./dist/', import.meta.url), { recursive: true });

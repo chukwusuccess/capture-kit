@@ -9,7 +9,7 @@ export default defineConfig({
     emptyOutDir: false,
     target: 'esnext',
     lib: {
-      entry: resolve(__dirname, 'src/content.ts'),
+      entry: resolve(import.meta.dirname, 'src/content.ts'),
       name: 'CaptureKitContent',
       formats: ['iife'],
       fileName: () => 'content.js',

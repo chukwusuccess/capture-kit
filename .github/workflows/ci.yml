@@ -56,6 +56,12 @@ jobs:
       - name: Run visual accuracy diff harness
         run: pnpm test:diff
 
+      - name: Run extension tests
+        run: pnpm test:extension
+
+      - name: Run fidelity CLI tests
+        run: pnpm test:fidelity:cli
+
       - name: Package Chrome extension
         run: pnpm package:extension
 
@@ -65,3 +71,37 @@ jobs:
           name: capture-kit-extension
           path: dist/capture-kit-extension.zip
           retention-days: 14
+
+  fidelity:
+    name: Browser Fidelity Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages and apps
+        run: pnpm -r build
+
+      - name: Install Chromium
+        run: pnpm exec playwright-core install --with-deps chromium
+
+      - name: Run fidelity tests
+        run: pnpm test:fidelity
+
+      - name: Run fidelity suite
+        run: pnpm fidelity:suite --min=88
