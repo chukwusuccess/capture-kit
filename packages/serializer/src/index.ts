@@ -3377,9 +3377,11 @@ async function serializeSubtree(
                if (rules.length > 0) childStyles.push(`.${cls}{${rules.join(';')}}`);
              });
              if (childStyles.length > 0) {
-               svgString = new XMLSerializer()
-                 .serializeToString(el)
-                 .replace('>', `><style>${childStyles.join('')}</style>`);
+               const serialized = new XMLSerializer().serializeToString(el);
+               const closeIdx = serialized.indexOf('>');
+               svgString = closeIdx >= 0
+                 ? `${serialized.slice(0, closeIdx + 1)}<style>${childStyles.join('')}</style>${serialized.slice(closeIdx + 1)}`
+                 : serialized;
              }
            }
           const base64 = btoa(unescape(encodeURIComponent(svgString)));
