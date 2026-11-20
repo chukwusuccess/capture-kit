@@ -751,9 +751,13 @@ function decodeBase64Utf8(base64: string): string {
 }
 
 function parseSvgToVectorNode(node: Node, svgText: string): Node | null {
+  const attrRe = /\b([a-zA-Z_:][\w:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
   const attr = (tag: string, name: string): string | undefined => {
-    const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i'));
-    return m ? m[1] : undefined;
+    const target = name.toLowerCase();
+    for (const m of tag.matchAll(attrRe)) {
+      if (m[1].toLowerCase() === target) return m[2] ?? m[3];
+    }
+    return undefined;
   };
   const vbMatch = svgText.match(/\bviewBox\s*=\s*["']\s*([\d.-]+)[,\s]+([\d.-]+)[,\s]+([\d.-]+)[,\s]+([\d.-]+)\s*["']/i);
   const svgOpen = svgText.match(/<svg\b[^>]*>/i)?.[0] || '';
