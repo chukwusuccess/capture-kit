@@ -1882,20 +1882,18 @@ export function extractSvgPaths(
     }
 
     if (d) {
-      let fill =
+      let fill: string | undefined =
         findAttrWithin(child, 'fill', svgEl) ??
         (!opts?.allowDefsAncestor && typeof child.closest === 'function'
-          ? child.closest('[fill]')?.getAttribute('fill') ?? undefined
+          ? child.closest('[fill]')?.getAttribute('fill') || undefined
           : undefined) ??
-        opts?.inheritFrom?.map((h) => h.getAttribute?.('fill')).find(Boolean) ??
-        undefined;
-      let stroke =
+        (opts?.inheritFrom?.map((h) => h.getAttribute?.('fill')).find(Boolean) || undefined);
+      let stroke: string | undefined =
         findAttrWithin(child, 'stroke', svgEl) ??
         (!opts?.allowDefsAncestor && typeof child.closest === 'function'
-          ? child.closest('[stroke]')?.getAttribute('stroke') ?? undefined
+          ? child.closest('[stroke]')?.getAttribute('stroke') || undefined
           : undefined) ??
-        opts?.inheritFrom?.map((h) => h.getAttribute?.('stroke')).find(Boolean) ??
-        undefined;
+        (opts?.inheritFrom?.map((h) => h.getAttribute?.('stroke')).find(Boolean) || undefined);
       let fillGradient: Fill | undefined;
       if (fill && fill.startsWith('url(')) {
         const gId = fill.match(/#([^)\s"']+)/)?.[1];
