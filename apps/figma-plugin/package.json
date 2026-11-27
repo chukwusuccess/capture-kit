@@ -11,7 +11,7 @@
     "@capture-kit/model": "workspace:*"
   },
   "devDependencies": {
-    "@figma/plugin-typings": "1.142.0",
+    "@figma/plugin-typings": "1.143.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   }
